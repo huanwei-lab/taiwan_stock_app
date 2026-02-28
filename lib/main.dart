@@ -1506,6 +1506,7 @@ class _StockListPageState extends State<StockListPage> {
       'news_template_apply' => '事件模板套用',
       'news_template_restore' => '事件模板還原',
       'auto_mode_rotation' => '自動模式切換',
+      'auto_tune_suggestion_apply' => '命中率自動調參',
       _ => source,
     };
   }
@@ -1814,6 +1815,244 @@ class _StockListPageState extends State<StockListPage> {
     return '最近7天命中摘要：強勢訊號 ${countBy(_EntrySignalType.strong)} 筆（1D 勝率 ${winRateText(strong1.win, strong1.total)} / 平均 ${strong1.avg.toStringAsFixed(2)}%）'
         '｜觀察訊號 ${countBy(_EntrySignalType.watch)} 筆（1D 勝率 ${winRateText(watch1.win, watch1.total)} / 平均 ${watch1.avg.toStringAsFixed(2)}%）'
         '｜平均每日候選 ${avgPredPerDay.toStringAsFixed(1)} 檔';
+  }
+
+  List<_AutoTuneSuggestion> _buildAutoTuneSuggestions({
+    int lookbackDays = 30,
+  }) {
+    final now = DateTime.now();
+    final start = now.subtract(Duration(days: lookbackDays));
+    final signalRows = _signalTrackEntries
+        .where((entry) => !entry.date.isBefore(start))
+        .toList();
+    final predictionDays = _dailyPredictionArchive
+        .where((entry) {
+          final date = DateTime.tryParse(entry.dateKey);
+          if (date == null) {
+            return false;
+          }
+          return !date.isBefore(start);
+        })
+        .toList();
+
+    List<double> returnsOf(_EntrySignalType type) {
+      return signalRows
+          .where((entry) => entry.signalType == type)
+          .map((entry) => entry.return1Day)
+          .whereType<double>()
+          .toList();
+    }
+
+    double avgOf(List<double> values) {
+      if (values.isEmpty) {
+        return 0;
+      }
+      return values.fold<double>(0, (sum, value) => sum + value) /
+          values.length;
+    }
+
+    double winRateOf(List<double> values) {
+      if (values.isEmpty) {
+        return 0;
+      }
+      final wins = values.where((value) => value > 0).length;
+      return (wins * 100) / values.length;
+    }
+
+    final strong = returnsOf(_EntrySignalType.strong);
+    final watch = returnsOf(_EntrySignalType.watch);
+    final strongAvg = avgOf(strong);
+    final watchAvg = avgOf(watch);
+    final strongWinRate = winRateOf(strong);
+    final watchWinRate = winRateOf(watch);
+    final avgCandidatesPerDay = predictionDays.isEmpty
+        ? 0.0
+        : predictionDays
+                .map((entry) => entry.rows.length)
+                .fold<int>(0, (sum, value) => sum + value) /
+            predictionDays.length;
+
+    final suggestions = <_AutoTuneSuggestion>[];
+
+    void addSuggestion(_AutoTuneSuggestion suggestion) {
+      final duplicated = suggestions.any((item) =>
+          item.minScore == suggestion.minScore &&
+          item.maxChaseChangePercent == suggestion.maxChaseChangePercent &&
+          item.minTradeValue == suggestion.minTradeValue);
+      if (!duplicated) {
+        suggestions.add(suggestion);
+      }
+    }
+
+    if ((strong.length + watch.length) < 12 || predictionDays.length < 5) {
+      addSuggestion(
+        _AutoTuneSuggestion(
+          id: 'conservative_bootstrap',
+          title: '樣本不足：先用保守微調',
+          summary:
+              '近30天樣本仍偏少，先提高分數與成交值，避免過早放寬導致雜訊增加。',
+          minScore: (_minScoreThreshold + 2).clamp(40, 90),
+          maxChaseChangePercent: (_maxChaseChangePercent - 1).clamp(3, 12),
+          minTradeValue:
+              (_minTradeValueThreshold * 1.1).round().clamp(_minTradeValue, _maxTradeValue),
+        ),
+      );
+      addSuggestion(
+        _AutoTuneSuggestion(
+          id: 'balanced_bootstrap',
+          title: '樣本不足：維持平衡',
+          summary: '維持現行門檻，先累積更多 outcomes 再做進一步自動調參。',
+          minScore: _minScoreThreshold,
+          maxChaseChangePercent: _maxChaseChangePercent,
+          minTradeValue: _minTradeValueThreshold,
+        ),
+      );
+      return suggestions;
+    }
+
+    final needTighten =
+        avgCandidatesPerDay > 16 || watchWinRate < 42 || (strongAvg < 0 && watchAvg < 0);
+    if (needTighten) {
+      addSuggestion(
+        _AutoTuneSuggestion(
+          id: 'tighten_noise',
+          title: '降雜訊（偏保守）',
+          summary:
+              '候選數偏多或 1D 勝率偏低，建議提高分數/成交值並降低追高上限。',
+          minScore: (_minScoreThreshold + 3).clamp(40, 90),
+          maxChaseChangePercent: (_maxChaseChangePercent - 1).clamp(3, 12),
+          minTradeValue:
+              (_minTradeValueThreshold * 1.15).round().clamp(_minTradeValue, _maxTradeValue),
+        ),
+      );
+    }
+
+    final canLoosen =
+        avgCandidatesPerDay < 9 && strongWinRate >= 55 && strongAvg > 0.4;
+    if (canLoosen) {
+      addSuggestion(
+        _AutoTuneSuggestion(
+          id: 'capture_more',
+          title: '提覆蓋（偏積極）',
+          summary:
+              '候選數偏少且強勢表現穩定，可微放寬門檻提升「前一天抓到」覆蓋率。',
+          minScore: (_minScoreThreshold - 2).clamp(35, 90),
+          maxChaseChangePercent: (_maxChaseChangePercent + 1).clamp(3, 12),
+          minTradeValue:
+              (_minTradeValueThreshold * 0.9).round().clamp(_minTradeValue, _maxTradeValue),
+        ),
+      );
+    }
+
+    addSuggestion(
+      _AutoTuneSuggestion(
+        id: 'balanced_default',
+        title: '平衡微調（預設）',
+        summary:
+            '在覆蓋率與勝率間折衷，適合先做一週觀察再決定是否改為更保守/積極。',
+        minScore: (_minScoreThreshold + (needTighten ? 2 : 0) - (canLoosen ? 1 : 0))
+            .clamp(35, 90),
+        maxChaseChangePercent:
+            (_maxChaseChangePercent - (needTighten ? 1 : 0)).clamp(3, 12),
+        minTradeValue: (_minTradeValueThreshold * (needTighten ? 1.1 : 1.0))
+            .round()
+            .clamp(_minTradeValue, _maxTradeValue),
+      ),
+    );
+
+    return suggestions.take(3).toList();
+  }
+
+  Future<void> _applyAutoTuneSuggestion(_AutoTuneSuggestion suggestion) async {
+    if (_lockSelectionParameters) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已鎖定選股參數，無法套用自動調參建議')),
+        );
+      }
+      return;
+    }
+
+    final prevMinScore = _minScoreThreshold;
+    final prevMaxChase = _maxChaseChangePercent;
+    final prevMinTradeValue = _minTradeValueThreshold;
+
+    setState(() {
+      _enableStrategyFilter = true;
+      _enableScoring = true;
+      _excludeOverheated = true;
+      _minScoreThreshold = suggestion.minScore;
+      _maxChaseChangePercent = suggestion.maxChaseChangePercent;
+      _minTradeValueThreshold = suggestion.minTradeValue;
+      if (!_enableScoring) {
+        _showStrongOnly = false;
+      }
+    });
+    await _savePreferencesTagged('auto_tune_suggestion_apply');
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '已套用「${suggestion.title}」：分數 $prevMinScore→$_minScoreThreshold、追高 $prevMaxChase%→$_maxChaseChangePercent%、成交值 ${_formatWithThousandsSeparator(prevMinTradeValue)}→${_formatWithThousandsSeparator(_minTradeValueThreshold)}',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openAutoTuneSuggestionDialog() async {
+    final suggestions = _buildAutoTuneSuggestions(lookbackDays: 30);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('命中率自動調參建議（最近 30 天）'),
+          content: SizedBox(
+            width: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _buildWeeklyHitRateSummaryText(),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 10),
+                ...suggestions.map(
+                  (item) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      title: Text(item.title),
+                      subtitle: Text(
+                        '${item.summary}\n分數 >= ${item.minScore}｜追高 <= ${item.maxChaseChangePercent}%｜成交值 >= ${_formatWithThousandsSeparator(item.minTradeValue)}',
+                      ),
+                      isThreeLine: true,
+                      trailing: FilledButton.tonal(
+                        onPressed: () async {
+                          await _applyAutoTuneSuggestion(item);
+                          if (mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        },
+                        child: const Text('套用'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('關閉'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _openAnalyticsExportDialog() async {
@@ -6658,6 +6897,36 @@ class _StockListPageState extends State<StockListPage> {
     return minutes < (9 * 60 + 30);
   }
 
+  bool _isTradingSessionTime([DateTime? value]) {
+    final now = value ?? DateTime.now();
+    if (now.weekday == DateTime.saturday || now.weekday == DateTime.sunday) {
+      return false;
+    }
+    final minutes = now.hour * 60 + now.minute;
+    return minutes >= (9 * 60) && minutes <= (13 * 60 + 30);
+  }
+
+  double _tradingSessionProgressRatio([DateTime? value]) {
+    final now = value ?? DateTime.now();
+    final minutes = now.hour * 60 + now.minute;
+    final open = 9 * 60;
+    final close = 13 * 60 + 30;
+    final total = (close - open).toDouble();
+    final elapsed = (minutes - open).clamp(0, close - open).toDouble();
+    final ratio = total <= 0 ? 1.0 : (elapsed / total);
+    return ratio.clamp(0.2, 1.0);
+  }
+
+  int _normalizedTradeValueForFilter(int tradeValue, {DateTime? now}) {
+    if (!_isTradingSessionTime(now)) {
+      return tradeValue;
+    }
+    final progress = _tradingSessionProgressRatio(now);
+    final estimated = (tradeValue / progress).round();
+    final cap = tradeValue * 5;
+    return estimated > cap ? cap : estimated;
+  }
+
   _MarketTimingStatus _buildMarketTimingStatus() {
     final now = DateTime.now();
     final minutes = now.hour * 60 + now.minute;
@@ -6709,7 +6978,8 @@ class _StockListPageState extends State<StockListPage> {
       );
     }
 
-    if (stock.tradeValue < _minTradeValueThreshold) {
+    if (_normalizedTradeValueForFilter(stock.tradeValue) <
+        _minTradeValueThreshold) {
       return const _PremarketRisk(
         label: '量能偏弱',
         type: _PremarketRiskType.medium,
@@ -6741,7 +7011,8 @@ class _StockListPageState extends State<StockListPage> {
       return true;
     }
     final hotMove = stock.change >= (_maxChaseChangePercent - 1);
-    final weakLiquidity = stock.tradeValue < (_minTradeValueThreshold * 1.1);
+    final weakLiquidity = _normalizedTradeValueForFilter(stock.tradeValue) <
+      (_minTradeValueThreshold * 1.1);
     return hotMove && weakLiquidity;
   }
 
@@ -6784,7 +7055,9 @@ class _StockListPageState extends State<StockListPage> {
     final passChange = stock.change >= 1.5;
     final passScore =
         score >= (_effectiveMinScoreThreshold(stock) + 3).clamp(0, 100);
-    final passTradeValue = stock.tradeValue >= _minTradeValueThreshold;
+    final passTradeValue =
+      _normalizedTradeValueForFilter(stock.tradeValue) >=
+        _minTradeValueThreshold;
     return passVolume && passChange && passScore && passTradeValue;
   }
 
@@ -7620,7 +7893,13 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     final candidates = List<StockModel>.from(stocks)
-      ..sort((a, b) => b.tradeValue.compareTo(a.tradeValue));
+      ..sort(
+        (a, b) => _normalizedTradeValueForFilter(
+          b.tradeValue,
+        ).compareTo(
+          _normalizedTradeValueForFilter(a.tradeValue),
+        ),
+      );
     final targets = candidates.take(3).toList();
 
     final scoreByParam = <String, List<double>>{};
@@ -8860,7 +9139,8 @@ class _StockListPageState extends State<StockListPage> {
                 markDrop(stock, '量能不足');
                 continue;
               }
-              if (stock.tradeValue < _minTradeValueThreshold) {
+              if (_normalizedTradeValueForFilter(stock.tradeValue) <
+                  _minTradeValueThreshold) {
                 markDrop(stock, '成交值不足');
                 continue;
               }
@@ -8894,8 +9174,11 @@ class _StockListPageState extends State<StockListPage> {
                   }
                 }
 
-                final tradeValueCompare =
-                    b.stock.tradeValue.compareTo(a.stock.tradeValue);
+                final tradeValueCompare = _normalizedTradeValueForFilter(
+                      b.stock.tradeValue,
+                    ).compareTo(
+                      _normalizedTradeValueForFilter(a.stock.tradeValue),
+                    );
                 if (tradeValueCompare != 0) {
                   return tradeValueCompare;
                 }
@@ -9964,6 +10247,18 @@ class _StockListPageState extends State<StockListPage> {
                               leading: const Icon(Icons.calendar_view_week),
                               title: const Text('每週命中率摘要（最近 7 天）'),
                               subtitle: Text(_buildWeeklyHitRateSummaryText()),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                              horizontalInset, 4, horizontalInset, 0),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: _openAutoTuneSuggestionDialog,
+                              icon: const Icon(Icons.auto_fix_high_outlined),
+                              label: const Text('命中率自動調參建議'),
                             ),
                           ),
                         ),
@@ -12249,6 +12544,24 @@ class _DailyContextSnapshot {
       keyParamsHash: keyParamsHash,
     );
   }
+}
+
+class _AutoTuneSuggestion {
+  const _AutoTuneSuggestion({
+    required this.id,
+    required this.title,
+    required this.summary,
+    required this.minScore,
+    required this.maxChaseChangePercent,
+    required this.minTradeValue,
+  });
+
+  final String id;
+  final String title;
+  final String summary;
+  final int minScore;
+  final int maxChaseChangePercent;
+  final int minTradeValue;
 }
 
 class _ParameterChangeAuditEntry {
