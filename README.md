@@ -111,3 +111,73 @@ App 內路徑：`篩選診斷 -> 匯出命中率 CSV`
 請把目前策略當 A，提出 B（僅改 2~3 個參數/規則），
 輸出 A/B 差異、預期影響、風險，然後直接實作 B。
 ```
+## Google 備份設定教學
+
+### 1. Google Cloud Console 設定
+
+#### 一鍵產生 SHA-1 指令
+
+在專案根目錄（有 android 資料夾）執行：
+
+Windows Powershell：
+```
+keytool -list -v -keystore .\android\app\debug.keystore -alias androiddebugkey -storepass android -keypass android | Select-String "SHA1"
+```
+Mac/Linux Terminal：
+```
+keytool -list -v -keystore ./android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep SHA1
+```
+
+複製 SHA-1 到 Google Cloud Console 建立 Android OAuth Client。
+
+#### Android OAuth Client 設定步驟
+
+1. 前往 https://console.cloud.google.com/
+2. 建立專案（如：taiwan_stock_app）。
+3. 啟用 Google Drive API。
+4. 左側「API 與服務」→「憑證」→「建立憑證」→「OAuth 用戶端 ID」。
+5. 選擇「Android」，套件名稱填 `com.example.stock_checker`。
+6. SHA-1 填上剛剛取得的值。
+7. 完成後複製 Client ID，備份不用填到程式，Google Sign-In 會自動偵測。
+
+### 2. OAuth 同意畫面
+
+#### Google OAuth 同意畫面設定教學
+
+1. Google Cloud Console 左側選單「API 與服務」→「OAuth 同意畫面」。
+2. 選「外部」類型（大多數 App 用戶都選這個）。
+3. 填寫：
+	- App 名稱：隨意（如「台股飆股分析」）。
+	- 使用者支援電子郵件：你的 Google 帳號。
+	- 開發者聯絡資訊：同上。
+4. 範圍（Scopes）：預設即可，Drive API 會自動加上。
+5. 測試使用者（Test users）：
+	- 必須加上你要登入的 Google 帳號（否則測試模式下會被拒絕登入）。
+6. 儲存並送出。
+
+#### Android OAuth Client 設定教學
+
+1. Google Cloud Console 左側選單「API 與服務」→「憑證」。
+2. 點「建立憑證」→「OAuth 用戶端 ID」。
+3. 選「Android」。
+4. 填寫：
+	- 套件名稱（Package name）：`com.example.stock_checker`（需與專案一致）。
+	- SHA-1：用 README 指令取得。
+5. 建立後，Client ID 會自動生效，程式不需手動填入。
+6. 若更換 keystore 或打包機器，記得重新取得 SHA-1 並更新。
+
+### 3. 手機端操作
+1. App 右上角雲朵圖示「Google 備份」→「連接 Google」→「立即備份」。
+2. 成功會顯示「已備份到 Google（你的信箱）」。
+3. 新手機安裝同 App，按「雲端還原」即可。
+4. 「每日自動備份」建議打開（開啟 App 更新時觸發）。
+
+### 4. 常見錯誤對照表
+| 錯誤訊息 | 可能原因 | 解法 |
+|---|---|---|
+| DEVELOPER_ERROR | SHA-1 不符、OAuth Client 未建立 | 重新建立 Android OAuth Client，確認 SHA-1 正確 |
+| 登入失敗：origin_mismatch | Web Client ID 未設 localhost/127.0.0.1 | OAuth Web Client 設定 Authorized origins |
+| 登入被拒 | OAuth 同意畫面未完成、帳號未加到 Test users | 完成同意畫面、加入測試帳號 |
+| Google 雲端尚無備份檔 | 尚未備份過 | 先執行「立即備份」 |
+
+---

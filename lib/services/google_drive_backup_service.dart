@@ -82,9 +82,10 @@ class GoogleDriveBackupService {
 
     final api = drive.DriveApi(client);
     final bodyText = jsonEncode(payload);
+    final bodyBytes = utf8.encode(bodyText);
     final media = drive.Media(
-      Stream<List<int>>.value(utf8.encode(bodyText)),
-      bodyText.length,
+      Stream<List<int>>.value(bodyBytes),
+      bodyBytes.length,
       contentType: 'application/json',
     );
 
