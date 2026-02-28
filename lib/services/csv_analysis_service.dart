@@ -32,10 +32,11 @@ class CsvAnalysisService {
       outcomeMap[key] = row;
     }
 
-    int total = 0;
-    int above = 0;
-    double sumReturn1d = 0;
-    int returnCount = 0;
+    // counters for simple diagnostics
+    var total = 0;
+    var above = 0;
+    var sumReturn1d = 0.0;
+    var returnCount = 0;
 
     for (var row in preds) {
       total++;
@@ -54,11 +55,14 @@ class CsvAnalysisService {
       }
     }
 
-    print('predictions loaded: $total rows');
-    print('rows with score >= $scoreThreshold: $above');
+    // print a brief summary so the script has some visible output
+    stdout.writeln('evaluated $total predictions, $above above threshold');
     if (returnCount > 0) {
-      print('average 1d return for those: ${sumReturn1d / returnCount}%');
+      stdout.writeln('avg 1d return of filtered picks: '
+          '${(sumReturn1d / returnCount).toStringAsFixed(4)}');
     }
+
+    // debug output intentionally removed; return results via API if needed
   }
 
   static Future<List<Map<String, String>>> _loadCsv(String path) async {

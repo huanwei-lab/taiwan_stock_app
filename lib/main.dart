@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously, prefer_const_constructors, prefer_const_declarations, unnecessary_brace_in_string_interps, prefer_interpolation_to_compose_strings, deprecated_member_use
+
 import 'dart:convert';
 import 'dart:async';
 
@@ -17,6 +19,7 @@ import 'services/notification_service.dart';
 import 'services/stock_alert_scheduler.dart';
 import 'services/stock_service.dart';
 import 'strategy_utils.dart';
+import 'services/intraday_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -116,8 +119,27 @@ class _StockListPageState extends State<StockListPage> {
       'diagnostic.dailyPredictionArchive';
     static const String _dailyContextArchiveKey =
       'diagnostic.dailyContextArchive';
+  static const String _dailyFilterStatsKey =
+      'diagnostic.dailyFilterStats';
     static const String _parameterChangeAuditHistoryKey =
       'diagnostic.parameterChangeAuditHistory';
+  // 三大法人、融資篩選設定
+  static const String _enableForeignFlowFilterKey =
+      'filter.foreign.enabled';
+  static const String _minForeignNetKey =
+      'filter.foreign.minNet';
+  static const String _enableTrustFlowFilterKey =
+      'filter.trust.enabled';
+  static const String _minTrustNetKey =
+      'filter.trust.minNet';
+  static const String _enableDealerFlowFilterKey =
+      'filter.dealer.enabled';
+  static const String _minDealerNetKey =
+      'filter.dealer.minNet';
+  static const String _enableMarginDiffFilterKey =
+      'filter.marginDiff.enabled';
+  static const String _minMarginBalanceDiffKey =
+      'filter.marginDiff.minDiff';
     static const String _lastCoreSelectionParamsSnapshotKey =
       'diagnostic.lastCoreSelectionParamsSnapshot';
   static const String _lastCandidateFilterContextKey =
@@ -169,6 +191,18 @@ class _StockListPageState extends State<StockListPage> {
       'filter.breakoutQuality.enabled';
   static const String _breakoutMinVolumeRatioKey =
       'filter.breakoutQuality.minVolumeRatio';
+  static const String _enableChipConcentrationFilterKey =
+      'filter.chipConcentration.enabled';
+  static const String _minChipConcentrationPercentKey =
+      'filter.chipConcentration.minPercent';
+  static const String _concentrationWeightKey =
+      'filter.chipConcentration.weight';
+  static const String _tradeValueWeightKey =
+      'filter.chipConcentration.tradeValueWeight';
+  static const String _enableMasterTrapFilterKey =
+      'filter.masterTrap.enabled';
+  static const String _masterTrapDropPercentKey =
+      'filter.masterTrap.dropPercent';
   static const String _riskRewardPrefilterEnabledKey =
       'filter.riskReward.enabled';
   static const String _minRiskRewardRatioKey = 'filter.riskReward.minRatioX100';
@@ -282,6 +316,15 @@ class _StockListPageState extends State<StockListPage> {
   bool _enableMasterTrapFilter = false;
   double _masterTrapDropPercent = 10.0;
   bool _enableRiskRewardPrefilter = true;
+  // new filters based on fund flow / margin
+  bool _enableForeignFlowFilter = false;
+  int _minForeignNet = 0;
+  bool _enableTrustFlowFilter = false;
+  int _minTrustNet = 0;
+  bool _enableDealerFlowFilter = false;
+  int _minDealerNet = 0;
+  bool _enableMarginDiffFilter = false;
+  int _minMarginBalanceDiff = 0;
   bool _enableWeeklyWalkForwardAutoTune = true;
   bool _enableMultiDayBreakout = true;
   bool _enableFalseBreakoutProtection = true;
@@ -364,6 +407,10 @@ class _StockListPageState extends State<StockListPage> {
       <String, String>{};
   final Map<String, String> _holdingExitAlertFingerprintByCode =
       <String, String>{};
+  // additional state for chip concentration & master-trap features
+  final Map<String, double> _previousChipConcentrationByCode =
+      <String, double>{};
+  final Map<String, bool> _masterTrapAlertedByCode = <String, bool>{};
   Set<String> _lastLimitedCandidateCodes = <String>{};
   bool _hasLimitedCandidateSnapshot = false;
   Map<String, String> _lastCandidateFilterContext = <String, String>{};
@@ -375,6 +422,7 @@ class _StockListPageState extends State<StockListPage> {
       <_CandidateDriftRecord>[];
   final List<_DailyCandidateSnapshot> _dailyCandidateArchive =
       <_DailyCandidateSnapshot>[];
+  final List<_DailyFilterStats> _dailyFilterStats = <_DailyFilterStats>[];
     final List<_DailyPredictionSnapshot> _dailyPredictionArchive =
       <_DailyPredictionSnapshot>[];
     final List<_DailyContextSnapshot> _dailyContextArchive =
@@ -386,6 +434,9 @@ class _StockListPageState extends State<StockListPage> {
   bool _diagnosticSnapshotPersistScheduled = false;
   int _riskBudgetPerTrade = 3000;
   double _latestVolumeReference = 10000000;
+  // keep last fetched stock list for weight optimization
+  List<StockModel> _latestStocks = <StockModel>[];
+
   DateTime? _lockedMarketAverageVolumeDate;
   int? _lockedMarketAverageVolume;
   final Map<String, double> _peakPnlPercentByCode = <String, double>{};
@@ -582,6 +633,23 @@ class _StockListPageState extends State<StockListPage> {
     _refreshNews();
     _loadSavedPreferences();
     _refreshGoogleBackupAccount();
+    _initIntradayController();
+  }
+
+  IntradayController? _intradayController;
+  bool _intradayEnabled = false;
+
+  Future<void> _initIntradayController() async {
+    try {
+      final c = await IntradayController.create();
+      if (!mounted) return;
+      setState(() {
+        _intradayController = c;
+        _intradayEnabled = c.enabled;
+      });
+    } catch (_) {
+      // ignore initialization failures
+    }
   }
 
   Future<void> _loadSavedPreferences() async {
@@ -701,6 +769,26 @@ class _StockListPageState extends State<StockListPage> {
             }
           }
           _dailyCandidateArchive.sort(
+            (a, b) => b.dateKey.compareTo(a.dateKey),
+          );
+        }
+      }
+      // load filter stats
+      final rawDailyFilterStats = prefs.getString(_dailyFilterStatsKey);
+      if (rawDailyFilterStats != null && rawDailyFilterStats.isNotEmpty) {
+        final decoded = jsonDecode(rawDailyFilterStats);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final parsed = _DailyFilterStats.fromJson(
+                Map<String, dynamic>.from(item),
+              );
+              if (parsed != null) {
+                _dailyFilterStats.add(parsed);
+              }
+            }
+          }
+          _dailyFilterStats.sort(
             (a, b) => b.dateKey.compareTo(a.dateKey),
           );
         }
@@ -847,6 +935,21 @@ class _StockListPageState extends State<StockListPage> {
       _stopLossPercent = prefs.getInt(_stopLossPercentKey) ?? _stopLossPercent;
       _takeProfitPercent =
           prefs.getInt(_takeProfitPercentKey) ?? _takeProfitPercent;
+
+      // fund‑flow / margin filters
+      _enableForeignFlowFilter =
+          prefs.getBool(_enableForeignFlowFilterKey) ?? _enableForeignFlowFilter;
+      _minForeignNet = prefs.getInt(_minForeignNetKey) ?? _minForeignNet;
+      _enableTrustFlowFilter =
+          prefs.getBool(_enableTrustFlowFilterKey) ?? _enableTrustFlowFilter;
+      _minTrustNet = prefs.getInt(_minTrustNetKey) ?? _minTrustNet;
+      _enableDealerFlowFilter =
+          prefs.getBool(_enableDealerFlowFilterKey) ?? _enableDealerFlowFilter;
+      _minDealerNet = prefs.getInt(_minDealerNetKey) ?? _minDealerNet;
+      _enableMarginDiffFilter =
+          prefs.getBool(_enableMarginDiffFilterKey) ?? _enableMarginDiffFilter;
+      _minMarginBalanceDiff =
+          prefs.getInt(_minMarginBalanceDiffKey) ?? _minMarginBalanceDiff;
 
       final savedEntryPrices = prefs.getString(_entryPricesKey);
       _entryPriceByCode.clear();
@@ -1097,6 +1200,15 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setBool(_enableExitSignalKey, _enableExitSignal);
     await prefs.setInt(_stopLossPercentKey, _stopLossPercent);
     await prefs.setInt(_takeProfitPercentKey, _takeProfitPercent);
+    // fund‑flow / margin filters
+    await prefs.setBool(_enableForeignFlowFilterKey, _enableForeignFlowFilter);
+    await prefs.setInt(_minForeignNetKey, _minForeignNet);
+    await prefs.setBool(_enableTrustFlowFilterKey, _enableTrustFlowFilter);
+    await prefs.setInt(_minTrustNetKey, _minTrustNet);
+    await prefs.setBool(_enableDealerFlowFilterKey, _enableDealerFlowFilter);
+    await prefs.setInt(_minDealerNetKey, _minDealerNet);
+    await prefs.setBool(_enableMarginDiffFilterKey, _enableMarginDiffFilter);
+    await prefs.setInt(_minMarginBalanceDiffKey, _minMarginBalanceDiff);
     await prefs.setString(_entryPricesKey, jsonEncode(_entryPriceByCode));
     await prefs.setString(_positionLotsKey, jsonEncode(_positionLotsByCode));
     await prefs.setString(
@@ -1336,6 +1448,10 @@ class _StockListPageState extends State<StockListPage> {
       jsonEncode(_dailyCandidateArchive.map((entry) => entry.toJson()).toList()),
     );
     await prefs.setString(
+      _dailyFilterStatsKey,
+      jsonEncode(_dailyFilterStats.map((entry) => entry.toJson()).toList()),
+    );
+    await prefs.setString(
       _dailyPredictionArchiveKey,
       jsonEncode(_dailyPredictionArchive.map((entry) => entry.toJson()).toList()),
     );
@@ -1416,6 +1532,14 @@ class _StockListPageState extends State<StockListPage> {
       'takeProfit': _takeProfitPercent.toString(),
       'riskBudget': _riskBudgetPerTrade.toString(),
       'cooldownDays': _cooldownDays.toString(),
+      'foreignEnabled': _enableForeignFlowFilter ? '1' : '0',
+      'foreignMin': _minForeignNet.toString(),
+      'trustEnabled': _enableTrustFlowFilter ? '1' : '0',
+      'trustMin': _minTrustNet.toString(),
+      'dealerEnabled': _enableDealerFlowFilter ? '1' : '0',
+      'dealerMin': _minDealerNet.toString(),
+      'marginDiffEnabled': _enableMarginDiffFilter ? '1' : '0',
+      'marginMin': _minMarginBalanceDiff.toString(),
     };
   }
 
@@ -1447,6 +1571,14 @@ class _StockListPageState extends State<StockListPage> {
       'takeProfit' => '停利(%)',
       'riskBudget' => '單筆風險額度',
       'cooldownDays' => '停損冷卻天數',
+      'foreignEnabled' => '外資淨買超',
+      'foreignMin' => '外資門檻',
+      'trustEnabled' => '投信淨買超',
+      'trustMin' => '投信門檻',
+      'dealerEnabled' => '自營商淨買超',
+      'dealerMin' => '自營商門檻',
+      'marginDiffEnabled' => '融資餘額變動',
+      'marginMin' => '融資門檻',
       _ => null,
     };
   }
@@ -1592,6 +1724,53 @@ class _StockListPageState extends State<StockListPage> {
       }
     }
     return checksum.toRadixString(16).padLeft(8, '0');
+  }
+
+  /// Record or update today’s filter‑drop statistics.  We replace the entry
+  /// for the current date if it already exists and only persist when it
+  /// actually changes (to avoid thrashing the prefs file).
+  void _upsertDailyFilterStats(Map<String, int> counts) {
+    if (counts.isEmpty) return;
+
+    final now = DateTime.now();
+    final dateKey = _calendarDayKey(now);
+    final next = _DailyFilterStats(
+      dateKey: dateKey,
+      reasonCounts: Map<String, int>.from(counts),
+    );
+
+    final index = _dailyFilterStats.indexWhere((e) => e.dateKey == dateKey);
+    if (index >= 0) {
+      final prev = _dailyFilterStats[index];
+      if (mapEquals(prev.reasonCounts, next.reasonCounts)) {
+        return; // nothing changed
+      }
+      _dailyFilterStats[index] = next;
+    } else {
+      _dailyFilterStats.insert(0, next);
+    }
+
+    _dailyFilterStats.sort((a, b) => b.dateKey.compareTo(a.dateKey));
+    if (_dailyFilterStats.length > 45) {
+      _dailyFilterStats.removeRange(45, _dailyFilterStats.length);
+    }
+    _scheduleDiagnosticsSnapshotPersist();
+  }
+
+  /// Aggregate reason counts across the most recent [lookbackDays].
+  Map<String, int> _aggregateRecentFilterReasons(int lookbackDays) {
+    final now = DateTime.now();
+    final cutoff = now.subtract(Duration(days: lookbackDays));
+    final result = <String, int>{};
+    for (final entry in _dailyFilterStats) {
+      final date = DateTime.tryParse(entry.dateKey);
+      if (date == null) continue;
+      if (date.isBefore(cutoff)) break; // list is sorted descending
+      entry.reasonCounts.forEach((k, v) {
+        result.update(k, (old) => old + v, ifAbsent: () => v);
+      });
+    }
+    return result;
   }
 
   void _upsertDailyPredictionArchive({
@@ -2882,12 +3061,15 @@ class _StockListPageState extends State<StockListPage> {
 
     try {
       final stocks = await future;
+      // store for later diagnostics/optimization
+      _latestStocks = stocks;
       await newsFuture;
       await _recordDailyRiskScore(stocks);
       _updateBreakoutStreakForCurrentFilters(stocks);
       _trimEntrySignalCaches(stocks);
       await _notifyHoldingExitSignals(stocks);
       await _notifyHoldingModeTagChanges(stocks);
+      await _notifyMasterTrap(stocks);
       await _maybeAutoBackupToGoogle(showFeedback: false);
       await _maybeAutoApplyRecommendedMode(stocks, showFeedback: showFeedback);
       await _maybeRunWeeklyAutoTune(stocks);
@@ -4018,6 +4200,8 @@ class _StockListPageState extends State<StockListPage> {
     bool localEnableTrailingStop = _enableTrailingStop;
     bool localEnableAdaptiveAtrExit = _enableAdaptiveAtrExit;
     bool localEnableBreakoutQuality = _enableBreakoutQuality;
+    bool localEnableChipConcentrationFilter = _enableChipConcentrationFilter;
+    double localMinChipConcentrationPercent = _minChipConcentrationPercent.toDouble();
     bool localEnableRiskRewardPrefilter = _enableRiskRewardPrefilter;
     bool localEnableMultiDayBreakout = _enableMultiDayBreakout;
     bool localEnableFalseBreakoutProtection = _enableFalseBreakoutProtection;
@@ -4057,6 +4241,15 @@ class _StockListPageState extends State<StockListPage> {
     double localPriceWeight = _priceWeight.toDouble();
     double localConcentrationWeight = _concentrationWeight.toDouble();
     double localTradeValueWeight = _tradeValueWeight.toDouble();
+    // fund‑flow / margin filter locals
+    bool localEnableForeignFlowFilter = _enableForeignFlowFilter;
+    double localMinForeignNet = _minForeignNet.toDouble();
+    bool localEnableTrustFlowFilter = _enableTrustFlowFilter;
+    double localMinTrustNet = _minTrustNet.toDouble();
+    bool localEnableDealerFlowFilter = _enableDealerFlowFilter;
+    double localMinDealerNet = _minDealerNet.toDouble();
+    bool localEnableMarginDiffFilter = _enableMarginDiffFilter;
+    double localMinMarginBalanceDiff = _minMarginBalanceDiff.toDouble();
     bool localEnableMasterTrapFilter = _enableMasterTrapFilter;
     double localMasterTrapDropPercent = _masterTrapDropPercent.toDouble();
     String localSectorRulesText = _sectorRulesText;
@@ -4211,6 +4404,25 @@ class _StockListPageState extends State<StockListPage> {
                             setLocalState(() {
                               localAutoRefreshEnabled = value;
                             });
+                          },
+                        ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _intradayEnabled,
+                          title: const Text('啟用盤中即時偵測（每5分鐘）'),
+                          subtitle: const Text('App 在前景時每5分鐘輪詢 TWSE 盤中資料並計算變動'),
+                          onChanged: (value) async {
+                            if (_intradayController != null) {
+                              if (value) {
+                                await _intradayController!.enable();
+                              } else {
+                                await _intradayController!.disable();
+                              }
+                              if (!mounted) return;
+                              setState(() {
+                                _intradayEnabled = value;
+                              });
+                            }
                           },
                         ),
                         SwitchListTile(
@@ -4478,6 +4690,106 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: localEnableForeignFlowFilter,
+                          title: const Text('外資淨買超篩選'),
+                          subtitle: Text('門檻：${_formatWithThousandsSeparator(localMinForeignNet.toInt())}'),
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localEnableForeignFlowFilter = value;
+                            });
+                          },
+                        ),
+                        if (localEnableForeignFlowFilter) ...[
+                          Slider(
+                            value: localMinForeignNet,
+                            min: -50000000,
+                            max: 50000000,
+                            divisions: 100,
+                            label: _formatWithThousandsSeparator(localMinForeignNet.toInt()),
+                            onChanged: (value) {
+                              setLocalState(() {
+                                localMinForeignNet = value;
+                              });
+                            },
+                          ),
+                        ],
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: localEnableTrustFlowFilter,
+                          title: const Text('投信淨買超篩選'),
+                          subtitle: Text('門檻：${_formatWithThousandsSeparator(localMinTrustNet.toInt())}'),
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localEnableTrustFlowFilter = value;
+                            });
+                          },
+                        ),
+                        if (localEnableTrustFlowFilter) ...[
+                          Slider(
+                            value: localMinTrustNet,
+                            min: -50000000,
+                            max: 50000000,
+                            divisions: 100,
+                            label: _formatWithThousandsSeparator(localMinTrustNet.toInt()),
+                            onChanged: (value) {
+                              setLocalState(() {
+                                localMinTrustNet = value;
+                              });
+                            },
+                          ),
+                        ],
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: localEnableDealerFlowFilter,
+                          title: const Text('自營商淨買超篩選'),
+                          subtitle: Text('門檻：${_formatWithThousandsSeparator(localMinDealerNet.toInt())}'),
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localEnableDealerFlowFilter = value;
+                            });
+                          },
+                        ),
+                        if (localEnableDealerFlowFilter) ...[
+                          Slider(
+                            value: localMinDealerNet,
+                            min: -50000000,
+                            max: 50000000,
+                            divisions: 100,
+                            label: _formatWithThousandsSeparator(localMinDealerNet.toInt()),
+                            onChanged: (value) {
+                              setLocalState(() {
+                                localMinDealerNet = value;
+                              });
+                            },
+                          ),
+                        ],
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: localEnableMarginDiffFilter,
+                          title: const Text('融資餘額變動篩選'),
+                          subtitle: Text('門檻：${_formatWithThousandsSeparator(localMinMarginBalanceDiff.toInt())}'),
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localEnableMarginDiffFilter = value;
+                            });
+                          },
+                        ),
+                        if (localEnableMarginDiffFilter) ...[
+                          Slider(
+                            value: localMinMarginBalanceDiff,
+                            min: -100000000,
+                            max: 100000000,
+                            divisions: 200,
+                            label: _formatWithThousandsSeparator(localMinMarginBalanceDiff.toInt()),
+                            onChanged: (value) {
+                              setLocalState(() {
+                                localMinMarginBalanceDiff = value;
+                              });
+                            },
+                          ),
+                        ],
                         const Divider(height: 24),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
@@ -4671,12 +4983,12 @@ class _StockListPageState extends State<StockListPage> {
                         Slider(
                           value: localVolumeWeight.toDouble(),
                           min: 0,
-                          max: 10,
-                          divisions: 10,
+                          max: 100,
+                          divisions: 100,
                           label: '${localVolumeWeight.toInt()}',
                           onChanged: (value) {
                             setLocalState(() {
-                              localVolumeWeight = value.toInt();
+                              localVolumeWeight = value;
                             });
                           },
                         ),
@@ -4684,12 +4996,12 @@ class _StockListPageState extends State<StockListPage> {
                         Slider(
                           value: localChangeWeight.toDouble(),
                           min: 0,
-                          max: 10,
-                          divisions: 10,
+                          max: 100,
+                          divisions: 100,
                           label: '${localChangeWeight.toInt()}',
                           onChanged: (value) {
                             setLocalState(() {
-                              localChangeWeight = value.toInt();
+                              localChangeWeight = value;
                             });
                           },
                         ),
@@ -4697,12 +5009,12 @@ class _StockListPageState extends State<StockListPage> {
                         Slider(
                           value: localPriceWeight.toDouble(),
                           min: 0,
-                          max: 10,
-                          divisions: 10,
+                          max: 100,
+                          divisions: 100,
                           label: '${localPriceWeight.toInt()}',
                           onChanged: (value) {
                             setLocalState(() {
-                              localPriceWeight = value.toInt();
+                              localPriceWeight = value;
                             });
                           },
                         ),
@@ -4710,12 +5022,12 @@ class _StockListPageState extends State<StockListPage> {
                         Slider(
                           value: localConcentrationWeight.toDouble(),
                           min: 0,
-                          max: 10,
-                          divisions: 10,
+                          max: 100,
+                          divisions: 100,
                           label: '${localConcentrationWeight.toInt()}',
                           onChanged: (value) {
                             setLocalState(() {
-                              localConcentrationWeight = value.toInt();
+                              localConcentrationWeight = value;
                             });
                           },
                         ),
@@ -4723,14 +5035,45 @@ class _StockListPageState extends State<StockListPage> {
                         Slider(
                           value: localTradeValueWeight.toDouble(),
                           min: 0,
-                          max: 10,
-                          divisions: 10,
+                          max: 100,
+                          divisions: 100,
                           label: '${localTradeValueWeight.toInt()}',
                           onChanged: (value) {
                             setLocalState(() {
-                              localTradeValueWeight = value.toInt();
+                              localTradeValueWeight = value;
                             });
                           },
+                        ),
+                        const SizedBox(height: 8),
+                        // auto weight search button
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.auto_fix_high),
+                            label: const Text('自動搜尋權重'),
+                            onPressed: _latestStocks.isEmpty
+                                ? null
+                                : () {
+                                    // run helper to get best weights from current stocks
+                                    final best = autoSearchWeights(
+                                        _latestStocks,
+                                        _latestVolumeReference,
+                                        _maxPriceThreshold.toDouble(),
+                                      );
+                                    setLocalState(() {
+                                      localVolumeWeight = best[0].toDouble();
+                                      localChangeWeight = best[1].toDouble();
+                                      localPriceWeight = best[2].toDouble();
+                                      localConcentrationWeight = best[3].toDouble();
+                                      localTradeValueWeight = best[4].toDouble();
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content:
+                                              const Text('權重已根據近期表現自動調整')),
+                                    );
+                                  },
+                          ),
                         ),
                         Text('移動停利回撤：${localTrailingPullbackPercent.toInt()}%'),
                         Slider(
@@ -4840,7 +5183,7 @@ class _StockListPageState extends State<StockListPage> {
                         ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<_BreakoutStageMode>(
-                          value: localBreakoutStageMode,
+                          initialValue: localBreakoutStageMode,
                           decoration: const InputDecoration(
                             labelText: '飆股篩選模式',
                             border: OutlineInputBorder(),
@@ -5312,7 +5655,7 @@ class _StockListPageState extends State<StockListPage> {
                                   enableMasterTrapFilter:
                                       localEnableMasterTrapFilter,
                                   masterTrapDropPercent:
-                                      localMasterTrapDropPercent.toInt(),
+                                      localMasterTrapDropPercent,
                                   enableRiskRewardPrefilter:
                                       localEnableRiskRewardPrefilter,
                                   minRiskRewardRatioX100:
@@ -5357,6 +5700,14 @@ class _StockListPageState extends State<StockListPage> {
                                   volumeWeight: localVolumeWeight.toInt(),
                                   changeWeight: localChangeWeight.toInt(),
                                   priceWeight: localPriceWeight.toInt(),
+                                  enableForeignFlowFilter: localEnableForeignFlowFilter,
+                                  minForeignNet: localMinForeignNet.toInt(),
+                                  enableTrustFlowFilter: localEnableTrustFlowFilter,
+                                  minTrustNet: localMinTrustNet.toInt(),
+                                  enableDealerFlowFilter: localEnableDealerFlowFilter,
+                                  minDealerNet: localMinDealerNet.toInt(),
+                                  enableMarginDiffFilter: localEnableMarginDiffFilter,
+                                  minMarginBalanceDiff: localMinMarginBalanceDiff.toInt(),
                                 ),
                               );
                             },
@@ -5610,7 +5961,7 @@ class _StockListPageState extends State<StockListPage> {
         ? _surgeVolumeThreshold.toDouble()
         : _latestVolumeReference;
     final normalizedTradeValue =
-        _normalizedTradeValueForFilter(stock.tradeValue).toDouble();
+        normalizedTradeValueForFilter(stock.tradeValue).toDouble();
     int baseScore = computeScore(
       volume: stock.volume.toDouble(),
       volumeReference: volumeReference,
@@ -5694,6 +6045,12 @@ class _StockListPageState extends State<StockListPage> {
         _riskScoreBias(riskSnapshot);
     if (stock != null) {
       threshold += _sectorRegimeScoreBias(_regimeForStock(stock));
+    }
+    // breadth-based adjustment: 現貨寬度偏弱時提高門檻，寬度強時放寬
+    if (_latestMarketBreadthRatio < 0.9) {
+      threshold += 2;
+    } else if (_latestMarketBreadthRatio > 1.1) {
+      threshold -= 2;
     }
     return threshold.clamp(0, 100);
   }
@@ -7044,36 +7401,9 @@ class _StockListPageState extends State<StockListPage> {
     return minutes < (9 * 60 + 30);
   }
 
-  bool _isTradingSessionTime([DateTime? value]) {
-    final now = value ?? DateTime.now();
-    if (now.weekday == DateTime.saturday || now.weekday == DateTime.sunday) {
-      return false;
-    }
-    final minutes = now.hour * 60 + now.minute;
-    return minutes >= (9 * 60) && minutes <= (13 * 60 + 30);
-  }
 
-  double _tradingSessionProgressRatio([DateTime? value]) {
-    final now = value ?? DateTime.now();
-    final minutes = now.hour * 60 + now.minute;
-    final open = 9 * 60;
-    final close = 13 * 60 + 30;
-    final total = (close - open).toDouble();
-    final elapsed = (minutes - open).clamp(0, close - open).toDouble();
-    final ratio = total <= 0 ? 1.0 : (elapsed / total);
-    return ratio.clamp(0.2, 1.0);
-  }
 
-  int _normalizedTradeValueForFilter(int tradeValue, {DateTime? now}) {
-    if (!_isTradingSessionTime(now)) {
-      return tradeValue;
-    }
-    final progress = _tradingSessionProgressRatio(now);
-    final estimated = (tradeValue / progress).round();
-    final cap = tradeValue * 5;
-    return estimated > cap ? cap : estimated;
-  }
-
+  
   _MarketTimingStatus _buildMarketTimingStatus() {
     final now = DateTime.now();
     final minutes = now.hour * 60 + now.minute;
@@ -7125,7 +7455,7 @@ class _StockListPageState extends State<StockListPage> {
       );
     }
 
-    if (_normalizedTradeValueForFilter(stock.tradeValue) <
+    if (normalizedTradeValueForFilter(stock.tradeValue) <
         _minTradeValueThreshold) {
       return const _PremarketRisk(
         label: '量能偏弱',
@@ -7158,7 +7488,7 @@ class _StockListPageState extends State<StockListPage> {
       return true;
     }
     final hotMove = stock.change >= (_maxChaseChangePercent - 1);
-    final weakLiquidity = _normalizedTradeValueForFilter(stock.tradeValue) <
+    final weakLiquidity = normalizedTradeValueForFilter(stock.tradeValue) <
       (_minTradeValueThreshold * 1.1);
     return hotMove && weakLiquidity;
   }
@@ -7206,7 +7536,7 @@ class _StockListPageState extends State<StockListPage> {
     final passScore =
         score >= (_effectiveMinScoreThreshold(stock) + 3).clamp(0, 100);
     final passTradeValue =
-      _normalizedTradeValueForFilter(stock.tradeValue) >=
+      normalizedTradeValueForFilter(stock.tradeValue) >=
         _minTradeValueThreshold;
     return passVolume && passChange && passScore && passTradeValue;
   }
@@ -7245,6 +7575,23 @@ class _StockListPageState extends State<StockListPage> {
       currConcentration: stock.chipConcentration,
       dropThresholdPercent: _masterTrapDropPercent,
     );
+  }
+
+  Future<void> _notifyMasterTrap(List<StockModel> stocks) async {
+    if (!_enableMasterTrapFilter) return;
+    for (final stock in stocks) {
+      if (!_passesMasterTrap(stock)) {
+        if (_masterTrapAlertedByCode[stock.code] == true) continue;
+        await NotificationService.showAlert(
+          id: 4000 + stock.code.hashCode.abs() % 900,
+          title: '主力誘多警示 ${stock.code} ${stock.name}',
+          body: '籌碼集中度急跌，現值 ${stock.chipConcentration.toStringAsFixed(1)}%',
+        );
+        _masterTrapAlertedByCode[stock.code] = true;
+      } else {
+        _masterTrapAlertedByCode.remove(stock.code);
+      }
+    }
   }
 
   bool _isSameCalendarDay(DateTime a, DateTime b) {
@@ -7474,6 +7821,10 @@ class _StockListPageState extends State<StockListPage> {
         'breadthMin' => '市場寬度門檻',
         'sectorCapEnabled' => '產業集中度上限',
         'sectorCap' => '單一產業上限',
+        'concentrationWeight' => '籌碼權重',
+        'tradeValueWeight' => '成交值權重',
+        'enableMasterTrapFilter' => '主力誘多過濾',
+        'masterTrapDropPercent' => '誘多跌幅門檻',
         _ => null,
       };
     }
@@ -8066,10 +8417,10 @@ class _StockListPageState extends State<StockListPage> {
 
     final candidates = List<StockModel>.from(stocks)
       ..sort(
-        (a, b) => _normalizedTradeValueForFilter(
+        (a, b) => normalizedTradeValueForFilter(
           b.tradeValue,
         ).compareTo(
-          _normalizedTradeValueForFilter(a.tradeValue),
+          normalizedTradeValueForFilter(a.tradeValue),
         ),
       );
     final targets = candidates.take(3).toList();
@@ -9287,6 +9638,12 @@ class _StockListPageState extends State<StockListPage> {
               filterDropReasonCounts.update(reason, (v) => v + 1,
                   ifAbsent: () => 1);
             }
+            // persist today's reasons for later aggregation
+            void recordFilterStats() {
+              if (filterDropReasonCounts.isNotEmpty) {
+                _upsertDailyFilterStats(filterDropReasonCounts);
+              }
+            }
 
             final dropReasonsByCode = <String, List<String>>{};
             void markDrop(StockModel stock, String reason) {
@@ -9311,7 +9668,7 @@ class _StockListPageState extends State<StockListPage> {
                 markDrop(stock, '量能不足');
                 continue;
               }
-              if (_normalizedTradeValueForFilter(stock.tradeValue) <
+              if (normalizedTradeValueForFilter(stock.tradeValue) <
                   _minTradeValueThreshold) {
                 markDrop(stock, '成交值不足');
                 continue;
@@ -9325,8 +9682,30 @@ class _StockListPageState extends State<StockListPage> {
                 markDrop(stock, '追高風險');
                 continue;
               }
+              if (_enableForeignFlowFilter &&
+                  stock.foreignNet < _minForeignNet) {
+                markDrop(stock, '外資買超不足');
+                continue;
+              }
+              if (_enableTrustFlowFilter && stock.trustNet < _minTrustNet) {
+                markDrop(stock, '投信買超不足');
+                continue;
+              }
+              if (_enableDealerFlowFilter &&
+                  stock.dealerNet < _minDealerNet) {
+                markDrop(stock, '自營商買超不足');
+                continue;
+              }
+              if (_enableMarginDiffFilter &&
+                  stock.marginBalanceDiff < _minMarginBalanceDiff) {
+                markDrop(stock, '融資餘額變動不足');
+                continue;
+              }
               strategyStocks.add(stock);
             }
+
+            // save today’s drop reasons for historical analysis
+            recordFilterStats();
 
             final scoredStocks = strategyStocks
                 .map(
@@ -9346,10 +9725,10 @@ class _StockListPageState extends State<StockListPage> {
                   }
                 }
 
-                final tradeValueCompare = _normalizedTradeValueForFilter(
+                final tradeValueCompare = normalizedTradeValueForFilter(
                       b.stock.tradeValue,
                     ).compareTo(
-                      _normalizedTradeValueForFilter(a.stock.tradeValue),
+                      normalizedTradeValueForFilter(a.stock.tradeValue),
                     );
                 if (tradeValueCompare != 0) {
                   return tradeValueCompare;
@@ -10155,6 +10534,31 @@ class _StockListPageState extends State<StockListPage> {
                                             )
                                             .toList(),
                                   ),
+                                const SizedBox(height: 8),
+                                // show aggregated past 5-day reasons
+                                Builder(builder: (ctx) {
+                                  final recent = _aggregateRecentFilterReasons(5);
+                                  if (recent.isEmpty) return const SizedBox();
+                                  // sort and build chip list separately to keep types
+                                  final sorted = recent.entries.toList()
+                                    ..sort((a, b) => b.value.compareTo(a.value));
+                                  final chips = sorted
+                                      .take(6)
+                                      .map((e) => Chip(
+                                            label: Text('${e.key} ${e.value}'),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            backgroundColor: Theme.of(ctx)
+                                                .colorScheme
+                                                .secondaryContainer,
+                                          ))
+                                      .toList();
+                                  return Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: chips,
+                                  );
+                                }),
                                 const SizedBox(height: 8),
                                 Align(
                                   alignment: Alignment.centerLeft,
@@ -12332,6 +12736,15 @@ class _FilterState {
     required this.volumeWeight,
     required this.changeWeight,
     required this.priceWeight,
+    // fund‑flow / margin options
+    required this.enableForeignFlowFilter,
+    required this.minForeignNet,
+    required this.enableTrustFlowFilter,
+    required this.minTrustNet,
+    required this.enableDealerFlowFilter,
+    required this.minDealerNet,
+    required this.enableMarginDiffFilter,
+    required this.minMarginBalanceDiff,
   });
 
   final bool enabled;
@@ -12406,6 +12819,14 @@ class _FilterState {
   final int volumeWeight;
   final int changeWeight;
   final int priceWeight;
+  final bool enableForeignFlowFilter;
+  final int minForeignNet;
+  final bool enableTrustFlowFilter;
+  final int minTrustNet;
+  final bool enableDealerFlowFilter;
+  final int minDealerNet;
+  final bool enableMarginDiffFilter;
+  final int minMarginBalanceDiff;
 }
 
 class _EntrySignal {
@@ -12506,6 +12927,38 @@ class _CandidateDriftRecord {
       removedCount: removedCount,
       changedFilters: changedFilters,
     );
+  }
+}
+
+class _DailyFilterStats {
+  const _DailyFilterStats({
+    required this.dateKey,
+    required this.reasonCounts,
+  });
+
+  final String dateKey;
+  final Map<String, int> reasonCounts;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'dateKey': dateKey,
+      'reasonCounts': reasonCounts,
+    };
+  }
+
+  static _DailyFilterStats? fromJson(Map<String, dynamic> json) {
+    final dateKey = (json['dateKey'] ?? '').toString().trim();
+    final raw = json['reasonCounts'];
+    final map = <String, int>{};
+    if (raw is Map) {
+      raw.forEach((k, v) {
+        final key = k.toString();
+        final val = int.tryParse(v.toString());
+        if (val != null) map[key] = val;
+      });
+    }
+    if (dateKey.isEmpty) return null;
+    return _DailyFilterStats(dateKey: dateKey, reasonCounts: map);
   }
 }
 
@@ -13323,8 +13776,10 @@ class _StrategyStats {
 }
 
 /// Compare two filter states and return differing fields with values.
-Map<String, Map<String, dynamic>> compareFilterStates(
-    _FilterState a, _FilterState b) {
+// Private helper may be unused in some builds; suppress unused_element lint.
+// ignore: unused_element
+Map<String, Map<String, dynamic>> _compareFilterStates(
+  _FilterState a, _FilterState b) {
   final diffs = <String, Map<String, dynamic>>{};
   void check(String name, dynamic va, dynamic vb) {
     if (va != vb) {

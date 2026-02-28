@@ -14,6 +14,9 @@ dependencies:
   http: ^1.2.2
   # Required for local persistence (favorites and filter preferences).
   shared_preferences: ^2.3.2
+  # Local SQLite cache for EOD fund flow rows and history
+  sqflite: ^2.2.8+4
+  path: ^1.8.3
   # Required for local notifications on device.
   flutter_local_notifications: ^19.4.0
   # Required for periodic background task checks on Android.

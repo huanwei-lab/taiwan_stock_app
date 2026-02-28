@@ -95,4 +95,77 @@ void main() {
       isFalse,
     );
   });
+
+  test('autoSearchWeights chooses non-zero weights', () {
+    final stocks = [
+      const StockModel(
+        code: 'A',
+        name: 'A',
+        closePrice: 50,
+        volume: 1000000,
+        tradeValue: 50000000,
+        change: 5,
+        chipConcentration: 20,
+      ),
+      const StockModel(
+        code: 'B',
+        name: 'B',
+        closePrice: 80,
+        volume: 2000000,
+        tradeValue: 80000000,
+        change: -2,
+        chipConcentration: 5,
+      ),
+    ];
+    final weights = autoSearchWeights(stocks, 1000000, 100);
+    expect(weights.length, 5);
+    expect(weights.any((w) => w != 0), isTrue);
+  });
+
+  test('breadth bias shifts threshold up/down', () {
+    int compute(double breadth) {
+      var th = 50;
+      if (breadth < 0.9) th += 2;
+      if (breadth > 1.1) th -= 2;
+      return th;
+    }
+    expect(compute(0.8), greaterThan(compute(1.0)));
+    expect(compute(1.2), lessThan(compute(1.0)));
+  });
+
+  test('passesFundFlowFilter respects thresholds', () {
+    const stock = StockModel(
+      code: 'X',
+      name: 'X',
+      closePrice: 10,
+      volume: 1000,
+      tradeValue: 10000,
+      change: 1,
+      chipConcentration: 0,
+      foreignNet: 500,
+      trustNet: -200,
+      dealerNet: 1000,
+      marginBalanceDiff: 50,
+    );
+    expect(
+      passesFundFlowFilter(stock,
+          enableForeign: true, minForeign: 100, enableDealer: true, minDealer: 500),
+      isTrue,
+    );
+    expect(
+      passesFundFlowFilter(stock,
+          enableForeign: true, minForeign: 600),
+      isFalse,
+    );
+    expect(
+      passesFundFlowFilter(stock,
+          enableTrust: true, minTrust: -100),
+      isFalse,
+    );
+    expect(
+      passesFundFlowFilter(stock,
+          enableMarginDiff: true, minMarginDiff: 100),
+      isFalse,
+    );
+  });
 }

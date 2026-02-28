@@ -7,6 +7,10 @@ class StockModel {
     required this.tradeValue,
     required this.change,
     this.chipConcentration = 0.0, // 0-100 %, optional
+    this.foreignNet = 0,
+    this.trustNet = 0,
+    this.dealerNet = 0,
+    this.marginBalanceDiff = 0,
   });
 
   final String code;
@@ -16,6 +20,12 @@ class StockModel {
   final int tradeValue;
   final double change;
   final double chipConcentration;
+  // 三大法人買賣超；資料由 stock_service 填充，若無則為 0。
+  final int foreignNet;
+  final int trustNet;
+  final int dealerNet;
+  // 融資餘額變動（今日減昨日），正值表示融資增加
+  final int marginBalanceDiff;
 
   factory StockModel.fromJson(Map<String, dynamic> json) {
     final code = _readString(
@@ -53,6 +63,23 @@ class StockModel {
       ['ChipConcentration', '籌碼集中度'],
     );
 
+    final foreignNet = _readInt(
+      json,
+      ['ForeignNet', '外資買賣超', '三大法人-外資'],
+    );
+    final trustNet = _readInt(
+      json,
+      ['TrustNet', '投信買賣超', '三大法人-投信'],
+    );
+    final dealerNet = _readInt(
+      json,
+      ['DealerNet', '自營商買賣超', '三大法人-自營'],
+    );
+    final marginBalanceDiff = _readInt(
+      json,
+      ['MarginBalanceDiff', '融資餘額變動'],
+    );
+
     return StockModel(
       code: code,
       name: name,
@@ -61,6 +88,10 @@ class StockModel {
       tradeValue: tradeValue,
       change: changePercent,
       chipConcentration: chipConcentration,
+      foreignNet: foreignNet,
+      trustNet: trustNet,
+      dealerNet: dealerNet,
+      marginBalanceDiff: marginBalanceDiff,
     );
   }
 
