@@ -275,6 +275,8 @@ class _StockListPageState extends State<StockListPage> {
   bool _timeSegmentTuningEnabled = true;
   bool _enableAdaptiveAtrExit = true;
   bool _enableBreakoutQuality = true;
+  bool _enableChipConcentrationFilter = false;
+  double _minChipConcentrationPercent = 70.0; // percent
   bool _enableRiskRewardPrefilter = true;
   bool _enableWeeklyWalkForwardAutoTune = true;
   bool _enableMultiDayBreakout = true;
@@ -949,6 +951,10 @@ class _StockListPageState extends State<StockListPage> {
           prefs.getInt(_atrTakeProfitMultiplierKey) ?? _atrTakeProfitMultiplier;
       _enableBreakoutQuality =
           prefs.getBool(_breakoutQualityEnabledKey) ?? _enableBreakoutQuality;
+      _enableChipConcentrationFilter =
+          prefs.getBool(_enableChipConcentrationFilterKey) ?? _enableChipConcentrationFilter;
+      _minChipConcentrationPercent =
+          prefs.getDouble(_minChipConcentrationPercentKey) ?? _minChipConcentrationPercent;
       _breakoutMinVolumeRatioPercent =
           prefs.getInt(_breakoutMinVolumeRatioKey) ??
               _breakoutMinVolumeRatioPercent;
@@ -1181,6 +1187,8 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setBool(_enableAdaptiveAtrExitKey, _enableAdaptiveAtrExit);
     await prefs.setInt(_atrTakeProfitMultiplierKey, _atrTakeProfitMultiplier);
     await prefs.setBool(_breakoutQualityEnabledKey, _enableBreakoutQuality);
+    await prefs.setBool(_enableChipConcentrationFilterKey, _enableChipConcentrationFilter);
+    await prefs.setDouble(_minChipConcentrationPercentKey, _minChipConcentrationPercent);
     await prefs.setInt(
         _breakoutMinVolumeRatioKey, _breakoutMinVolumeRatioPercent);
     await prefs.setBool(
@@ -3532,6 +3540,9 @@ class _StockListPageState extends State<StockListPage> {
     if (_breakoutMinVolumeRatioPercent < 120) {
       warnings.add('突破量能倍率偏低，建議至少 120% 以上。');
     }
+    if (_enableChipConcentrationFilter && _minChipConcentrationPercent > 0) {
+      warnings.add('已啟用籌碼集中度過濾，低於 ${_minChipConcentrationPercent.toInt()}% 的不顯示。');
+    }
     if (!_enableRiskRewardPrefilter) {
       warnings.add('未啟用風險報酬前置過濾，低報酬比交易可能增加。');
     }
@@ -4690,6 +4701,31 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: localEnableChipConcentrationFilter,
+                          title: const Text('籌碼集中度過濾'),
+                          subtitle: Text('只顯示集中度 ≥ ${localMinChipConcentrationPercent.toInt()}% 的個股'),
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localEnableChipConcentrationFilter = value;
+                            });
+                          },
+                        ),
+                        Text('最低籌碼集中度：${localMinChipConcentrationPercent.toInt()}%'),
+                        Slider(
+                          value: localMinChipConcentrationPercent,
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          label: '${localMinChipConcentrationPercent.toInt()}%',
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localMinChipConcentrationPercent = value;
+                            });
+                          },
+                        ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableRiskRewardPrefilter,
@@ -5177,6 +5213,10 @@ class _StockListPageState extends State<StockListPage> {
                                       localEnableBreakoutQuality,
                                   breakoutMinVolumeRatioPercent:
                                       localBreakoutMinVolumeRatio.toInt(),
+                                  enableChipConcentrationFilter:
+                                      localEnableChipConcentrationFilter,
+                                  minChipConcentrationPercent:
+                                      localMinChipConcentrationPercent,
                                   enableRiskRewardPrefilter:
                                       localEnableRiskRewardPrefilter,
                                   minRiskRewardRatioX100:
@@ -5376,6 +5416,8 @@ class _StockListPageState extends State<StockListPage> {
       _enableSectorRotationBoost = result.enableSectorRotationBoost;
       _enableBreakoutQuality = result.enableBreakoutQuality;
       _breakoutMinVolumeRatioPercent = result.breakoutMinVolumeRatioPercent;
+      _enableChipConcentrationFilter = result.enableChipConcentrationFilter;
+      _minChipConcentrationPercent = result.minChipConcentrationPercent;
       _enableRiskRewardPrefilter = result.enableRiskRewardPrefilter;
       _minRiskRewardRatioX100 = result.minRiskRewardRatioX100;
       _enableMultiDayBreakout = result.enableMultiDayBreakout;
@@ -7043,6 +7085,9 @@ class _StockListPageState extends State<StockListPage> {
     if (!_enableBreakoutQuality) {
       return true;
     }
+    if (!_passesChipConcentration(stock)) {
+      return false;
+    }
     final volumeRatio = _latestVolumeReference <= 0
         ? 0.0
         : stock.volume / _latestVolumeReference;
@@ -7079,6 +7124,11 @@ class _StockListPageState extends State<StockListPage> {
     }
     final minRatio = _minMarketBreadthRatioX100 / 100;
     return _latestMarketBreadthRatio >= minRatio;
+  }
+
+  bool _passesChipConcentration(StockModel stock) {
+    if (!_enableChipConcentrationFilter) return true;
+    return stock.chipConcentration >= _minChipConcentrationPercent;
   }
 
   bool _isSameCalendarDay(DateTime a, DateTime b) {
@@ -12130,6 +12180,8 @@ class _FilterState {
     required this.enableSectorRotationBoost,
     required this.enableBreakoutQuality,
     required this.breakoutMinVolumeRatioPercent,
+    required this.enableChipConcentrationFilter,
+    required this.minChipConcentrationPercent,
     required this.enableRiskRewardPrefilter,
     required this.minRiskRewardRatioX100,
     required this.enableMultiDayBreakout,
@@ -12198,6 +12250,8 @@ class _FilterState {
   final bool enableSectorRotationBoost;
   final bool enableBreakoutQuality;
   final int breakoutMinVolumeRatioPercent;
+  final bool enableChipConcentrationFilter;
+  final double minChipConcentrationPercent;
   final bool enableRiskRewardPrefilter;
   final int minRiskRewardRatioX100;
   final bool enableMultiDayBreakout;

@@ -6,6 +6,7 @@ class StockModel {
     required this.volume,
     required this.tradeValue,
     required this.change,
+    this.chipConcentration = 0.0, // 0-100 %, optional
   });
 
   final String code;
@@ -46,6 +47,10 @@ class StockModel {
       ['Change', '漲跌價差'],
     );
     final changePercent = _toChangePercent(closePrice, changeDiff);
+    final chipConcentration = _readDouble(
+      json,
+      ['ChipConcentration', '籌碼集中度'],
+    );
 
     return StockModel(
       code: code,
@@ -54,6 +59,8 @@ class StockModel {
       volume: volume,
       tradeValue: tradeValue,
       change: changePercent,
+      chipConcentration: chipConcentration,
+      chipConcentration: chipConcentration,
     );
   }
 
