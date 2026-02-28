@@ -1,0 +1,38 @@
+name: stock_checker
+description: A Taiwan stock surge analysis app.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Required for calling TWSE OpenAPI.
+  http: ^1.2.2
+  # Required for local persistence (favorites and filter preferences).
+  shared_preferences: ^2.3.2
+  # Required for local notifications on device.
+  flutter_local_notifications: ^19.4.0
+  # Required for periodic background task checks on Android.
+  workmanager: ^0.9.0+3
+  # Required for opening K-line chart URLs.
+  url_launcher: ^6.3.1
+  # Required for parsing RSS news feeds.
+  xml: ^6.6.1
+  # Required for Google account sign-in.
+  google_sign_in: ^6.2.1
+  # Required for using Google Drive API.
+  googleapis: ^13.2.0
+  # Required for authenticated Google API client from Google sign in.
+  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
