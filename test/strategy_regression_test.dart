@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stock_checker/strategy_utils.dart';
+import 'package:stock_checker/models/stock_model.dart';
 
 void main() {
   test('secondary volume ratio should be relaxed only when strategy filter enabled', () {
@@ -42,5 +43,56 @@ void main() {
     };
     final stock = StockModel.fromJson(json);
     expect(stock.chipConcentration, closeTo(82.3, 0.0001));
+  });
+
+  test('computeScore respects concentration weight', () {
+    final base = computeScore(
+      volume: 100,
+      volumeReference: 100,
+      changePercent: 2,
+      price: 50,
+      maxPrice: 100,
+      chipConcentration: 50,
+      normalizedTradeValue: 100,
+      volumeWeight: 1,
+      changeWeight: 1,
+      priceWeight: 1,
+      concentrationWeight: 0,
+      tradeValueWeight: 0,
+    );
+    final withConcentration = computeScore(
+      volume: 100,
+      volumeReference: 100,
+      changePercent: 2,
+      price: 50,
+      maxPrice: 100,
+      chipConcentration: 50,
+      normalizedTradeValue: 100,
+      volumeWeight: 1,
+      changeWeight: 1,
+      priceWeight: 1,
+      concentrationWeight: 5,
+      tradeValueWeight: 0,
+    );
+    expect(withConcentration, greaterThan(base));
+  });
+
+  test('isMasterTrap flags concentration drop', () {
+    expect(
+      isMasterTrap(
+        prevConcentration: 80,
+        currConcentration: 60,
+        dropThresholdPercent: 15,
+      ),
+      isTrue,
+    );
+    expect(
+      isMasterTrap(
+        prevConcentration: 80,
+        currConcentration: 70,
+        dropThresholdPercent: 15,
+      ),
+      isFalse,
+    );
   });
 }

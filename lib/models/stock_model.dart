@@ -15,6 +15,7 @@ class StockModel {
   final int volume;
   final int tradeValue;
   final double change;
+  final double chipConcentration;
 
   factory StockModel.fromJson(Map<String, dynamic> json) {
     final code = _readString(
@@ -59,7 +60,6 @@ class StockModel {
       volume: volume,
       tradeValue: tradeValue,
       change: changePercent,
-      chipConcentration: chipConcentration,
       chipConcentration: chipConcentration,
     );
   }

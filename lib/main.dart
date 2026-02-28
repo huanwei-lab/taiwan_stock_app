@@ -277,6 +277,10 @@ class _StockListPageState extends State<StockListPage> {
   bool _enableBreakoutQuality = true;
   bool _enableChipConcentrationFilter = false;
   double _minChipConcentrationPercent = 70.0; // percent
+  int _concentrationWeight = 0;
+  int _tradeValueWeight = 0;
+  bool _enableMasterTrapFilter = false;
+  double _masterTrapDropPercent = 10.0;
   bool _enableRiskRewardPrefilter = true;
   bool _enableWeeklyWalkForwardAutoTune = true;
   bool _enableMultiDayBreakout = true;
@@ -955,6 +959,12 @@ class _StockListPageState extends State<StockListPage> {
           prefs.getBool(_enableChipConcentrationFilterKey) ?? _enableChipConcentrationFilter;
       _minChipConcentrationPercent =
           prefs.getDouble(_minChipConcentrationPercentKey) ?? _minChipConcentrationPercent;
+      _concentrationWeight = prefs.getInt(_concentrationWeightKey) ?? _concentrationWeight;
+      _tradeValueWeight = prefs.getInt(_tradeValueWeightKey) ?? _tradeValueWeight;
+      _enableMasterTrapFilter =
+          prefs.getBool(_enableMasterTrapFilterKey) ?? _enableMasterTrapFilter;
+      _masterTrapDropPercent =
+          prefs.getDouble(_masterTrapDropPercentKey) ?? _masterTrapDropPercent;
       _breakoutMinVolumeRatioPercent =
           prefs.getInt(_breakoutMinVolumeRatioKey) ??
               _breakoutMinVolumeRatioPercent;
@@ -1189,6 +1199,10 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setBool(_breakoutQualityEnabledKey, _enableBreakoutQuality);
     await prefs.setBool(_enableChipConcentrationFilterKey, _enableChipConcentrationFilter);
     await prefs.setDouble(_minChipConcentrationPercentKey, _minChipConcentrationPercent);
+    await prefs.setInt(_concentrationWeightKey, _concentrationWeight);
+    await prefs.setInt(_tradeValueWeightKey, _tradeValueWeight);
+    await prefs.setBool(_enableMasterTrapFilterKey, _enableMasterTrapFilter);
+    await prefs.setDouble(_masterTrapDropPercentKey, _masterTrapDropPercent);
     await prefs.setInt(
         _breakoutMinVolumeRatioKey, _breakoutMinVolumeRatioPercent);
     await prefs.setBool(
@@ -3543,6 +3557,9 @@ class _StockListPageState extends State<StockListPage> {
     if (_enableChipConcentrationFilter && _minChipConcentrationPercent > 0) {
       warnings.add('已啟用籌碼集中度過濾，低於 ${_minChipConcentrationPercent.toInt()}% 的不顯示。');
     }
+    if (_enableMasterTrapFilter) {
+      warnings.add('主力誘多過濾開啟，跌幅>${_masterTrapDropPercent.toInt()}% 判為誘多');
+    }
     if (!_enableRiskRewardPrefilter) {
       warnings.add('未啟用風險報酬前置過濾，低報酬比交易可能增加。');
     }
@@ -4038,6 +4055,10 @@ class _StockListPageState extends State<StockListPage> {
     double localVolumeWeight = _volumeWeight.toDouble();
     double localChangeWeight = _changeWeight.toDouble();
     double localPriceWeight = _priceWeight.toDouble();
+    double localConcentrationWeight = _concentrationWeight.toDouble();
+    double localTradeValueWeight = _tradeValueWeight.toDouble();
+    bool localEnableMasterTrapFilter = _enableMasterTrapFilter;
+    double localMasterTrapDropPercent = _masterTrapDropPercent.toDouble();
     String localSectorRulesText = _sectorRulesText;
     String? selectedPresetId;
     String? selectedMvpPresetId;
@@ -4644,6 +4665,73 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
+                        const Divider(height: 24),
+                        Text('權重設定（0＝忽略）'),
+                        Text('成交量權重：${localVolumeWeight.toInt()}'),
+                        Slider(
+                          value: localVolumeWeight.toDouble(),
+                          min: 0,
+                          max: 10,
+                          divisions: 10,
+                          label: '${localVolumeWeight.toInt()}',
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localVolumeWeight = value.toInt();
+                            });
+                          },
+                        ),
+                        Text('漲跌百分比權重：${localChangeWeight.toInt()}'),
+                        Slider(
+                          value: localChangeWeight.toDouble(),
+                          min: 0,
+                          max: 10,
+                          divisions: 10,
+                          label: '${localChangeWeight.toInt()}',
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localChangeWeight = value.toInt();
+                            });
+                          },
+                        ),
+                        Text('股價距離權重：${localPriceWeight.toInt()}'),
+                        Slider(
+                          value: localPriceWeight.toDouble(),
+                          min: 0,
+                          max: 10,
+                          divisions: 10,
+                          label: '${localPriceWeight.toInt()}',
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localPriceWeight = value.toInt();
+                            });
+                          },
+                        ),
+                        Text('籌碼集中度權重：${localConcentrationWeight.toInt()}'),
+                        Slider(
+                          value: localConcentrationWeight.toDouble(),
+                          min: 0,
+                          max: 10,
+                          divisions: 10,
+                          label: '${localConcentrationWeight.toInt()}',
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localConcentrationWeight = value.toInt();
+                            });
+                          },
+                        ),
+                        Text('成交值權重：${localTradeValueWeight.toInt()}'),
+                        Slider(
+                          value: localTradeValueWeight.toDouble(),
+                          min: 0,
+                          max: 10,
+                          divisions: 10,
+                          label: '${localTradeValueWeight.toInt()}',
+                          onChanged: (value) {
+                            setLocalState(() {
+                              localTradeValueWeight = value.toInt();
+                            });
+                          },
+                        ),
                         Text('移動停利回撤：${localTrailingPullbackPercent.toInt()}%'),
                         Slider(
                           value: localTrailingPullbackPercent,
@@ -5217,6 +5305,14 @@ class _StockListPageState extends State<StockListPage> {
                                       localEnableChipConcentrationFilter,
                                   minChipConcentrationPercent:
                                       localMinChipConcentrationPercent,
+                                  concentrationWeight:
+                                      localConcentrationWeight.toInt(),
+                                  tradeValueWeight:
+                                      localTradeValueWeight.toInt(),
+                                  enableMasterTrapFilter:
+                                      localEnableMasterTrapFilter,
+                                  masterTrapDropPercent:
+                                      localMasterTrapDropPercent.toInt(),
                                   enableRiskRewardPrefilter:
                                       localEnableRiskRewardPrefilter,
                                   minRiskRewardRatioX100:
@@ -5418,6 +5514,10 @@ class _StockListPageState extends State<StockListPage> {
       _breakoutMinVolumeRatioPercent = result.breakoutMinVolumeRatioPercent;
       _enableChipConcentrationFilter = result.enableChipConcentrationFilter;
       _minChipConcentrationPercent = result.minChipConcentrationPercent;
+      _concentrationWeight = result.concentrationWeight;
+      _tradeValueWeight = result.tradeValueWeight;
+      _enableMasterTrapFilter = result.enableMasterTrapFilter;
+      _masterTrapDropPercent = result.masterTrapDropPercent;
       _enableRiskRewardPrefilter = result.enableRiskRewardPrefilter;
       _minRiskRewardRatioX100 = result.minRiskRewardRatioX100;
       _enableMultiDayBreakout = result.enableMultiDayBreakout;
@@ -5509,25 +5609,30 @@ class _StockListPageState extends State<StockListPage> {
     final volumeReference = _latestVolumeReference <= 0
         ? _surgeVolumeThreshold.toDouble()
         : _latestVolumeReference;
-    final volumeComponent =
-        ((stock.volume / volumeReference).clamp(0.0, 2.0) / 2) * 100;
-    final changeComponent =
-        stock.change <= 0 ? 0 : (stock.change / 7.0).clamp(0.0, 1.0) * 100;
-    final priceComponent =
-        ((_maxPriceThreshold - stock.closePrice) / _maxPriceThreshold)
-                .clamp(0.0, 1.0) *
-            100;
-
-    final totalWeight = _volumeWeight + _changeWeight + _priceWeight;
-    if (totalWeight == 0) {
-      return 0;
+    final normalizedTradeValue =
+        _normalizedTradeValueForFilter(stock.tradeValue).toDouble();
+    int baseScore = computeScore(
+      volume: stock.volume.toDouble(),
+      volumeReference: volumeReference,
+      changePercent: stock.change,
+      price: stock.closePrice,
+      maxPrice: _maxPriceThreshold.toDouble(),
+      chipConcentration: stock.chipConcentration,
+      normalizedTradeValue: normalizedTradeValue,
+      volumeWeight: _volumeWeight,
+      changeWeight: _changeWeight,
+      priceWeight: _priceWeight,
+      concentrationWeight: _concentrationWeight,
+      tradeValueWeight: _tradeValueWeight,
+    );
+    // adjust by sector strength (if available), downscale scores from weak sectors
+    final group = _sectorGroupForCode(stock.code);
+    final strength = _sectorStrengthByGroup[group] ?? 1.0;
+    if (strength < 1.0) {
+      // linearly reduce score
+      baseScore = (baseScore * strength).round();
     }
-
-    final weightedScore = (volumeComponent * _volumeWeight) +
-        (changeComponent * _changeWeight) +
-        (priceComponent * _priceWeight);
-
-    return (weightedScore / totalWeight).round();
+    return baseScore;
   }
 
   int _calculateMarketAverageVolume(List<StockModel> stocks) {
@@ -7131,6 +7236,17 @@ class _StockListPageState extends State<StockListPage> {
     return stock.chipConcentration >= _minChipConcentrationPercent;
   }
 
+  bool _passesMasterTrap(StockModel stock) {
+    if (!_enableMasterTrapFilter) return true;
+    final prev = _previousChipConcentrationByCode[stock.code];
+    if (prev == null) return true;
+    return isMasterTrap(
+      prevConcentration: prev,
+      currConcentration: stock.chipConcentration,
+      dropThresholdPercent: _masterTrapDropPercent,
+    );
+  }
+
   bool _isSameCalendarDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
@@ -7182,6 +7298,12 @@ class _StockListPageState extends State<StockListPage> {
     if (_lastBreakoutStreakUpdatedAt != null &&
         _isSameCalendarDay(_lastBreakoutStreakUpdatedAt!, now)) {
       return;
+    }
+
+    // save previous concentrations before updating
+    _previousChipConcentrationByCode.clear();
+    for (final stock in stocks) {
+      _previousChipConcentrationByCode[stock.code] = stock.chipConcentration;
     }
 
     final next = <String, int>{};
@@ -12182,6 +12304,10 @@ class _FilterState {
     required this.breakoutMinVolumeRatioPercent,
     required this.enableChipConcentrationFilter,
     required this.minChipConcentrationPercent,
+    required this.concentrationWeight,
+    required this.tradeValueWeight,
+    required this.enableMasterTrapFilter,
+    required this.masterTrapDropPercent,
     required this.enableRiskRewardPrefilter,
     required this.minRiskRewardRatioX100,
     required this.enableMultiDayBreakout,
@@ -12252,6 +12378,10 @@ class _FilterState {
   final int breakoutMinVolumeRatioPercent;
   final bool enableChipConcentrationFilter;
   final double minChipConcentrationPercent;
+  final int concentrationWeight;
+  final int tradeValueWeight;
+  final bool enableMasterTrapFilter;
+  final double masterTrapDropPercent;
   final bool enableRiskRewardPrefilter;
   final int minRiskRewardRatioX100;
   final bool enableMultiDayBreakout;
@@ -13190,4 +13320,33 @@ class _StrategyStats {
   final int count;
   final double winRate;
   final double avgPnlPercent;
+}
+
+/// Compare two filter states and return differing fields with values.
+Map<String, Map<String, dynamic>> compareFilterStates(
+    _FilterState a, _FilterState b) {
+  final diffs = <String, Map<String, dynamic>>{};
+  void check(String name, dynamic va, dynamic vb) {
+    if (va != vb) {
+      diffs[name] = {'a': va, 'b': vb};
+    }
+  }
+
+  check('enabled', a.enabled, b.enabled);
+  check('onlyRising', a.onlyRising, b.onlyRising);
+  check('maxPrice', a.maxPrice, b.maxPrice);
+  check('minVolume', a.minVolume, b.minVolume);
+  check('useRelativeVolumeFilter', a.useRelativeVolumeFilter, b.useRelativeVolumeFilter);
+  check('relativeVolumePercent', a.relativeVolumePercent, b.relativeVolumePercent);
+  check('minTradeValue', a.minTradeValue, b.minTradeValue);
+  check('enableScoring', a.enableScoring, b.enableScoring);
+  check('limitTopCandidates', a.limitTopCandidates, b.limitTopCandidates);
+  check('enableChipConcentrationFilter', a.enableChipConcentrationFilter, b.enableChipConcentrationFilter);
+  check('minChipConcentrationPercent', a.minChipConcentrationPercent, b.minChipConcentrationPercent);
+  check('concentrationWeight', a.concentrationWeight, b.concentrationWeight);
+  check('tradeValueWeight', a.tradeValueWeight, b.tradeValueWeight);
+  check('enableMasterTrapFilter', a.enableMasterTrapFilter, b.enableMasterTrapFilter);
+  check('masterTrapDropPercent', a.masterTrapDropPercent, b.masterTrapDropPercent);
+  // continue with other fields as needed
+  return diffs;
 }
