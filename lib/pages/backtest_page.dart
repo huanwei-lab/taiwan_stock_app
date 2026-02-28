@@ -486,6 +486,10 @@ class _BacktestPageState extends State<BacktestPage> {
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
+
     if (skipConfirmThisSession != _skipTop1ConfirmForSession) {
       setState(() {
         _skipTop1ConfirmForSession = skipConfirmThisSession;
@@ -748,7 +752,7 @@ class _BacktestPageState extends State<BacktestPage> {
                     '總報酬 ${item.result.totalPnlPercent.toStringAsFixed(2)}%｜勝率 ${item.result.winRate.toStringAsFixed(1)}%｜回撤 ${item.result.maxDrawdownPercent.toStringAsFixed(2)}%｜PF ${item.result.profitFactor.toStringAsFixed(2)}｜連虧 ${item.result.maxConsecutiveLosses}',
                   ),
                   trailing: Text(
-                    '${(item.result.totalPnlPercent - item.result.maxDrawdownPercent * 0.5 - item.result.maxConsecutiveLosses * 2).toStringAsFixed(1)}',
+                    (item.result.totalPnlPercent - item.result.maxDrawdownPercent * 0.5 - item.result.maxConsecutiveLosses * 2).toStringAsFixed(1),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),

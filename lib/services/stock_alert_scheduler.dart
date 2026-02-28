@@ -33,7 +33,6 @@ class StockAlertScheduler {
 
     await Workmanager().initialize(
       stockAlertCallbackDispatcher,
-      isInDebugMode: kDebugMode,
     );
 
     await Workmanager().registerPeriodicTask(
