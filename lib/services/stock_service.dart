@@ -6,6 +6,10 @@ import 'package:http/http.dart' as http;
 import '../models/stock_model.dart';
 
 class StockService {
+  // NOTE: the upstream API should include a field named `ChipConcentration` or
+  // equivalent in its JSON response if you want the app's chip concentration
+  // feature to work.  Otherwise StockModel.chipConcentration will default to 0
+  // and the filter will have no effect.
   static const String _twseDailyCloseApi =
       'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL';
 

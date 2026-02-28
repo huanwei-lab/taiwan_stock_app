@@ -116,6 +116,28 @@ App 內路徑：`篩選診斷 -> 匯出命中率 CSV`
 請把目前策略當 A，提出 B（僅改 2~3 個參數/規則），
 輸出 A/B 差異、預期影響、風險，然後直接實作 B。
 ```
+
+
+---
+
+## CSV 回測評估工具
+
+### 使用說明
+1. 在 App 內的「匯出命中率 CSV」功能得到 `predictions.csv` 和
+   `outcomes.csv`。
+2. 將檔案放到電腦上可讀位置。
+3. 從專案根目錄執行：
+   ```bash
+   dart tools/evaluate_csv.dart ./path/to/predictions.csv ./path/to/outcomes.csv [minScore]
+   ```
+   其中 `minScore` 為選股分數門檻（可省略）。
+4. 工具會輸出命中筆數與篩選出的平均 1 日報酬，方便比較權重/篩選
+   調整後的效果。
+
+### 為什麼要用這個
+- 觀察新加入的權重（籌碼、成交值）是否提高命中率。 
+- 檢查不同分數門檻對回測成績的影響。
+
 ## Google 備份設定教學
 
 ### 1. Google Cloud Console 設定
