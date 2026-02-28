@@ -110,6 +110,12 @@ class _StockListPageState extends State<StockListPage> {
   static const String _mobileTextScaleKey = 'ui.mobileTextScale';
   static const String _candidateDriftHistoryKey =
       'diagnostic.candidateDriftHistory';
+  static const String _dailyCandidateArchiveKey =
+      'diagnostic.dailyCandidateArchive';
+    static const String _dailyPredictionArchiveKey =
+      'diagnostic.dailyPredictionArchive';
+    static const String _dailyContextArchiveKey =
+      'diagnostic.dailyContextArchive';
     static const String _parameterChangeAuditHistoryKey =
       'diagnostic.parameterChangeAuditHistory';
     static const String _lastCoreSelectionParamsSnapshotKey =
@@ -361,6 +367,12 @@ class _StockListPageState extends State<StockListPage> {
       <String, List<String>>{};
   final List<_CandidateDriftRecord> _candidateDriftHistory =
       <_CandidateDriftRecord>[];
+  final List<_DailyCandidateSnapshot> _dailyCandidateArchive =
+      <_DailyCandidateSnapshot>[];
+    final List<_DailyPredictionSnapshot> _dailyPredictionArchive =
+      <_DailyPredictionSnapshot>[];
+    final List<_DailyContextSnapshot> _dailyContextArchive =
+      <_DailyContextSnapshot>[];
     final List<_ParameterChangeAuditEntry> _parameterChangeAuditHistory =
       <_ParameterChangeAuditEntry>[];
     Map<String, String> _lastCoreSelectionParamsSnapshot = <String, String>{};
@@ -664,6 +676,65 @@ class _StockListPageState extends State<StockListPage> {
               }
             }
           }
+        }
+      }
+      _dailyCandidateArchive.clear();
+      final rawDailyCandidateArchive =
+          prefs.getString(_dailyCandidateArchiveKey);
+      if (rawDailyCandidateArchive != null && rawDailyCandidateArchive.isNotEmpty) {
+        final decoded = jsonDecode(rawDailyCandidateArchive);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final parsed = _DailyCandidateSnapshot.fromJson(
+                Map<String, dynamic>.from(item),
+              );
+              if (parsed != null) {
+                _dailyCandidateArchive.add(parsed);
+              }
+            }
+          }
+          _dailyCandidateArchive.sort(
+            (a, b) => b.dateKey.compareTo(a.dateKey),
+          );
+        }
+      }
+      _dailyPredictionArchive.clear();
+      final rawDailyPredictionArchive =
+          prefs.getString(_dailyPredictionArchiveKey);
+      if (rawDailyPredictionArchive != null &&
+          rawDailyPredictionArchive.isNotEmpty) {
+        final decoded = jsonDecode(rawDailyPredictionArchive);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final parsed = _DailyPredictionSnapshot.fromJson(
+                Map<String, dynamic>.from(item),
+              );
+              if (parsed != null) {
+                _dailyPredictionArchive.add(parsed);
+              }
+            }
+          }
+          _dailyPredictionArchive.sort((a, b) => b.dateKey.compareTo(a.dateKey));
+        }
+      }
+      _dailyContextArchive.clear();
+      final rawDailyContextArchive = prefs.getString(_dailyContextArchiveKey);
+      if (rawDailyContextArchive != null && rawDailyContextArchive.isNotEmpty) {
+        final decoded = jsonDecode(rawDailyContextArchive);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final parsed = _DailyContextSnapshot.fromJson(
+                Map<String, dynamic>.from(item),
+              );
+              if (parsed != null) {
+                _dailyContextArchive.add(parsed);
+              }
+            }
+          }
+          _dailyContextArchive.sort((a, b) => b.dateKey.compareTo(a.dateKey));
         }
       }
       _parameterChangeAuditHistory.clear();
@@ -1239,6 +1310,18 @@ class _StockListPageState extends State<StockListPage> {
       jsonEncode(_candidateDriftHistory.map((entry) => entry.toJson()).toList()),
     );
     await prefs.setString(
+      _dailyCandidateArchiveKey,
+      jsonEncode(_dailyCandidateArchive.map((entry) => entry.toJson()).toList()),
+    );
+    await prefs.setString(
+      _dailyPredictionArchiveKey,
+      jsonEncode(_dailyPredictionArchive.map((entry) => entry.toJson()).toList()),
+    );
+    await prefs.setString(
+      _dailyContextArchiveKey,
+      jsonEncode(_dailyContextArchive.map((entry) => entry.toJson()).toList()),
+    );
+    await prefs.setString(
       _parameterChangeAuditHistoryKey,
       jsonEncode(_parameterChangeAuditHistory.map((entry) => entry.toJson()).toList()),
     );
@@ -1431,6 +1514,553 @@ class _StockListPageState extends State<StockListPage> {
     final changesPreview = entry.changes.take(2).join('、');
     final more = entry.changes.length > 2 ? ' +${entry.changes.length - 2}' : '';
     return '${_formatTimeHHmm(entry.timestamp)} ${_parameterAuditSourceLabel(entry.source)}｜$changesPreview$more';
+  }
+
+  String _calendarDayKey(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  void _upsertDailyCandidateArchive({
+    required Set<String> coreCandidateCodes,
+    required Set<String> limitedCodes,
+    required Set<String> strongOnlyCodes,
+  }) {
+    final now = DateTime.now();
+    final dateKey = _calendarDayKey(now);
+    final core = coreCandidateCodes.toList()..sort();
+    final limited = limitedCodes.toList()..sort();
+    final strong = strongOnlyCodes.toList()..sort();
+
+    final next = _DailyCandidateSnapshot(
+      dateKey: dateKey,
+      capturedAt: now,
+      coreCandidateCodes: core,
+      limitedCandidateCodes: limited,
+      strongOnlyCodes: strong,
+    );
+
+    final index = _dailyCandidateArchive.indexWhere((item) => item.dateKey == dateKey);
+    if (index >= 0) {
+      final prev = _dailyCandidateArchive[index];
+      if (listEquals(prev.coreCandidateCodes, next.coreCandidateCodes) &&
+          listEquals(prev.limitedCandidateCodes, next.limitedCandidateCodes) &&
+          listEquals(prev.strongOnlyCodes, next.strongOnlyCodes)) {
+        return;
+      }
+      _dailyCandidateArchive[index] = next;
+    } else {
+      _dailyCandidateArchive.insert(0, next);
+    }
+
+    _dailyCandidateArchive.sort((a, b) => b.dateKey.compareTo(a.dateKey));
+    if (_dailyCandidateArchive.length > 45) {
+      _dailyCandidateArchive.removeRange(45, _dailyCandidateArchive.length);
+    }
+    _scheduleDiagnosticsSnapshotPersist();
+  }
+
+  String _stableFilterContextHash(Map<String, String> context) {
+    final keys = context.keys.toList()..sort();
+    var checksum = 0;
+    for (final key in keys) {
+      final text = '$key=${context[key] ?? ''};';
+      for (final unit in text.codeUnits) {
+        checksum = ((checksum * 131) + unit) % 1000000007;
+      }
+    }
+    return checksum.toRadixString(16).padLeft(8, '0');
+  }
+
+  void _upsertDailyPredictionArchive({
+    required List<_ScoredStock> limitedCandidateStocks,
+    required Set<String> coreCandidateCodes,
+    required Set<String> strongOnlyCodes,
+    required _EntrySignal Function(StockModel stock, int score) resolveEntrySignal,
+  }) {
+    final now = DateTime.now();
+    final dateKey = _calendarDayKey(now);
+    final rows = <_DailyPredictionRow>[];
+
+    for (var index = 0; index < limitedCandidateStocks.length; index++) {
+      final item = limitedCandidateStocks[index];
+      final signal = resolveEntrySignal(item.stock, item.score);
+      rows.add(
+        _DailyPredictionRow(
+          code: item.stock.code,
+          stockName: item.stock.name,
+          signalType: signal.type.name,
+          rank: index + 1,
+          score: item.score,
+          inCore: coreCandidateCodes.contains(item.stock.code),
+          inTop20: true,
+          inStrong: strongOnlyCodes.contains(item.stock.code),
+        ),
+      );
+    }
+
+    final next = _DailyPredictionSnapshot(
+      dateKey: dateKey,
+      capturedAt: now,
+      rows: rows,
+    );
+
+    final index = _dailyPredictionArchive.indexWhere((item) => item.dateKey == dateKey);
+    if (index >= 0) {
+      final prev = _dailyPredictionArchive[index];
+      if (listEquals(prev.rows.map((e) => e.toCsvKey()).toList(),
+          next.rows.map((e) => e.toCsvKey()).toList())) {
+        return;
+      }
+      _dailyPredictionArchive[index] = next;
+    } else {
+      _dailyPredictionArchive.insert(0, next);
+    }
+
+    _dailyPredictionArchive.sort((a, b) => b.dateKey.compareTo(a.dateKey));
+    if (_dailyPredictionArchive.length > 45) {
+      _dailyPredictionArchive.removeRange(45, _dailyPredictionArchive.length);
+    }
+    _scheduleDiagnosticsSnapshotPersist();
+  }
+
+  void _upsertDailyContextArchive({
+    required double marketBreadthRatio,
+    required _MarketRegime marketRegime,
+    required Map<String, String> filterContext,
+  }) {
+    final now = DateTime.now();
+    final dateKey = _calendarDayKey(now);
+    final newsRisk = _marketNewsSnapshot?.level.name ?? 'unknown';
+    final next = _DailyContextSnapshot(
+      dateKey: dateKey,
+      capturedAt: now,
+      marketBreadthRatio: marketBreadthRatio,
+      newsRiskLevel: newsRisk,
+      breakoutMode: _breakoutStageMode.name,
+      marketRegime: marketRegime.name,
+      keyParamsHash: _stableFilterContextHash(filterContext),
+    );
+
+    final index = _dailyContextArchive.indexWhere((item) => item.dateKey == dateKey);
+    if (index >= 0) {
+      final prev = _dailyContextArchive[index];
+      if (prev.marketBreadthRatio.toStringAsFixed(4) ==
+              next.marketBreadthRatio.toStringAsFixed(4) &&
+          prev.newsRiskLevel == next.newsRiskLevel &&
+          prev.breakoutMode == next.breakoutMode &&
+          prev.marketRegime == next.marketRegime &&
+          prev.keyParamsHash == next.keyParamsHash) {
+        return;
+      }
+      _dailyContextArchive[index] = next;
+    } else {
+      _dailyContextArchive.insert(0, next);
+    }
+
+    _dailyContextArchive.sort((a, b) => b.dateKey.compareTo(a.dateKey));
+    if (_dailyContextArchive.length > 90) {
+      _dailyContextArchive.removeRange(90, _dailyContextArchive.length);
+    }
+    _scheduleDiagnosticsSnapshotPersist();
+  }
+
+  String _csvCell(String value) {
+    final escaped = value.replaceAll('"', '""');
+    return '"$escaped"';
+  }
+
+  String _buildPredictionsCsv({required int lookbackDays}) {
+    final now = DateTime.now();
+    final start = now.subtract(Duration(days: lookbackDays));
+    final lines = <String>[
+      'date,code,stock_name,signal_type,rank,score,in_core,in_top20,in_strong',
+    ];
+
+    final snapshots = _dailyPredictionArchive
+        .where((snapshot) {
+          final date = DateTime.tryParse(snapshot.dateKey);
+          if (date == null) {
+            return false;
+          }
+          return !date.isBefore(start);
+        })
+        .toList()
+      ..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+
+    for (final snapshot in snapshots) {
+      for (final row in snapshot.rows) {
+        lines.add([
+          _csvCell(snapshot.dateKey),
+          _csvCell(row.code),
+          _csvCell(row.stockName),
+          _csvCell(row.signalType),
+          row.rank.toString(),
+          row.score.toString(),
+          row.inCore ? '1' : '0',
+          row.inTop20 ? '1' : '0',
+          row.inStrong ? '1' : '0',
+        ].join(','));
+      }
+    }
+    return lines.join('\n');
+  }
+
+  String _buildOutcomesCsv({required int lookbackDays}) {
+    final now = DateTime.now();
+    final start = now.subtract(Duration(days: lookbackDays));
+    final rows = _signalTrackEntries.where((entry) => !entry.date.isBefore(start)).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    final lines = <String>[
+      'date,code,stock_name,signal_type,entry_price,ret_1d,ret_3d,ret_5d,max_up_5d,max_dd_5d',
+    ];
+    for (final row in rows) {
+      lines.add([
+        _csvCell(_calendarDayKey(row.date)),
+        _csvCell(row.stockCode),
+        _csvCell(row.stockName),
+        _csvCell(row.signalType.name),
+        row.entryPrice.toStringAsFixed(2),
+        row.return1Day?.toStringAsFixed(4) ?? '',
+        row.return3Day?.toStringAsFixed(4) ?? '',
+        row.return5Day?.toStringAsFixed(4) ?? '',
+        '',
+        '',
+      ].join(','));
+    }
+    return lines.join('\n');
+  }
+
+  String _buildContextCsv({required int lookbackDays}) {
+    final now = DateTime.now();
+    final start = now.subtract(Duration(days: lookbackDays));
+    final rows = _dailyContextArchive
+        .where((entry) {
+          final date = DateTime.tryParse(entry.dateKey);
+          if (date == null) {
+            return false;
+          }
+          return !date.isBefore(start);
+        })
+        .toList()
+      ..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+
+    final lines = <String>[
+      'date,market_breadth,news_risk,breakout_mode,market_regime,key_params_hash',
+    ];
+    for (final row in rows) {
+      lines.add([
+        _csvCell(row.dateKey),
+        row.marketBreadthRatio.toStringAsFixed(4),
+        _csvCell(row.newsRiskLevel),
+        _csvCell(row.breakoutMode),
+        _csvCell(row.marketRegime),
+        _csvCell(row.keyParamsHash),
+      ].join(','));
+    }
+    return lines.join('\n');
+  }
+
+  String _buildWeeklyHitRateSummaryText() {
+    final now = DateTime.now();
+    final start = now.subtract(const Duration(days: 7));
+    final rows = _signalTrackEntries.where((entry) => !entry.date.isBefore(start)).toList();
+
+    int countBy(_EntrySignalType type) =>
+        rows.where((entry) => entry.signalType == type).length;
+
+    ({int total, int win, double avg}) scoreBy(
+      _EntrySignalType type,
+      double? Function(_SignalTrackEntry e) getter,
+    ) {
+      final values = rows
+          .where((entry) => entry.signalType == type)
+          .map(getter)
+          .whereType<double>()
+          .toList();
+      if (values.isEmpty) {
+        return (total: 0, win: 0, avg: 0);
+      }
+      final win = values.where((v) => v > 0).length;
+      final avg = values.fold<double>(0, (sum, value) => sum + value) / values.length;
+      return (total: values.length, win: win, avg: avg);
+    }
+
+    final strong1 = scoreBy(_EntrySignalType.strong, (e) => e.return1Day);
+    final watch1 = scoreBy(_EntrySignalType.watch, (e) => e.return1Day);
+    final dailyPred = _dailyPredictionArchive
+        .where((entry) {
+          final date = DateTime.tryParse(entry.dateKey);
+          if (date == null) {
+            return false;
+          }
+          return !date.isBefore(start);
+        })
+        .toList();
+    final avgPredPerDay = dailyPred.isEmpty
+        ? 0.0
+        : dailyPred
+                .map((entry) => entry.rows.length)
+                .fold<int>(0, (sum, value) => sum + value) /
+            dailyPred.length;
+
+    String winRateText(int win, int total) {
+      if (total == 0) {
+        return '0.0%';
+      }
+      return (win * 100 / total).toStringAsFixed(1) + '%';
+    }
+
+    return '最近7天命中摘要：強勢訊號 ${countBy(_EntrySignalType.strong)} 筆（1D 勝率 ${winRateText(strong1.win, strong1.total)} / 平均 ${strong1.avg.toStringAsFixed(2)}%）'
+        '｜觀察訊號 ${countBy(_EntrySignalType.watch)} 筆（1D 勝率 ${winRateText(watch1.win, watch1.total)} / 平均 ${watch1.avg.toStringAsFixed(2)}%）'
+        '｜平均每日候選 ${avgPredPerDay.toStringAsFixed(1)} 檔';
+  }
+
+  Future<void> _openAnalyticsExportDialog() async {
+    final lookbackController = TextEditingController(text: '30');
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          String status = '';
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              Future<void> copy(String name, String content) async {
+                await Clipboard.setData(ClipboardData(text: content));
+                if (!mounted) {
+                  return;
+                }
+                setDialogState(() {
+                  status = '已複製 $name（${content.split('\n').length - 1} 筆）';
+                });
+              }
+
+              int lookbackDays() {
+                final raw = int.tryParse(lookbackController.text.trim()) ?? 30;
+                return raw.clamp(7, 120);
+              }
+
+              return AlertDialog(
+                title: const Text('匯出命中率資料（CSV）'),
+                content: SizedBox(
+                  width: 520,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: lookbackController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: '匯出天數（7~120）',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _buildWeeklyHitRateSummaryText(),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (status.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(status, style: Theme.of(context).textTheme.labelSmall),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('關閉'),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: () {
+                      copy('predictions.csv', _buildPredictionsCsv(lookbackDays: lookbackDays()));
+                    },
+                    child: const Text('複製 predictions.csv'),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: () {
+                      copy('outcomes.csv', _buildOutcomesCsv(lookbackDays: lookbackDays()));
+                    },
+                    child: const Text('複製 outcomes.csv'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      copy('context.csv', _buildContextCsv(lookbackDays: lookbackDays()));
+                    },
+                    child: const Text('複製 context.csv'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      lookbackController.dispose();
+    }
+  }
+
+  Future<void> _openBullRunReplayDialog() async {
+    final codeController = TextEditingController();
+    final daysController = TextEditingController(text: '7');
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          String report = _dailyCandidateArchive.isEmpty
+              ? '尚無每日候選快照，請先至少更新 1 個交易日。'
+              : '';
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              void runReplay() {
+                if (_dailyCandidateArchive.isEmpty) {
+                  setDialogState(() {
+                    report = '尚無每日候選快照，請先至少更新 1 個交易日。';
+                  });
+                  return;
+                }
+
+                final rawCodes = codeController.text
+                    .split(RegExp(r'[\s,，;；]+'))
+                    .map((text) => text.trim().toUpperCase())
+                    .where((text) => text.isNotEmpty)
+                    .toSet()
+                    .toList()
+                  ..sort();
+                final days = int.tryParse(daysController.text.trim()) ?? 7;
+                final lookbackDays = days.clamp(3, 45);
+
+                if (rawCodes.isEmpty) {
+                  setDialogState(() {
+                    report = '請輸入要回看的飆股代號（可多檔，以逗號分隔）';
+                  });
+                  return;
+                }
+
+                final now = DateTime.now();
+                final start = now.subtract(Duration(days: lookbackDays));
+                final selectedSnapshots = _dailyCandidateArchive
+                    .where((entry) {
+                      final date = DateTime.tryParse(entry.dateKey);
+                      if (date == null) {
+                        return false;
+                      }
+                      return !date.isBefore(start);
+                    })
+                    .toList()
+                  ..sort((a, b) => b.dateKey.compareTo(a.dateKey));
+
+                if (selectedSnapshots.isEmpty) {
+                  setDialogState(() {
+                    report = '最近 $lookbackDays 天沒有可用快照。';
+                  });
+                  return;
+                }
+
+                final lines = <String>[
+                  '回看區間：最近 $lookbackDays 天（${selectedSnapshots.length} 筆快照）',
+                  '輸入代號：${rawCodes.join('、')}',
+                ];
+
+                var hitAnyCore = 0;
+                var hitAnyStrong = 0;
+                for (final code in rawCodes) {
+                  var coreHits = 0;
+                  var limitedHits = 0;
+                  var strongHits = 0;
+                  String? latestCoreDate;
+                  String? latestStrongDate;
+
+                  for (final entry in selectedSnapshots) {
+                    if (entry.coreCandidateCodes.contains(code)) {
+                      coreHits += 1;
+                      latestCoreDate ??= entry.dateKey;
+                    }
+                    if (entry.limitedCandidateCodes.contains(code)) {
+                      limitedHits += 1;
+                    }
+                    if (entry.strongOnlyCodes.contains(code)) {
+                      strongHits += 1;
+                      latestStrongDate ??= entry.dateKey;
+                    }
+                  }
+
+                  if (coreHits > 0) {
+                    hitAnyCore += 1;
+                  }
+                  if (strongHits > 0) {
+                    hitAnyStrong += 1;
+                  }
+
+                  lines.add(
+                    '$code：核心 $coreHits/${selectedSnapshots.length} 天、前$_topCandidateLimit $limitedHits 天、強勢 $strongHits 天'
+                    '${latestCoreDate == null ? '' : '｜最近核心命中 $latestCoreDate'}'
+                    '${latestStrongDate == null ? '' : '｜最近強勢命中 $latestStrongDate'}',
+                  );
+                }
+
+                lines.add(
+                  '整體覆蓋：核心命中 $hitAnyCore/${rawCodes.length} 檔、強勢命中 $hitAnyStrong/${rawCodes.length} 檔',
+                );
+                lines.add('註：此回看檢查「是否曾入選」，不代表隔日必漲。');
+
+                setDialogState(() {
+                  report = lines.join('\n');
+                });
+              }
+
+              return AlertDialog(
+                title: const Text('上週飆股回看（前一日是否抓到）'),
+                content: SizedBox(
+                  width: 520,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: codeController,
+                        decoration: const InputDecoration(
+                          labelText: '飆股代號（逗號分隔）',
+                          hintText: '例如 3017, 2382, 3450',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: daysController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: '回看天數（3~45）',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      if (report.isNotEmpty)
+                        Text(
+                          report,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('關閉'),
+                  ),
+                  FilledButton(
+                    onPressed: runReplay,
+                    child: const Text('回看'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      codeController.dispose();
+      daysController.dispose();
+    }
   }
 
   List<_SectorRule> _parseSectorRulesText(String raw) {
@@ -8409,7 +9039,25 @@ class _StockListPageState extends State<StockListPage> {
             final limitedCodes =
                 limitedCandidateStocks.map((item) => item.stock.code).toSet();
 
+            _upsertDailyCandidateArchive(
+              coreCandidateCodes: qualityCodes,
+              limitedCodes: limitedCodes,
+              strongOnlyCodes: strongOnlyCodes,
+            );
+
+            _upsertDailyPredictionArchive(
+              limitedCandidateStocks: limitedCandidateStocks,
+              coreCandidateCodes: qualityCodes,
+              strongOnlyCodes: strongOnlyCodes,
+              resolveEntrySignal: resolveEntrySignal,
+            );
+
             final currentFilterContext = _buildCandidateFilterContextSnapshot();
+            _upsertDailyContextArchive(
+              marketBreadthRatio: marketBreadthRatio,
+              marketRegime: marketRegime,
+              filterContext: currentFilterContext,
+            );
             final changedFilterContextLabels =
               _lastCandidateFilterContext.isEmpty
                 ? <String>[]
@@ -9072,6 +9720,22 @@ class _StockListPageState extends State<StockListPage> {
                                     label: const Text('單檔排除診斷'),
                                   ),
                                 ),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: _openBullRunReplayDialog,
+                                    icon: const Icon(Icons.history_edu_outlined),
+                                    label: const Text('上週飆股回看'),
+                                  ),
+                                ),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: _openAnalyticsExportDialog,
+                                    icon: const Icon(Icons.file_download_outlined),
+                                    label: const Text('匯出命中率 CSV'),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -9288,6 +9952,18 @@ class _StockListPageState extends State<StockListPage> {
                                   ),
                                 ),
                               ],
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                              horizontalInset, 6, horizontalInset, 0),
+                          child: Card(
+                            child: ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.calendar_view_week),
+                              title: const Text('每週命中率摘要（最近 7 天）'),
+                              subtitle: Text(_buildWeeklyHitRateSummaryText()),
                             ),
                           ),
                         ),
@@ -11350,6 +12026,227 @@ class _CandidateDriftRecord {
       addedCount: addedCount,
       removedCount: removedCount,
       changedFilters: changedFilters,
+    );
+  }
+}
+
+class _DailyCandidateSnapshot {
+  const _DailyCandidateSnapshot({
+    required this.dateKey,
+    required this.capturedAt,
+    required this.coreCandidateCodes,
+    required this.limitedCandidateCodes,
+    required this.strongOnlyCodes,
+  });
+
+  final String dateKey;
+  final DateTime capturedAt;
+  final List<String> coreCandidateCodes;
+  final List<String> limitedCandidateCodes;
+  final List<String> strongOnlyCodes;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'dateKey': dateKey,
+      'capturedAt': capturedAt.toIso8601String(),
+      'coreCandidateCodes': coreCandidateCodes,
+      'limitedCandidateCodes': limitedCandidateCodes,
+      'strongOnlyCodes': strongOnlyCodes,
+    };
+  }
+
+  static _DailyCandidateSnapshot? fromJson(Map<String, dynamic> json) {
+    final dateKey = (json['dateKey'] ?? '').toString().trim();
+    final capturedAt = DateTime.tryParse((json['capturedAt'] ?? '').toString());
+
+    List<String> parseList(dynamic raw) {
+      final output = <String>[];
+      if (raw is List) {
+        for (final item in raw) {
+          final text = item.toString().trim();
+          if (text.isNotEmpty) {
+            output.add(text);
+          }
+        }
+      }
+      output.sort();
+      return output;
+    }
+
+    if (dateKey.isEmpty || capturedAt == null) {
+      return null;
+    }
+
+    return _DailyCandidateSnapshot(
+      dateKey: dateKey,
+      capturedAt: capturedAt,
+      coreCandidateCodes: parseList(json['coreCandidateCodes']),
+      limitedCandidateCodes: parseList(json['limitedCandidateCodes']),
+      strongOnlyCodes: parseList(json['strongOnlyCodes']),
+    );
+  }
+}
+
+class _DailyPredictionRow {
+  const _DailyPredictionRow({
+    required this.code,
+    required this.stockName,
+    required this.signalType,
+    required this.rank,
+    required this.score,
+    required this.inCore,
+    required this.inTop20,
+    required this.inStrong,
+  });
+
+  final String code;
+  final String stockName;
+  final String signalType;
+  final int rank;
+  final int score;
+  final bool inCore;
+  final bool inTop20;
+  final bool inStrong;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'stockName': stockName,
+      'signalType': signalType,
+      'rank': rank,
+      'score': score,
+      'inCore': inCore,
+      'inTop20': inTop20,
+      'inStrong': inStrong,
+    };
+  }
+
+  String toCsvKey() {
+    return '$code|$signalType|$rank|$score|$inCore|$inTop20|$inStrong';
+  }
+
+  static _DailyPredictionRow? fromJson(Map<String, dynamic> json) {
+    final code = (json['code'] ?? '').toString().trim();
+    final stockName = (json['stockName'] ?? '').toString().trim();
+    final signalType = (json['signalType'] ?? '').toString().trim();
+    final rank = int.tryParse((json['rank'] ?? '').toString()) ?? 0;
+    final score = int.tryParse((json['score'] ?? '').toString()) ?? 0;
+    if (code.isEmpty || rank <= 0) {
+      return null;
+    }
+
+    return _DailyPredictionRow(
+      code: code,
+      stockName: stockName,
+      signalType: signalType.isEmpty ? 'wait' : signalType,
+      rank: rank,
+      score: score,
+      inCore: (json['inCore'] == true) || (json['inCore'].toString() == '1'),
+      inTop20:
+          (json['inTop20'] == true) || (json['inTop20'].toString() == '1'),
+      inStrong:
+          (json['inStrong'] == true) || (json['inStrong'].toString() == '1'),
+    );
+  }
+}
+
+class _DailyPredictionSnapshot {
+  const _DailyPredictionSnapshot({
+    required this.dateKey,
+    required this.capturedAt,
+    required this.rows,
+  });
+
+  final String dateKey;
+  final DateTime capturedAt;
+  final List<_DailyPredictionRow> rows;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'dateKey': dateKey,
+      'capturedAt': capturedAt.toIso8601String(),
+      'rows': rows.map((row) => row.toJson()).toList(),
+    };
+  }
+
+  static _DailyPredictionSnapshot? fromJson(Map<String, dynamic> json) {
+    final dateKey = (json['dateKey'] ?? '').toString().trim();
+    final capturedAt = DateTime.tryParse((json['capturedAt'] ?? '').toString());
+    if (dateKey.isEmpty || capturedAt == null) {
+      return null;
+    }
+    final rows = <_DailyPredictionRow>[];
+    final rawRows = json['rows'];
+    if (rawRows is List) {
+      for (final item in rawRows) {
+        if (item is Map) {
+          final parsed =
+              _DailyPredictionRow.fromJson(Map<String, dynamic>.from(item));
+          if (parsed != null) {
+            rows.add(parsed);
+          }
+        }
+      }
+    }
+    return _DailyPredictionSnapshot(
+      dateKey: dateKey,
+      capturedAt: capturedAt,
+      rows: rows,
+    );
+  }
+}
+
+class _DailyContextSnapshot {
+  const _DailyContextSnapshot({
+    required this.dateKey,
+    required this.capturedAt,
+    required this.marketBreadthRatio,
+    required this.newsRiskLevel,
+    required this.breakoutMode,
+    required this.marketRegime,
+    required this.keyParamsHash,
+  });
+
+  final String dateKey;
+  final DateTime capturedAt;
+  final double marketBreadthRatio;
+  final String newsRiskLevel;
+  final String breakoutMode;
+  final String marketRegime;
+  final String keyParamsHash;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'dateKey': dateKey,
+      'capturedAt': capturedAt.toIso8601String(),
+      'marketBreadthRatio': marketBreadthRatio,
+      'newsRiskLevel': newsRiskLevel,
+      'breakoutMode': breakoutMode,
+      'marketRegime': marketRegime,
+      'keyParamsHash': keyParamsHash,
+    };
+  }
+
+  static _DailyContextSnapshot? fromJson(Map<String, dynamic> json) {
+    final dateKey = (json['dateKey'] ?? '').toString().trim();
+    final capturedAt = DateTime.tryParse((json['capturedAt'] ?? '').toString());
+    final breadth =
+        double.tryParse((json['marketBreadthRatio'] ?? '').toString()) ?? 1.0;
+    final newsRiskLevel = (json['newsRiskLevel'] ?? '').toString().trim();
+    final breakoutMode = (json['breakoutMode'] ?? '').toString().trim();
+    final marketRegime = (json['marketRegime'] ?? '').toString().trim();
+    final keyParamsHash = (json['keyParamsHash'] ?? '').toString().trim();
+    if (dateKey.isEmpty || capturedAt == null) {
+      return null;
+    }
+    return _DailyContextSnapshot(
+      dateKey: dateKey,
+      capturedAt: capturedAt,
+      marketBreadthRatio: breadth,
+      newsRiskLevel: newsRiskLevel,
+      breakoutMode: breakoutMode,
+      marketRegime: marketRegime,
+      keyParamsHash: keyParamsHash,
     );
   }
 }
