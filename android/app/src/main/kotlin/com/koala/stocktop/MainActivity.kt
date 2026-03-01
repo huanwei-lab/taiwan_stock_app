@@ -1,4 +1,4 @@
-package com.example.stock_checker
+﻿package com.koala.stocktop
 
 import io.flutter.embedding.android.FlutterActivity
 
