@@ -446,6 +446,15 @@ class _StockListPageState extends State<StockListPage> {
   // keep last fetched stock list for weight optimization
   List<StockModel> _latestStocks = <StockModel>[];
 
+  // 建議購買清單參數配置
+  int _recommendedMinForeignNet = 10000000; // 外資淨買 >= 10M
+  int _recommendedMinTrustNet = 10000000;   // 投信淨買 >= 10M
+  int _recommendedMinScore = 60;            // 分數 >= 60
+  int _recommendedMinTradeValue = 3000000000; // 成交值 >= 30億
+  bool _recommendedEnableScoring = true;
+  bool _recommendedEnableForeignFilter = true;
+  bool _recommendedEnableTrustFilter = true;
+
   DateTime? _lockedMarketAverageVolumeDate;
   int? _lockedMarketAverageVolume;
   final Map<String, double> _peakPnlPercentByCode = <String, double>{};
@@ -1195,6 +1204,21 @@ class _StockListPageState extends State<StockListPage> {
         _lastCoreSelectionParamsSnapshot =
             _buildCoreSelectionParamsSnapshot();
       }
+      // 加載推薦參數配置
+      _recommendedMinForeignNet =
+          prefs.getInt('recommend.minForeignNet') ?? _recommendedMinForeignNet;
+      _recommendedMinTrustNet =
+          prefs.getInt('recommend.minTrustNet') ?? _recommendedMinTrustNet;
+      _recommendedMinScore =
+          prefs.getInt('recommend.minScore') ?? _recommendedMinScore;
+      _recommendedMinTradeValue =
+          prefs.getInt('recommend.minTradeValue') ?? _recommendedMinTradeValue;
+      _recommendedEnableScoring =
+          prefs.getBool('recommend.enableScoring') ?? _recommendedEnableScoring;
+      _recommendedEnableForeignFilter = prefs.getBool('recommend.enableForeignFilter') ??
+          _recommendedEnableForeignFilter;
+      _recommendedEnableTrustFilter =
+          prefs.getBool('recommend.enableTrustFilter') ?? _recommendedEnableTrustFilter;
     });
 
     _configureAutoRefreshTimer();
@@ -1528,6 +1552,14 @@ class _StockListPageState extends State<StockListPage> {
       _autoDailyInsightEnabledKey,
       _autoDailyInsightEnabled,
     );
+    // 保存推薦參數配置
+    await prefs.setInt('recommend.minForeignNet', _recommendedMinForeignNet);
+    await prefs.setInt('recommend.minTrustNet', _recommendedMinTrustNet);
+    await prefs.setInt('recommend.minScore', _recommendedMinScore);
+    await prefs.setInt('recommend.minTradeValue', _recommendedMinTradeValue);
+    await prefs.setBool('recommend.enableScoring', _recommendedEnableScoring);
+    await prefs.setBool('recommend.enableForeignFilter', _recommendedEnableForeignFilter);
+    await prefs.setBool('recommend.enableTrustFilter', _recommendedEnableTrustFilter);
   }
 
   Future<void> _savePreferencesTagged(String source) async {
@@ -6353,6 +6385,150 @@ class _StockListPageState extends State<StockListPage> {
     return baseScore;
   }
 
+  /// 計算建議購買排序分數（綜合評估法人、分數、成交量、訊號等）
+  double _calculateBuyRecommendationScore(
+    StockModel stock,
+    int score,
+    _EntrySignal signal,
+  ) {
+    double scoreVal = 0.0;
+
+    // 1. 基礎分數權重 (30%)
+    if (_recommendedEnableScoring) {
+      final scoreRatio = (score / 100.0).clamp(0.0, 1.0);
+      scoreVal += scoreRatio * 30.0;
+    } else {
+      scoreVal += 20.0; // 沒有打分時給基礎分
+    }
+
+    // 2. 法人淨買權重 (35%)
+    final totalInstitutional = stock.foreignNet + stock.trustNet;
+    if (totalInstitutional > 0) {
+      // 法人淨買 50M => 滿分，50M以上也是滿分
+      final instRatio = (totalInstitutional / 50000000.0).clamp(0.0, 1.0);
+      scoreVal += instRatio * 35.0;
+    } else {
+      // 法人淨賣時減分
+      scoreVal += 5.0;
+    }
+
+    // 3. 成交量/成交值權重 (20%)
+    final volumeRatio = _latestVolumeReference <= 0
+        ? 0.8
+        : (stock.volume / _latestVolumeReference).clamp(0.0, 2.0);
+    scoreVal += (volumeRatio / 2.0).clamp(0.0, 1.0) * 20.0;
+
+    // 4. 進場訊號權重 (15%)
+    final signalBonus = switch (signal.type) {
+      _EntrySignalType.strong => 15.0,
+      _EntrySignalType.watch => 8.0,
+      _EntrySignalType.wait => 4.0,
+      _EntrySignalType.avoid => 0.0,
+      _EntrySignalType.neutral => 2.0,
+    };
+    scoreVal += signalBonus;
+
+    return scoreVal;
+  }
+
+  /// 生成建議購買清單（前N檔最佳推薦）
+  List<({
+    String code,
+    String name,
+    int score,
+    int foreignNet,
+    int trustNet,
+    int totalInst,
+    double recommendScore,
+    String signal,
+  })> _buildBuyRecommendationList({
+    List<_ScoredStock>? stocks,
+    int topCount = 10,
+  }) {
+    final candidates = stocks ?? <_ScoredStock>[];
+    if (candidates.isEmpty) {
+      return <({
+        String code,
+        String name,
+        int score,
+        int foreignNet,
+        int trustNet,
+        int totalInst,
+        double recommendScore,
+        String signal,
+      })>[];
+    }
+
+    final recommendations = <({
+      String code,
+      String name,
+      int score,
+      int foreignNet,
+      int trustNet,
+      int totalInst,
+      double recommendScore,
+      String signal,
+    })>[];
+
+    for (final scoredStock in candidates) {
+      final stock = scoredStock.stock;
+      final score = scoredStock.score;
+
+      // 檢查是否符合推薦條件
+      if (_recommendedEnableForeignFilter &&
+          stock.foreignNet < _recommendedMinForeignNet) {
+        continue;
+      }
+      if (_recommendedEnableTrustFilter &&
+          stock.trustNet < _recommendedMinTrustNet) {
+        continue;
+      }
+      if (_recommendedEnableScoring && score < _recommendedMinScore) {
+        continue;
+      }
+      if (stock.tradeValue < _recommendedMinTradeValue) {
+        continue;
+      }
+
+      final signal = _evaluateEntrySignal(stock, score);
+      final recommendScore = _calculateBuyRecommendationScore(stock, score, signal);
+      final totalInst = stock.foreignNet + stock.trustNet;
+
+      recommendations.add((
+        code: stock.code,
+        name: stock.name,
+        score: score,
+        foreignNet: stock.foreignNet,
+        trustNet: stock.trustNet,
+        totalInst: totalInst,
+        recommendScore: recommendScore,
+        signal: signal.label,
+      ));
+    }
+
+    // 按推薦分數排序
+    recommendations.sort((a, b) => b.recommendScore.compareTo(a.recommendScore));
+
+    return recommendations.take(topCount).toList();
+  }
+
+  /// 一鍵復原推薦參數到預設值
+  void _resetRecommendedParamsToDefault() {
+    setState(() {
+      _recommendedMinForeignNet = 10000000;
+      _recommendedMinTrustNet = 10000000;
+      _recommendedMinScore = 60;
+      _recommendedMinTradeValue = 3000000000;
+      _recommendedEnableScoring = true;
+      _recommendedEnableForeignFilter = true;
+      _recommendedEnableTrustFilter = true;
+    });
+    _savePreferences();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已復原建議購買清單參數到預設值')),
+    );
+  }
+
   int _calculateMarketAverageVolume(List<StockModel> stocks) {
     if (stocks.isEmpty) {
       return _surgeVolumeThreshold;
@@ -10832,6 +11008,338 @@ void diagnoseStock(StockModel stock, int score) {
                             child: Text(
                               scanSummary,
                               style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ),
+                        // 建議購買清單卡片
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                              horizontalInset, sectionGap, horizontalInset, 0),
+                          child: Card(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.trending_up),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '建議購買清單（1️⃣ 優先級排行）',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall,
+                                      ),
+                                      const Spacer(),
+                                      TextButton(
+                                        onPressed: _resetRecommendedParamsToDefault,
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                        ),
+                                        child: const Text('🔄 復原預設'),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  // 參數調整區
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 8,
+                                    children: [
+                                      if (_recommendedEnableScoring)
+                                        Chip(
+                                          backgroundColor: Colors.blue[50],
+                                          label: Text(
+                                            '分數 >= ${_recommendedMinScore}',
+                                            style: const TextStyle(
+                                                fontSize: 12),
+                                          ),
+                                          onDeleted: () {
+                                            final ctrl = TextEditingController(text: _recommendedMinScore.toString());
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) =>
+                                                  AlertDialog(
+                                                    title: const Text(
+                                                        '調整最低分數'),
+                                                    content:
+                                                        TextField(
+                                                          controller: ctrl,
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                          onChanged:
+                                                              (val) {
+                                                            final parsed =
+                                                                int.tryParse(
+                                                                    val) ??
+                                                                    60;
+                                                            setState(
+                                                              () {
+                                                                _recommendedMinScore =
+                                                                    parsed
+                                                                        .clamp(
+                                                                            30,
+                                                                            100);
+                                                              },
+                                                            );
+                                                            _savePreferences();
+                                                          },
+                                                        ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          ctrl.dispose();
+                                                          Navigator.pop(ctx);
+                                                        },
+                                                        child: const Text(
+                                                            '確定'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
+                                          },
+                                        ),
+                                      if (_recommendedEnableForeignFilter)
+                                        Chip(
+                                          backgroundColor: Colors.green[50],
+                                          label: Text(
+                                            '外資 >= ${(_recommendedMinForeignNet / 1000000).toStringAsFixed(0)}M',
+                                            style: const TextStyle(
+                                                fontSize: 12),
+                                          ),
+                                          onDeleted: () {
+                                            final ctrl = TextEditingController(text: (_recommendedMinForeignNet / 1000000).toStringAsFixed(0));
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) =>
+                                                  AlertDialog(
+                                                    title: const Text(
+                                                        '調整外資淨買（百萬元）'),
+                                                    content:
+                                                        TextField(
+                                                          controller: ctrl,
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                          onChanged:
+                                                              (val) {
+                                                            final parsed =
+                                                                (int.tryParse(
+                                                                        val) ??
+                                                                    10) *
+                                                                    1000000;
+                                                            setState(
+                                                              () {
+                                                                _recommendedMinForeignNet =
+                                                                    parsed
+                                                                        .clamp(
+                                                                            0,
+                                                                            500000000);
+                                                              },
+                                                            );
+                                                            _savePreferences();
+                                                          },
+                                                        ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          ctrl.dispose();
+                                                          Navigator.pop(ctx);
+                                                        },
+                                                        child: const Text(
+                                                            '確定'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
+                                          },
+                                        ),
+                                      if (_recommendedEnableTrustFilter)
+                                        Chip(
+                                          backgroundColor: Colors.orange[50],
+                                          label: Text(
+                                            '投信 >= ${(_recommendedMinTrustNet / 1000000).toStringAsFixed(0)}M',
+                                            style: const TextStyle(
+                                                fontSize: 12),
+                                          ),
+                                          onDeleted: () {
+                                            final ctrl = TextEditingController(text: (_recommendedMinTrustNet / 1000000).toStringAsFixed(0));
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) =>
+                                                  AlertDialog(
+                                                    title: const Text(
+                                                        '調整投信淨買（百萬元）'),
+                                                    content:
+                                                        TextField(
+                                                          controller: ctrl,
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                          onChanged:
+                                                              (val) {
+                                                            final parsed =
+                                                                (int.tryParse(
+                                                                        val) ??
+                                                                    10) *
+                                                                    1000000;
+                                                            setState(
+                                                              () {
+                                                                _recommendedMinTrustNet =
+                                                                    parsed
+                                                                        .clamp(
+                                                                            0,
+                                                                            500000000);
+                                                              },
+                                                            );
+                                                            _savePreferences();
+                                                          },
+                                                        ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          ctrl.dispose();
+                                                          Navigator.pop(ctx);
+                                                        },
+                                                        child: const Text(
+                                                            '確定'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  // 排行榜列表
+                                  Builder(
+                                    builder: (ctx) {
+                                      final recs =
+                                          _buildBuyRecommendationList(
+                                        stocks: limitedCandidateStocks,
+                                        topCount: 5,
+                                      );
+                                      if (recs.isEmpty) {
+                                        return SizedBox(
+                                          height: 80,
+                                          child: Center(
+                                            child: Text(
+                                              '沒有符合推薦條件的股票',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: List.generate(
+                                          recs.length,
+                                          (idx) {
+                                            final rec = recs[idx];
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 6),
+                                              child: Row(
+                                                children: [
+                                                  // 排名
+                                                  SizedBox(
+                                                    width: 20,
+                                                    child: Text(
+                                                      '#${idx + 1}',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.red,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  // 代號+名稱
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          '${rec.code}｜${rec.name}',
+                                                          style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '分 ${rec.score}｜外${(rec.foreignNet / 1000000).toStringAsFixed(1)}M｜投${(rec.trustNet / 1000000).toStringAsFixed(1)}M',
+                                                          style: Theme.of(ctx)
+                                                              .textTheme
+                                                              .labelSmall,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  // 訊號 & 推薦度
+                                                  Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.end,
+                                                    children: [
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                              horizontal: 6,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: rec.signal ==
+                                                                  '強勢進場'
+                                                              ? Colors.red
+                                                              : Colors
+                                                                  .yellow[700],
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(4),
+                                                        ),
+                                                        child: Text(
+                                                          rec.signal,
+                                                          style: const TextStyle(
+                                                            color: Colors
+                                                                .white,
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '${rec.recommendScore.toStringAsFixed(1)} 分',
+                                                        style: Theme.of(ctx)
+                                                            .textTheme
+                                                            .labelSmall,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
