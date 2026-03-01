@@ -155,7 +155,7 @@ class FundFlowCache {
     if (diff <= 3) return false; // Fri-Mon is 3 days, acceptable
 
     // If > 3 days, check if there's a weekday (Mon-Fri)
-    var current = from.add(Duration(days: 1));
+    var current = from.add(const Duration(days: 1));
     while (current.isBefore(to)) {
       if (current.weekday >= DateTime.monday && current.weekday <= DateTime.friday) {
         return true; // Found unexpected trading day in gap

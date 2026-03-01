@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, prefer_const_constructors, prefer_const_declarations, unnecessary_brace_in_string_interps, prefer_interpolation_to_compose_strings, deprecated_member_use
+﻿// ignore_for_file: use_build_context_synchronously, prefer_const_constructors, prefer_const_declarations, unnecessary_brace_in_string_interps, prefer_interpolation_to_compose_strings, deprecated_member_use
 
 import 'dart:convert';
 import 'dart:async';
@@ -13,11 +13,9 @@ import 'models/market_news.dart';
 import 'models/stock_model.dart';
 import 'pages/backtest_page.dart';
 import 'services/backtest_service.dart';
-import 'services/breakout_filter_service.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/news_service.dart';
 import 'services/notification_service.dart';
-import 'services/persistence_service.dart';
 import 'services/stock_alert_scheduler.dart';
 import 'services/stock_service.dart';
 import 'strategy_utils.dart';
@@ -36,7 +34,7 @@ class StockCheckerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '?�股飆股?��?',
+      title: '台股飆股分析',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -126,7 +124,7 @@ class _StockListPageState extends State<StockListPage> {
       'diagnostic.dailyFilterStats';
     static const String _parameterChangeAuditHistoryKey =
       'diagnostic.parameterChangeAuditHistory';
-  // 三大法人?��?資篩?�設�?
+  // 三大法人、融資篩選設定
   static const String _enableForeignFlowFilterKey =
       'filter.foreign.enabled';
   static const String _minForeignNetKey =
@@ -243,7 +241,7 @@ class _StockListPageState extends State<StockListPage> {
       'filter.sectorExposureCap.enabled';
   static const String _maxHoldingPerSectorKey =
       'filter.sectorExposureCap.maxPerSector';
-  static const String BreakoutModeKey = 'filter.breakoutStageMode';
+  static const String _breakoutStageModeKey = 'filter.breakoutStageMode';
   static const String _breakoutStreakByCodeKey = 'filter.breakoutStreakByCode';
   static const String _breakoutStreakUpdatedAtKey =
       'filter.breakoutStreakUpdatedAt';
@@ -252,10 +250,10 @@ class _StockListPageState extends State<StockListPage> {
   static const String _enableSectorRotationBoostKey =
       'regime.enableSectorRotationBoost';
   static const String _sectorRulesTextKey = 'regime.sectorRulesText';
-  static const String _defaultSectorRulesText = '11-17=食�?/塑�?\n'
-      '20-24=?�鐵/?��?\n'
-      '25-29=?��?/?��?體\n'
-      '58-59=?��?';
+  static const String _defaultSectorRulesText = '11-17=食品/塑化\n'
+      '20-24=鋼鐵/電子\n'
+      '25-29=通訊/半導體\n'
+      '58-59=金融';
 
   static const int _minPrice = 5;
   static const int _maxPrice = 100;
@@ -352,10 +350,10 @@ class _StockListPageState extends State<StockListPage> {
   final Map<String, double> _sectorStrengthByGroup = <String, double>{};
   String _sectorRulesText = _defaultSectorRulesText;
   final List<_SectorRule> _sectorRules = <_SectorRule>[
-    const _SectorRule(start: 11, end: 17, group: '食�?/塑�?'),
-    const _SectorRule(start: 20, end: 24, group: '?�鐵/?��?'),
-    const _SectorRule(start: 25, end: 29, group: '?��?/?��?�?),
-    const _SectorRule(start: 58, end: 59, group: '?��?'),
+    const _SectorRule(start: 11, end: 17, group: 'Food/Plastic'),
+    const _SectorRule(start: 20, end: 24, group: 'Steel/Metal'),
+    const _SectorRule(start: 25, end: 29, group: 'Electronics/Oil'),
+    _SectorRule(start: 58, end: 59, group: 'Energy'),
   ];
   int _maxPriceThreshold = 50;
   int _surgeVolumeThreshold = 10000000;
@@ -385,7 +383,7 @@ class _StockListPageState extends State<StockListPage> {
   int? _eventTuneBackupRiskBudget;
   String? _activeNewsEventTemplateId;
   DateTime? _lastNewsEventTemplateHitAt;
-  BreakoutMode BreakoutMode = BreakoutMode.early;
+  _BreakoutStageMode _breakoutStageMode = _BreakoutStageMode.early;
   int _cooldownDays = 3;
   DateTime? _lastWeeklyAutoTuneAt;
   DateTime? _lastAutoModeAppliedAt;
@@ -448,8 +446,8 @@ class _StockListPageState extends State<StockListPage> {
 
   static const _StrategyPreset _conservativePreset = _StrategyPreset(
     id: 'conservative',
-    label: '保�?',
-    description: '高�??��?高�??�檻�?訊�?較�?但相對穩?��?,
+    label: '保守',
+    description: '高量能＋高分門檻，訊號較少但相對穩健。',
     onlyRising: true,
     maxPrice: 45,
     minVolume: 20000000,
@@ -464,7 +462,7 @@ class _StockListPageState extends State<StockListPage> {
   static const _StrategyPreset _balancedPreset = _StrategyPreset(
     id: 'balanced',
     label: '平衡',
-    description: '?�能?�漲幅兼顧�??��?大�??�日常�??��?,
+    description: '量能與漲幅兼顧，適合大多數日常掃描。',
     onlyRising: true,
     maxPrice: 50,
     minVolume: 10000000,
@@ -479,7 +477,7 @@ class _StockListPageState extends State<StockListPage> {
   static const _StrategyPreset _aggressivePreset = _StrategyPreset(
     id: 'aggressive',
     label: '積極',
-    description: '?�寬條件?�早?��?，�?波�?風險較�???,
+    description: '放寬條件提早卡位，但波動風險較高。',
     onlyRising: false,
     maxPrice: 60,
     minVolume: 5000000,
@@ -501,8 +499,8 @@ class _StockListPageState extends State<StockListPage> {
       <_NewsEventTemplate>[
     _NewsEventTemplate(
       id: 'war_conflict',
-      label: '?�爭/?�緣衝�?模�?',
-      adjustmentSummary: '?�寬?�股但�?低單筆風?��??��??�面空�?',
+      label: '戰爭/地緣衝突模式',
+      adjustmentSummary: '放寬選股但降低單筆風險，避免全面空窗',
       minScore: 50,
       minTradeValue: 700000000,
       maxChase: 9,
@@ -510,22 +508,22 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 12,
       riskBudget: 2500,
       triggerKeywords: <String>[
-        '?�爭',
-        '衝�?',
+        '戰爭',
+        '衝突',
         '空襲',
-        '?�戰',
-        '飛�?',
-        '封�?',
-        '?�緣',
-        '以色??,
-        '伊�?',
+        '開戰',
+        '飛彈',
+        '封鎖',
+        '地緣',
+        '以色列',
+        '伊朗',
         '中東',
       ],
     ),
     _NewsEventTemplate(
       id: 'pandemic',
-      label: '?��??�溫模�?',
-      adjustmentSummary: '?��??�質?�檻�?縮�?追價?��??�空??,
+      label: '疫情升溫模式',
+      adjustmentSummary: '提高品質門檻，縮小追價與停損空間',
       minScore: 72,
       minTradeValue: 1600000000,
       maxChase: 4,
@@ -533,20 +531,20 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 8,
       riskBudget: 2200,
       triggerKeywords: <String>[
-        '?��?',
+        '疫情',
         '確診',
-        '?��?',
-        '?��?',
-        '封�?',
-        '流�?',
-        '?��?',
+        '傳染',
+        '病毒',
+        '封城',
+        '流感',
+        '猴痘',
         'COVID',
       ],
     ),
     _NewsEventTemplate(
       id: 'drug_approval',
-      label: '?�藥?�可模�?',
-      adjustmentSummary: '?�許題�??�波?��??�大?�利並�??�風??,
+      label: '新藥核可模式',
+      adjustmentSummary: '允許題材股波動，拉大停利並保留風控',
       minScore: 55,
       minTradeValue: 600000000,
       maxChase: 10,
@@ -554,20 +552,20 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 15,
       riskBudget: 2800,
       triggerKeywords: <String>[
-        '?�藥',
-        '?�可',
-        '?��?',
-        '?��?',
-        '三�?',
-        '?��?',
+        '新藥',
+        '核可',
+        '藥證',
+        '通過',
+        '三期',
+        '臨床',
         'FDA',
         'EUA',
       ],
     ),
     _NewsEventTemplate(
       id: 'policy_stimulus',
-      label: '?��??��?模�?',
-      adjustmentSummary: '?�度?��?追價容�?，�??��??�共?��?�?,
+      label: '政策利多模式',
+      adjustmentSummary: '適度提高追價容忍，聚焦量價共振族群',
       minScore: 52,
       minTradeValue: 800000000,
       maxChase: 9,
@@ -576,18 +574,18 @@ class _StockListPageState extends State<StockListPage> {
       riskBudget: 3000,
       triggerKeywords: <String>[
         '補助',
-        '?��?',
-        '?�息',
-        '寬�?',
-        '?��?',
-        '?�建',
-        '?��?',
+        '政策',
+        '降息',
+        '寬鬆',
+        '刺激',
+        '基建',
+        '利多',
       ],
     ),
     _NewsEventTemplate(
       id: 'rate_hike_inflation',
-      label: '?�息/?�膨壓�?模�?',
-      adjustmentSummary: '轉為?��?，抬高�??��??�交?��?�?,
+      label: '升息/通膨壓力模式',
+      adjustmentSummary: '轉為防守，抬高分數與成交值門檻',
       minScore: 68,
       minTradeValue: 1400000000,
       maxChase: 5,
@@ -595,18 +593,18 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 9,
       riskBudget: 2400,
       triggerKeywords: <String>[
-        '?�息',
-        '?�膨',
+        '升息',
+        '通膨',
         'CPI',
-        '?��?',
+        '利率',
         '緊縮',
-        '殖利??,
+        '殖利率',
       ],
     ),
     _NewsEventTemplate(
       id: 'supply_chain_shock',
-      label: '供�??�中?�模�?,
-      adjustmentSummary: '?�度?��?，優?�大?��?流�??��???,
+      label: '供應鏈中斷模式',
+      adjustmentSummary: '適度防守，優先大型高流動性標的',
       minScore: 64,
       minTradeValue: 1200000000,
       maxChase: 6,
@@ -614,13 +612,13 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 10,
       riskBudget: 2500,
       triggerKeywords: <String>[
-        '?��?',
+        '斷鏈',
         '缺貨',
-        '?�工',
+        '停工',
         '罷工',
-        '?��?',
+        '航運',
         '塞港',
-        '?��?',
+        '關廠',
       ],
     ),
   ];
@@ -657,9 +655,6 @@ class _StockListPageState extends State<StockListPage> {
 
   Future<void> _loadSavedPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // Initialize PersistenceService for background writes
-    await PersistenceService.instance.init(prefs);
 
     if (!mounted) {
       return;
@@ -942,7 +937,7 @@ class _StockListPageState extends State<StockListPage> {
       _takeProfitPercent =
           prefs.getInt(_takeProfitPercentKey) ?? _takeProfitPercent;
 
-      // fund?�flow / margin filters
+      // fund‑flow / margin filters
       _enableForeignFlowFilter =
           prefs.getBool(_enableForeignFlowFilterKey) ?? _enableForeignFlowFilter;
       _minForeignNet = prefs.getInt(_minForeignNetKey) ?? _minForeignNet;
@@ -1138,8 +1133,8 @@ class _StockListPageState extends State<StockListPage> {
       _maxHoldingPerSector =
           (prefs.getInt(_maxHoldingPerSectorKey) ?? _maxHoldingPerSector)
               .clamp(1, 6);
-      final breakoutStageRaw = prefs.getString(BreakoutModeKey);
-      BreakoutMode = BreakoutModeFromStorage(breakoutStageRaw);
+      final breakoutStageRaw = prefs.getString(_breakoutStageModeKey);
+      _breakoutStageMode = _breakoutStageModeFromStorage(breakoutStageRaw);
       _cooldownDays = prefs.getInt(_cooldownDaysKey) ?? _cooldownDays;
       _enableScoreTierSizing =
           prefs.getBool(_enableScoreTierSizingKey) ?? _enableScoreTierSizing;
@@ -1206,7 +1201,7 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setBool(_enableExitSignalKey, _enableExitSignal);
     await prefs.setInt(_stopLossPercentKey, _stopLossPercent);
     await prefs.setInt(_takeProfitPercentKey, _takeProfitPercent);
-    // fund?�flow / margin filters
+    // fund‑flow / margin filters
     await prefs.setBool(_enableForeignFlowFilterKey, _enableForeignFlowFilter);
     await prefs.setInt(_minForeignNetKey, _minForeignNet);
     await prefs.setBool(_enableTrustFlowFilterKey, _enableTrustFlowFilter);
@@ -1418,7 +1413,7 @@ class _StockListPageState extends State<StockListPage> {
     );
     await prefs.setBool(_enableSectorExposureCapKey, _enableSectorExposureCap);
     await prefs.setInt(_maxHoldingPerSectorKey, _maxHoldingPerSector);
-    await prefs.setString(BreakoutModeKey, BreakoutMode.name);
+    await prefs.setString(_breakoutStageModeKey, _breakoutStageMode.name);
     await prefs.setString(
         _breakoutStreakByCodeKey, jsonEncode(_breakoutStreakByCode));
     if (_lastBreakoutStreakUpdatedAt != null) {
@@ -1521,7 +1516,7 @@ class _StockListPageState extends State<StockListPage> {
       'minScore': _minScoreThreshold.toString(),
       'excludeOverheated': _excludeOverheated ? '1' : '0',
       'maxChase': _maxChaseChangePercent.toString(),
-      'breakoutMode': BreakoutMode.name,
+      'breakoutMode': _breakoutStageMode.name,
       'eventWindowEnabled': _enableEventCalendarWindow ? '1' : '0',
       'eventWindowDays': _eventCalendarGuardDays.toString(),
       'revenueEnabled': _enableRevenueMomentumFilter ? '1' : '0',
@@ -1551,40 +1546,40 @@ class _StockListPageState extends State<StockListPage> {
 
   String? _coreSelectionParamLabel(String key) {
     return switch (key) {
-      'strategy' => '?�用策略篩選',
-      'onlyRising' => '?��?上漲',
-      'maxPrice' => '?�價上�?',
-      'minVolume' => '?�能?��?,
-      'minTradeValue' => '?�交?��?�?,
-      'enableScoring' => '?�用?��?',
-      'minScore' => '?�低�???,
-      'excludeOverheated' => '?�除追�?風險',
-      'maxChase' => '追�?漲�?上�?',
-      'breakoutMode' => '飆股模�?',
-      'eventWindowEnabled' => '事件窗�?�?,
-      'eventWindowDays' => '事件窗天??,
-      'revenueEnabled' => '?�收?�能?�濾',
-      'revenueMin' => '?�收?�能?��?,
-      'earningsEnabled' => '財報驚�??�濾',
-      'earningsMin' => '財報驚�??��?,
-      'riskRewardEnabled' => '風險?�酬?�濾',
-      'riskRewardMin' => '風險?�酬比�?�?,
-      'breadthEnabled' => '市場寬度?�濾',
-      'breadthMin' => '市場寬度?��?,
-      'sectorCapEnabled' => '?�業?�中度�???,
-      'sectorCap' => '?��??�業上�?',
-      'stopLoss' => '?��?(%)',
-      'takeProfit' => '?�利(%)',
-      'riskBudget' => '?��?風險額度',
-      'cooldownDays' => '?��??�卻天數',
-      'foreignEnabled' => '外�?淨買�?,
-      'foreignMin' => '外�??��?,
-      'trustEnabled' => '?�信淨買�?,
-      'trustMin' => '?�信?��?,
-      'dealerEnabled' => '?��??�淨買�?',
-      'dealerMin' => '?��??��?�?,
-      'marginDiffEnabled' => '?��?餘�?變�?',
-      'marginMin' => '?��??��?,
+      'strategy' => '啟用策略篩選',
+      'onlyRising' => '只看上漲',
+      'maxPrice' => '股價上限',
+      'minVolume' => '量能門檻',
+      'minTradeValue' => '成交值門檻',
+      'enableScoring' => '啟用打分',
+      'minScore' => '最低分數',
+      'excludeOverheated' => '排除追高風險',
+      'maxChase' => '追高漲幅上限',
+      'breakoutMode' => '飆股模式',
+      'eventWindowEnabled' => '事件窗過濾',
+      'eventWindowDays' => '事件窗天數',
+      'revenueEnabled' => '營收動能過濾',
+      'revenueMin' => '營收動能門檻',
+      'earningsEnabled' => '財報驚喜過濾',
+      'earningsMin' => '財報驚喜門檻',
+      'riskRewardEnabled' => '風險報酬過濾',
+      'riskRewardMin' => '風險報酬比門檻',
+      'breadthEnabled' => '市場寬度過濾',
+      'breadthMin' => '市場寬度門檻',
+      'sectorCapEnabled' => '產業集中度上限',
+      'sectorCap' => '單一產業上限',
+      'stopLoss' => '停損(%)',
+      'takeProfit' => '停利(%)',
+      'riskBudget' => '單筆風險額度',
+      'cooldownDays' => '停損冷卻天數',
+      'foreignEnabled' => '外資淨買超',
+      'foreignMin' => '外資門檻',
+      'trustEnabled' => '投信淨買超',
+      'trustMin' => '投信門檻',
+      'dealerEnabled' => '自營商淨買超',
+      'dealerMin' => '自營商門檻',
+      'marginDiffEnabled' => '融資餘額變動',
+      'marginMin' => '融資門檻',
       _ => null,
     };
   }
@@ -1601,9 +1596,9 @@ class _StockListPageState extends State<StockListPage> {
       case 'riskRewardEnabled':
       case 'breadthEnabled':
       case 'sectorCapEnabled':
-        return value == '1' ? '?? : '??;
+        return value == '1' ? '開' : '關';
       case 'breakoutMode':
-        return BreakoutModeLabel(BreakoutModeFromStorage(value));
+        return _breakoutStageModeLabel(_breakoutStageModeFromStorage(value));
       default:
         return value;
     }
@@ -1625,7 +1620,7 @@ class _StockListPageState extends State<StockListPage> {
       }
       final beforeText = _coreSelectionParamValueLabel(entry.key, before);
       final afterText = _coreSelectionParamValueLabel(entry.key, entry.value);
-      labels.add('$label $beforeText??afterText');
+      labels.add('$label $beforeText→$afterText');
     }
     return labels;
   }
@@ -1661,20 +1656,20 @@ class _StockListPageState extends State<StockListPage> {
 
   String _parameterAuditSourceLabel(String source) {
     return switch (source) {
-      'filter_sheet_apply' => '?��?套用策略',
-      'morning_scan' => '?�盤?��?',
+      'filter_sheet_apply' => '手動套用策略',
+      'morning_scan' => '晨盤掃描',
       'news_template_apply' => '事件模板套用',
-      'news_template_restore' => '事件模板?��?',
-      'auto_mode_rotation' => '?��?模�??��?',
-      'auto_tune_suggestion_apply' => '?�中?�自?�調??,
+      'news_template_restore' => '事件模板還原',
+      'auto_mode_rotation' => '自動模式切換',
+      'auto_tune_suggestion_apply' => '命中率自動調參',
       _ => source,
     };
   }
 
   String _parameterAuditHistoryLabel(_ParameterChangeAuditEntry entry) {
-    final changesPreview = entry.changes.take(2).join('??);
+    final changesPreview = entry.changes.take(2).join('、');
     final more = entry.changes.length > 2 ? ' +${entry.changes.length - 2}' : '';
-    return '${_formatTimeHHmm(entry.timestamp)} ${_parameterAuditSourceLabel(entry.source)}�?changesPreview$more';
+    return '${_formatTimeHHmm(entry.timestamp)} ${_parameterAuditSourceLabel(entry.source)}｜$changesPreview$more';
   }
 
   String _calendarDayKey(DateTime date) {
@@ -1732,7 +1727,7 @@ class _StockListPageState extends State<StockListPage> {
     return checksum.toRadixString(16).padLeft(8, '0');
   }
 
-  /// Record or update today?�s filter?�drop statistics.  We replace the entry
+  /// Record or update today’s filter‑drop statistics.  We replace the entry
   /// for the current date if it already exists and only persist when it
   /// actually changes (to avoid thrashing the prefs file).
   void _upsertDailyFilterStats(Map<String, int> counts) {
@@ -1844,7 +1839,7 @@ class _StockListPageState extends State<StockListPage> {
       capturedAt: now,
       marketBreadthRatio: marketBreadthRatio,
       newsRiskLevel: newsRisk,
-      breakoutMode: BreakoutMode.name,
+      breakoutMode: _breakoutStageMode.name,
       marketRegime: marketRegime.name,
       keyParamsHash: _stableFilterContextHash(filterContext),
     );
@@ -2019,9 +2014,9 @@ class _StockListPageState extends State<StockListPage> {
       return (win * 100 / total).toStringAsFixed(1) + '%';
     }
 
-    return '?��?天命中�?要�?強勢訊�? ${countBy(_EntrySignalType.strong)} 筆�?1D ?��? ${winRateText(strong1.win, strong1.total)} / 平�? ${strong1.avg.toStringAsFixed(2)}%�?
-        '｜�?察�???${countBy(_EntrySignalType.watch)} 筆�?1D ?��? ${winRateText(watch1.win, watch1.total)} / 平�? ${watch1.avg.toStringAsFixed(2)}%�?
-        '｜平?��??�候選 ${avgPredPerDay.toStringAsFixed(1)} �?;
+    return '最近7天命中摘要：強勢訊號 ${countBy(_EntrySignalType.strong)} 筆（1D 勝率 ${winRateText(strong1.win, strong1.total)} / 平均 ${strong1.avg.toStringAsFixed(2)}%）'
+        '｜觀察訊號 ${countBy(_EntrySignalType.watch)} 筆（1D 勝率 ${winRateText(watch1.win, watch1.total)} / 平均 ${watch1.avg.toStringAsFixed(2)}%）'
+        '｜平均每日候選 ${avgPredPerDay.toStringAsFixed(1)} 檔';
   }
 
   List<_AutoTuneSuggestion> _buildAutoTuneSuggestions({
@@ -2095,9 +2090,9 @@ class _StockListPageState extends State<StockListPage> {
       addSuggestion(
         _AutoTuneSuggestion(
           id: 'conservative_bootstrap',
-          title: '�?��不足：�??��?守微�?,
+          title: '樣本不足：先用保守微調',
           summary:
-              '�?0天樣?��??��?，�??��??�數?��?交值�??��??�早?�寬導致?��?增�???,
+              '近30天樣本仍偏少，先提高分數與成交值，避免過早放寬導致雜訊增加。',
           minScore: (_minScoreThreshold + 2).clamp(40, 90),
           maxChaseChangePercent: (_maxChaseChangePercent - 1).clamp(3, 12),
           minTradeValue:
@@ -2107,8 +2102,8 @@ class _StockListPageState extends State<StockListPage> {
       addSuggestion(
         _AutoTuneSuggestion(
           id: 'balanced_bootstrap',
-          title: '�?��不足：維?�平�?,
-          summary: '維�??��??�檻�??�累積更�?outcomes ?��??��?步自?�調?��?,
+          title: '樣本不足：維持平衡',
+          summary: '維持現行門檻，先累積更多 outcomes 再做進一步自動調參。',
           minScore: _minScoreThreshold,
           maxChaseChangePercent: _maxChaseChangePercent,
           minTradeValue: _minTradeValueThreshold,
@@ -2123,9 +2118,9 @@ class _StockListPageState extends State<StockListPage> {
       addSuggestion(
         _AutoTuneSuggestion(
           id: 'tighten_noise',
-          title: '?��?訊�??��?守�?',
+          title: '降雜訊（偏保守）',
           summary:
-              '?�選?��?多�? 1D ?��??��?，建議�?高�????�交?�並?��?追�?上�???,
+              '候選數偏多或 1D 勝率偏低，建議提高分數/成交值並降低追高上限。',
           minScore: (_minScoreThreshold + 3).clamp(40, 90),
           maxChaseChangePercent: (_maxChaseChangePercent - 1).clamp(3, 12),
           minTradeValue:
@@ -2140,9 +2135,9 @@ class _StockListPageState extends State<StockListPage> {
       addSuggestion(
         _AutoTuneSuggestion(
           id: 'capture_more',
-          title: '?��??��??��?極�?',
+          title: '提覆蓋（偏積極）',
           summary:
-              '?�選?��?少�?強勢表現穩�?，可微放寬�?檻�??�「�?一天�??�」�??��???,
+              '候選數偏少且強勢表現穩定，可微放寬門檻提升「前一天抓到」覆蓋率。',
           minScore: (_minScoreThreshold - 2).clamp(35, 90),
           maxChaseChangePercent: (_maxChaseChangePercent + 1).clamp(3, 12),
           minTradeValue:
@@ -2154,9 +2149,9 @@ class _StockListPageState extends State<StockListPage> {
     addSuggestion(
       _AutoTuneSuggestion(
         id: 'balanced_default',
-        title: '平衡微調（�?設�?',
+        title: '平衡微調（預設）',
         summary:
-            '?��??��??��??��??�衷，適?��??��??��?察�?決�??�否?�為?��?�?積極??,
+            '在覆蓋率與勝率間折衷，適合先做一週觀察再決定是否改為更保守/積極。',
         minScore: (_minScoreThreshold + (needTighten ? 2 : 0) - (canLoosen ? 1 : 0))
             .clamp(35, 90),
         maxChaseChangePercent:
@@ -2174,7 +2169,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_lockSelectionParameters) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已�?定選?��??��??��?套用?��?調�?建議')),
+          const SnackBar(content: Text('已鎖定選股參數，無法套用自動調參建議')),
         );
       }
       return;
@@ -2203,7 +2198,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '已�??��?{suggestion.title}?��??�數 $prevMinScore??_minScoreThreshold?�追�?$prevMaxChase%??_maxChaseChangePercent%?��?交�?${_formatWithThousandsSeparator(prevMinTradeValue)}??{_formatWithThousandsSeparator(_minTradeValueThreshold)}',
+          '已套用「${suggestion.title}」：分數 $prevMinScore→$_minScoreThreshold、追高 $prevMaxChase%→$_maxChaseChangePercent%、成交值 ${_formatWithThousandsSeparator(prevMinTradeValue)}→${_formatWithThousandsSeparator(_minTradeValueThreshold)}',
         ),
       ),
     );
@@ -2215,7 +2210,7 @@ class _StockListPageState extends State<StockListPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('?�中?�自?�調?�建議�??��?30 天�?'),
+          title: const Text('命中率自動調參建議（最近 30 天）'),
           content: SizedBox(
             width: 560,
             child: Column(
@@ -2233,7 +2228,7 @@ class _StockListPageState extends State<StockListPage> {
                     child: ListTile(
                       title: Text(item.title),
                       subtitle: Text(
-                        '${item.summary}\n?�數 >= ${item.minScore}｜追�?<= ${item.maxChaseChangePercent}%｜�?交�?>= ${_formatWithThousandsSeparator(item.minTradeValue)}',
+                        '${item.summary}\n分數 >= ${item.minScore}｜追高 <= ${item.maxChaseChangePercent}%｜成交值 >= ${_formatWithThousandsSeparator(item.minTradeValue)}',
                       ),
                       isThreeLine: true,
                       trailing: FilledButton.tonal(
@@ -2254,7 +2249,7 @@ class _StockListPageState extends State<StockListPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('?��?'),
+              child: const Text('關閉'),
             ),
           ],
         );
@@ -2277,7 +2272,7 @@ class _StockListPageState extends State<StockListPage> {
                   return;
                 }
                 setDialogState(() {
-                  status = '已�?�?$name�?{content.split('\n').length - 1} 筆�?';
+                  status = '已複製 $name（${content.split('\n').length - 1} 筆）';
                 });
               }
 
@@ -2287,7 +2282,7 @@ class _StockListPageState extends State<StockListPage> {
               }
 
               return AlertDialog(
-                title: const Text('?�出?�中?��??��?CSV�?),
+                title: const Text('匯出命中率資料（CSV）'),
                 content: SizedBox(
                   width: 520,
                   child: Column(
@@ -2298,7 +2293,7 @@ class _StockListPageState extends State<StockListPage> {
                         controller: lookbackController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: '?�出天數�?~120�?,
+                          labelText: '匯出天數（7~120）',
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -2316,7 +2311,7 @@ class _StockListPageState extends State<StockListPage> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('?��?'),
+                    child: const Text('關閉'),
                   ),
                   FilledButton.tonal(
                     onPressed: () {
@@ -2355,20 +2350,20 @@ class _StockListPageState extends State<StockListPage> {
         context: context,
         builder: (dialogContext) {
           String report = _dailyCandidateArchive.isEmpty
-              ? '尚無每日?�選快照，�??�至少更??1 ?�交?�日??
+              ? '尚無每日候選快照，請先至少更新 1 個交易日。'
               : '';
           return StatefulBuilder(
             builder: (context, setDialogState) {
               void runReplay() {
                 if (_dailyCandidateArchive.isEmpty) {
                   setDialogState(() {
-                    report = '尚無每日?�選快照，�??�至少更??1 ?�交?�日??;
+                    report = '尚無每日候選快照，請先至少更新 1 個交易日。';
                   });
                   return;
                 }
 
                 final rawCodes = codeController.text
-                    .split(RegExp(r'[\s,�?；]+'))
+                    .split(RegExp(r'[\s,，;；]+'))
                     .map((text) => text.trim().toUpperCase())
                     .where((text) => text.isNotEmpty)
                     .toSet()
@@ -2379,7 +2374,7 @@ class _StockListPageState extends State<StockListPage> {
 
                 if (rawCodes.isEmpty) {
                   setDialogState(() {
-                    report = '請輸?��??��??��??�代?��??��?檔�?以逗�??��?�?;
+                    report = '請輸入要回看的飆股代號（可多檔，以逗號分隔）';
                   });
                   return;
                 }
@@ -2399,14 +2394,14 @@ class _StockListPageState extends State<StockListPage> {
 
                 if (selectedSnapshots.isEmpty) {
                   setDialogState(() {
-                    report = '?��?$lookbackDays 天�??�可?�快?��?;
+                    report = '最近 $lookbackDays 天沒有可用快照。';
                   });
                   return;
                 }
 
                 final lines = <String>[
-                  '?��??�?��??��?$lookbackDays 天�?${selectedSnapshots.length} 筆快?��?',
-                  '輸入�??�?{rawCodes.join('??)}',
+                  '回看區間：最近 $lookbackDays 天（${selectedSnapshots.length} 筆快照）',
+                  '輸入代號：${rawCodes.join('、')}',
                 ];
 
                 var hitAnyCore = 0;
@@ -2440,16 +2435,16 @@ class _StockListPageState extends State<StockListPage> {
                   }
 
                   lines.add(
-                    '$code：核�?$coreHits/${selectedSnapshots.length} 天、�?$_topCandidateLimit $limitedHits 天、強??$strongHits �?
-                    '${latestCoreDate == null ? '' : '｜�?近核心命�?$latestCoreDate'}'
-                    '${latestStrongDate == null ? '' : '｜�?近強?�命�?$latestStrongDate'}',
+                    '$code：核心 $coreHits/${selectedSnapshots.length} 天、前$_topCandidateLimit $limitedHits 天、強勢 $strongHits 天'
+                    '${latestCoreDate == null ? '' : '｜最近核心命中 $latestCoreDate'}'
+                    '${latestStrongDate == null ? '' : '｜最近強勢命中 $latestStrongDate'}',
                   );
                 }
 
                 lines.add(
-                  '?��?覆�?：核心命�?$hitAnyCore/${rawCodes.length} 檔、強?�命�?$hitAnyStrong/${rawCodes.length} �?,
+                  '整體覆蓋：核心命中 $hitAnyCore/${rawCodes.length} 檔、強勢命中 $hitAnyStrong/${rawCodes.length} 檔',
                 );
-                lines.add('註�?此�??�檢?�「是?�曾?�選?��?不代表�??��?漲�?);
+                lines.add('註：此回看檢查「是否曾入選」，不代表隔日必漲。');
 
                 setDialogState(() {
                   report = lines.join('\n');
@@ -2457,7 +2452,7 @@ class _StockListPageState extends State<StockListPage> {
               }
 
               return AlertDialog(
-                title: const Text('上週�??��??��??��??�是?��??��?'),
+                title: const Text('上週飆股回看（前一日是否抓到）'),
                 content: SizedBox(
                   width: 520,
                   child: Column(
@@ -2467,8 +2462,8 @@ class _StockListPageState extends State<StockListPage> {
                       TextField(
                         controller: codeController,
                         decoration: const InputDecoration(
-                          labelText: '飆股�??（逗�??��?�?,
-                          hintText: '例�? 3017, 2382, 3450',
+                          labelText: '飆股代號（逗號分隔）',
+                          hintText: '例如 3017, 2382, 3450',
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -2476,7 +2471,7 @@ class _StockListPageState extends State<StockListPage> {
                         controller: daysController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: '?��?天數�?~45�?,
+                          labelText: '回看天數（3~45）',
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -2491,11 +2486,11 @@ class _StockListPageState extends State<StockListPage> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('?��?'),
+                    child: const Text('關閉'),
                   ),
                   FilledButton(
                     onPressed: runReplay,
-                    child: const Text('?��?'),
+                    child: const Text('回看'),
                   ),
                 ],
               );
@@ -2557,10 +2552,10 @@ class _StockListPageState extends State<StockListPage> {
       ..addAll(
         parsed.isEmpty
             ? const <_SectorRule>[
-                _SectorRule(start: 11, end: 17, group: '食�?/塑�?'),
-                _SectorRule(start: 20, end: 24, group: '?�鐵/?��?'),
-                _SectorRule(start: 25, end: 29, group: '?��?/?��?�?),
-                _SectorRule(start: 58, end: 59, group: '?��?'),
+                _SectorRule(start: 11, end: 17, group: 'Food/Plastic'),
+                _SectorRule(start: 20, end: 24, group: 'Steel/Metal'),
+                _SectorRule(start: 25, end: 29, group: 'Electronics/Oil'),
+                _SectorRule(start: 58, end: 59, group: 'Energy'),
               ]
             : parsed,
       );
@@ -2592,7 +2587,7 @@ class _StockListPageState extends State<StockListPage> {
 
       if (showFeedback) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('?��??��?已更??)),
+          const SnackBar(content: Text('新聞摘要已更新')),
         );
       }
     } catch (error) {
@@ -2601,7 +2596,7 @@ class _StockListPageState extends State<StockListPage> {
       }
       setState(() {
         _isLoadingNews = false;
-        _newsError = '?��?載入失�?�?error';
+        _newsError = '新聞載入失敗：$error';
       });
     }
   }
@@ -2668,7 +2663,7 @@ class _StockListPageState extends State<StockListPage> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('?�大事件模�?：新?�風?��?高�?已自?��??��?守�???),
+          content: Text('重大事件模式：新聞風險偏高，已自動切換保守策略'),
         ),
       );
     }
@@ -2739,14 +2734,14 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     final rules = <String, List<String>>{
-      'AI': <String>['AI', '人工?�慧', '伺�???, '?��?', '算�?'],
-      '低�?衛�?': <String>['低�?', '衛�?', '太空', 'Starlink'],
-      '?��?': <String>['?��??�溫', '?��?', '確診', '?��?', '封�?', '流�?'],
-      '?�藥?��?': <String>['?�藥?�可', '?�藥', '?��?', 'FDA', 'EUA', '?��?'],
-      '軍工?�緣': <String>['軍�?衝�?', '?�爭', '衝�?', '飛�?', '?�緣'],
-      '?��??�物??: <String>['油價', '天然�?, '?�油', '??, '?�物??],
-      '供�???: <String>['供�??�中??, '?��?', '塞港', '缺貨', '?�工'],
-      '?��??��?': <String>['?��?寬�?', '?��?緊縮', '?�息', '?�息', '?�膨壓�?'],
+      'AI': <String>['AI', '人工智慧', '伺服器', '晶片', '算力'],
+      '低軌衛星': <String>['低軌', '衛星', '太空', 'Starlink'],
+      '疫情': <String>['疫情升溫', '疫情', '確診', '傳染', '封城', '流感'],
+      '新藥生技': <String>['新藥核可', '新藥', '藥證', 'FDA', 'EUA', '臨床'],
+      '軍工地緣': <String>['軍事衝突', '戰爭', '衝突', '飛彈', '地緣'],
+      '能源原物料': <String>['油價', '天然氣', '原油', '煤', '原物料'],
+      '供應鏈': <String>['供應鏈中斷', '斷鏈', '塞港', '缺貨', '停工'],
+      '政策利率': <String>['政策寬鬆', '利率緊縮', '升息', '降息', '通膨壓力'],
     };
 
     final scoreByTag = <String, int>{};
@@ -2777,21 +2772,21 @@ class _StockListPageState extends State<StockListPage> {
   List<String> _topicBeneficiaryHints(
       List<({String tag, int score})> strengths) {
     final map = <String, String>{
-      'AI': '?�優?��?注�?伺�??�、散?�、電源、�??�傳�?PCB',
-      '低�?衛�?': '?�優?��?注�?衛�??��??�天線、網?�設?�、地?��?供�???,
-      '?��?': '?�優?��?注�??�疫?��??�檢測、�??�製藥?�醫?�通路',
-      '?�藥?��?': '?�優?��?注�??�藥?��??�CDMO?�臨床�?託�???,
-      '軍工?�緣': '?�優?��?注�?軍工?��?件、�??�、�?安、能源替�?,
-      '?��??�物??: '?�優?��?注�?油氣/?��?設�??��??��?上游?��???,
-      '供�???: '?�優?��?注�??�代供�??�、在?��??�產?�物流航??,
-      '?��??��?': '?�優?��?注�??��??��?補助?�群?��?負債?�長?�、�???,
+      'AI': '可優先關注：伺服器、散熱、電源、高速傳輸/PCB',
+      '低軌衛星': '可優先關注：衛星通訊、天線、網通設備、地面站供應鏈',
+      '疫情': '可優先關注：防疫耗材、檢測、生技製藥、醫療通路',
+      '新藥生技': '可優先關注：新藥授權、CDMO、臨床受託服務',
+      '軍工地緣': '可優先關注：軍工零組件、安控、資安、能源替代',
+      '能源原物料': '可優先關注：油氣/電力設備、原物料上游、節能',
+      '供應鏈': '可優先關注：替代供應鏈、在地化生產、物流航運',
+      '政策利率': '可優先關注：受惠政策補助族群、低負債成長股、金融',
     };
 
     return strengths
         .where((item) => item.score >= 30)
         .take(3)
         .map((item) =>
-            '${item.tag}�?{item.score}）�?${map[item.tag] ?? '?��??�價?��?碼�?�?}')
+            '${item.tag}（${item.score}）：${map[item.tag] ?? '留意量價與籌碼同步'}')
         .toList();
   }
 
@@ -2823,8 +2818,8 @@ class _StockListPageState extends State<StockListPage> {
         !alreadyNotifiedToday) {
       await NotificationService.showAlert(
         id: 4801,
-        title: '議�?輪�??��?',
-        body: '市場主�???$previousTag ?��???${top.tag}（強�?${top.score}�?,
+        title: '議題輪動提醒',
+        body: '市場主題由 $previousTag 切換為 ${top.tag}（強度 ${top.score}）',
       );
       _lastTopNewsTopicNotifyDay = dayKey;
       changed = true;
@@ -2845,25 +2840,25 @@ class _StockListPageState extends State<StockListPage> {
 
   String? _autoRiskAdjustmentSuppressedReason() {
     if (_isEventTemplateLayerActive()) {
-      return '事件模板?�管中�??��??�新?��?守�??��?微調�?;
+      return '事件模板接管中（優先於新聞保守與自動微調）';
     }
     if (_isHighNewsRiskDefenseActive) {
-      return '?��?高風?��?守模式接管中（優?�於?��?微調�?;
+      return '新聞高風險保守模式接管中（優先於自動微調）';
     }
     return null;
   }
 
   String _currentControlLayerLabel() {
     if (_isEventTemplateLayerActive()) {
-      return '?�制層�?事件模板';
+      return '控制層：事件模板';
     }
     if (_isHighNewsRiskDefenseActive) {
-      return '?�制層�??��?保�?';
+      return '控制層：新聞保守';
     }
     if (_enableAutoRiskAdjustment) {
-      return '?�制層�??��?微調';
+      return '控制層：自動微調';
     }
-    return '?�制層�??��??�數';
+    return '控制層：固定參數';
   }
 
   IconData _currentControlLayerIcon() {
@@ -2941,12 +2936,12 @@ class _StockListPageState extends State<StockListPage> {
       final pnlPercent = _calculatePnlPercent(stock, entryPrice);
       final pnlText = pnlPercent == null
           ? ''
-          : '｜�???${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%';
+          : '｜損益 ${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%';
       await NotificationService.showAlert(
         id: 3000 + code.hashCode.abs() % 900,
-        title: '?�股?�場?��? ${stock.code} ${stock.name}',
+        title: '持股出場提醒 ${stock.code} ${stock.name}',
         body:
-            '${signal.label}｜現??${stock.closePrice.toStringAsFixed(2)}$pnlText',
+            '${signal.label}｜現價 ${stock.closePrice.toStringAsFixed(2)}$pnlText',
       );
       _holdingExitAlertFingerprintByCode[code] = fingerprint;
     }
@@ -2976,7 +2971,7 @@ class _StockListPageState extends State<StockListPage> {
       activeCodes.add(code);
       final score = _calculateStockScore(stock);
       final modes = _matchedBreakoutModesForStock(stock, score);
-      final labels = modes.map(BreakoutModeLabel).toList()..sort();
+      final labels = modes.map(_breakoutStageModeLabel).toList()..sort();
       final currentState = _modeStrengthStateFromModes(modes);
       final current = '$currentState|${labels.join('|')}';
       final previous = _holdingModeTagFingerprintByCode[code];
@@ -2986,14 +2981,14 @@ class _StockListPageState extends State<StockListPage> {
           previous != current &&
           previousState == 'strong' &&
           currentState != 'strong') {
-        final nextText = labels.isEmpty ? '?�命�? : labels.take(3).join('??);
+        final nextText = labels.isEmpty ? '無命中' : labels.take(3).join('、');
         final previousLabels = _labelsFromFingerprint(previous);
         final previousText =
-            previousLabels.isEmpty ? '?�命�? : previousLabels.join('??);
+            previousLabels.isEmpty ? '無命中' : previousLabels.join('、');
         await NotificationService.showAlert(
           id: 4200 + code.hashCode.abs() % 700,
-          title: '?�股模�?標籤變更 ${stock.code} ${stock.name}',
-          body: '??$previousText ??$nextText',
+          title: '持股模式標籤變更 ${stock.code} ${stock.name}',
+          body: '由 $previousText → $nextText',
         );
       }
 
@@ -3016,17 +3011,17 @@ class _StockListPageState extends State<StockListPage> {
     }
   }
 
-  String _modeStrengthStateFromModes(List<BreakoutMode> modes) {
-    if (modes.contains(BreakoutMode.confirmed) ||
-        modes.contains(BreakoutMode.pullbackRebreak) ||
-        modes.contains(BreakoutMode.early)) {
+  String _modeStrengthStateFromModes(List<_BreakoutStageMode> modes) {
+    if (modes.contains(_BreakoutStageMode.confirmed) ||
+        modes.contains(_BreakoutStageMode.pullbackRebreak) ||
+        modes.contains(_BreakoutStageMode.early)) {
       return 'strong';
     }
-    if (modes.contains(BreakoutMode.lowBaseTheme) ||
-        modes.contains(BreakoutMode.preEventPosition)) {
+    if (modes.contains(_BreakoutStageMode.lowBaseTheme) ||
+        modes.contains(_BreakoutStageMode.preEventPosition)) {
       return 'neutral';
     }
-    if (modes.contains(BreakoutMode.squeezeSetup)) {
+    if (modes.contains(_BreakoutStageMode.squeezeSetup)) {
       return 'weak';
     }
     return 'weak';
@@ -3083,14 +3078,14 @@ class _StockListPageState extends State<StockListPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?�股資�?已更??)),
+        const SnackBar(content: Text('台股資料已更新')),
       );
     } catch (_) {
       if (!mounted || !showFeedback) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?�新失�?，�?稍�??�試')),
+        const SnackBar(content: Text('更新失敗，請稍後再試')),
       );
     }
   }
@@ -3126,17 +3121,17 @@ class _StockListPageState extends State<StockListPage> {
   String _googleWebSignInHintText(String? rawError) {
     final error = (rawError ?? '').toLowerCase();
     if (error.contains('origin_mismatch')) {
-      return 'Google ?�入失�?：origin_mismatch?��???OAuth Web Client ??Authorized JavaScript origins ?�入 http://localhost:7357 ??http://127.0.0.1:7357';
+      return 'Google 登入失敗：origin_mismatch。請在 OAuth Web Client 的 Authorized JavaScript origins 加入 http://localhost:7357 與 http://127.0.0.1:7357';
     }
     if (error.contains('access_denied') ||
         error.contains('unauthorized') ||
         error.contains('invalid_client')) {
-      return 'Google ?�入被�??��?確�? OAuth ?��??�面已�??�、目?�帳?�在測試使用?��??�內，�?使用�?��??Web Client ID';
+      return 'Google 登入被拒。請確認 OAuth 同意畫面已完成、目前帳號在測試使用者名單內，且使用正確的 Web Client ID';
     }
     if (error.contains('popup')) {
-      return 'Google ?�入視�?被瀏覽?�阻?�。�??�許彈出視�?後�?試�?�?;
+      return 'Google 登入視窗被瀏覽器阻擋。請允許彈出視窗後再試一次';
     }
-    return 'Google ?�入?��??�。�?確�?已�???Drive API，�? OAuth Web Client 已設�?localhost/127.0.0.1 網�?';
+    return 'Google 登入未完成。請確認已啟用 Drive API，且 OAuth Web Client 已設定 localhost/127.0.0.1 網域';
   }
 
   void _showGoogleSignInNullFeedback({
@@ -3161,7 +3156,7 @@ class _StockListPageState extends State<StockListPage> {
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('?��??�支??Android / Chrome(Web) Google ?�份')),
+              content: Text('目前僅支援 Android / Chrome(Web) Google 備份')),
         );
       }
       return false;
@@ -3171,7 +3166,7 @@ class _StockListPageState extends State<StockListPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
-                  'Web 尚未設�? GOOGLE_WEB_CLIENT_ID，�??��? --dart-define=GOOGLE_WEB_CLIENT_ID=...')),
+                  'Web 尚未設定 GOOGLE_WEB_CLIENT_ID，請加上 --dart-define=GOOGLE_WEB_CLIENT_ID=...')),
         );
       }
       return false;
@@ -3184,7 +3179,7 @@ class _StockListPageState extends State<StockListPage> {
       final email = await _googleDriveBackupService.signInAndGetEmail();
       if (email == null) {
         _showGoogleSignInNullFeedback(
-          fallback: 'Google ?�入?��?，未完�??�份',
+          fallback: 'Google 登入取消，未完成備份',
           showFeedback: showFeedback,
         );
         return false;
@@ -3194,7 +3189,7 @@ class _StockListPageState extends State<StockListPage> {
       if (!success) {
         if (showFeedback && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Google 驗�?失�?，�??�新?�入')),
+            const SnackBar(content: Text('Google 驗證失敗，請重新登入')),
           );
         }
         return false;
@@ -3206,14 +3201,14 @@ class _StockListPageState extends State<StockListPage> {
       await _savePreferences();
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已�?份到 Google�?email�?)),
+          SnackBar(content: Text('已備份到 Google（$email）')),
         );
       }
       return true;
     } catch (error) {
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('?�份失�?�?error')),
+          SnackBar(content: Text('備份失敗：$error')),
         );
       }
       return false;
@@ -3234,7 +3229,7 @@ class _StockListPageState extends State<StockListPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('?��??�支??Android / Chrome(Web) Google ?��?')),
+              content: Text('目前僅支援 Android / Chrome(Web) Google 還原')),
         );
       }
       return;
@@ -3244,7 +3239,7 @@ class _StockListPageState extends State<StockListPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
-                  'Web 尚未設�? GOOGLE_WEB_CLIENT_ID，�??��? --dart-define=GOOGLE_WEB_CLIENT_ID=...')),
+                  'Web 尚未設定 GOOGLE_WEB_CLIENT_ID，請加上 --dart-define=GOOGLE_WEB_CLIENT_ID=...')),
         );
       }
       return;
@@ -3257,7 +3252,7 @@ class _StockListPageState extends State<StockListPage> {
       final email = await _googleDriveBackupService.signInAndGetEmail();
       if (email == null) {
         _showGoogleSignInNullFeedback(
-          fallback: 'Google ?�入?��?，未?��?資�?',
+          fallback: 'Google 登入取消，未還原資料',
           showFeedback: true,
         );
         return;
@@ -3266,7 +3261,7 @@ class _StockListPageState extends State<StockListPage> {
       if (payload == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Google ?�端尚無?�份�?)),
+            const SnackBar(content: Text('Google 雲端尚無備份檔')),
           );
         }
         return;
@@ -3275,7 +3270,7 @@ class _StockListPageState extends State<StockListPage> {
       if (prefsMap is! Map) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('?�份檔格式錯�?)),
+            const SnackBar(content: Text('備份檔格式錯誤')),
           );
         }
         return;
@@ -3306,13 +3301,13 @@ class _StockListPageState extends State<StockListPage> {
       await _refreshStocks(showFeedback: false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已�? Google ?��?資�?�?email�?)),
+          SnackBar(content: Text('已從 Google 還原資料（$email）')),
         );
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('?��?失�?�?error')),
+          SnackBar(content: Text('還原失敗：$error')),
         );
       }
     } finally {
@@ -3368,11 +3363,11 @@ class _StockListPageState extends State<StockListPage> {
       isNightSession: _isPostMarketOrNight(now),
     );
 
-    final changed = recommendation.mode != BreakoutMode;
+    final changed = recommendation.mode != _breakoutStageMode;
     setState(() {
       _currentRegime = regime;
       _latestMarketBreadthRatio = breadth;
-      BreakoutMode = recommendation.mode;
+      _breakoutStageMode = recommendation.mode;
       _lastAutoModeAppliedAt = now;
     });
     await _savePreferencesTagged('auto_mode_rotation');
@@ -3381,7 +3376,7 @@ class _StockListPageState extends State<StockListPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content:
-              Text('已自?��??�建議模式�?${BreakoutModeLabel(recommendation.mode)}'),
+              Text('已自動切換建議模式：${_breakoutStageModeLabel(recommendation.mode)}'),
         ),
       );
     }
@@ -3390,8 +3385,8 @@ class _StockListPageState extends State<StockListPage> {
   Future<void> _sendTestNotification() async {
     await NotificationService.showAlert(
       id: 2001,
-      title: '?�股?��?測試',
-      body: '?�知?�能�?��，�?後�??��??�送�????�利訊�???,
+      title: '台股提醒測試',
+      body: '通知功能正常，之後會自動推送停損/停利訊號。',
     );
 
     if (!mounted) {
@@ -3399,7 +3394,7 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已送出測試?��?，�??��??�知??)),
+      const SnackBar(content: Text('已送出測試提醒，請查看通知列')),
     );
   }
 
@@ -3407,7 +3402,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_lockSelectionParameters) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已�?定選?��??��??�盤?��?不�??��??��?條件')),
+          const SnackBar(content: Text('已鎖定選股參數，晨盤掃描不會改動核心條件')),
         );
       }
       await _refreshStocks();
@@ -3428,16 +3423,13 @@ class _StockListPageState extends State<StockListPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('?�盤?��?完�?：已套用強勢?�選模�?')),
+      const SnackBar(content: Text('晨盤掃描完成：已套用強勢候選模式')),
     );
   }
 
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
-    // Flush any pending persistence writes before disposing
-    unawaited(PersistenceService.instance.flushNow());
-    PersistenceService.instance.dispose();
     super.dispose();
   }
 
@@ -3469,7 +3461,7 @@ class _StockListPageState extends State<StockListPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('?��??�接?��?，已複製?��?????�剪貼簿')),
+      const SnackBar(content: Text('無法直接開啟，已複製新聞連結到剪貼簿')),
     );
   }
 
@@ -3498,7 +3490,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '已�??��?�?Top1�?{tuning.applyStopLoss ? '?��? -${tuning.stopLossPercent}%' : ''}${(tuning.applyStopLoss && tuning.applyTakeProfit) ? ' / ' : ''}${tuning.applyTakeProfit ? '?�利 +${tuning.takeProfitPercent}%' : ''}',
+          '已套用回測 Top1：${tuning.applyStopLoss ? '停損 -${tuning.stopLossPercent}%' : ''}${(tuning.applyStopLoss && tuning.applyTakeProfit) ? ' / ' : ''}${tuning.applyTakeProfit ? '停利 +${tuning.takeProfitPercent}%' : ''}',
         ),
       ),
     );
@@ -3691,116 +3683,116 @@ class _StockListPageState extends State<StockListPage> {
     final warnings = <String>[];
 
     if (_lockSelectionParameters) {
-      warnings.add('?��??�用?�股?�數?��?：自?�調?�已?��?，�??��?�???��?變更?��?條件??);
+      warnings.add('目前啟用選股參數鎖定：自動調整已暫停，需手動解鎖才會變更核心條件。');
     }
     if (_marketNewsSnapshot == null) {
-      warnings.add('?��?快照尚未建�?：�?�?風險?��?條件?�能?��?保�??�中?�判讀??);
+      warnings.add('新聞快照尚未建立：事件/風險相關條件可能偏向保守或中性判讀。');
     }
 
     if (_maxPriceThreshold > 70) {
-      warnings.add('?�價上�??��?，可?��??��?資�??��??��?);
+      warnings.add('股價上限偏高，可能偏離小資低價策略。');
     }
     if (_minTradeValueThreshold < 500000000) {
-      warnings.add('?�交?��?檻�?低�?流�??�風?��??��?);
+      warnings.add('成交值門檻偏低，流動性風險上升。');
     }
     if (!_excludeOverheated) {
-      warnings.add('已�??�追高�?濾�??��?波�?風險?��???);
+      warnings.add('已關閉追高過濾，短線波動風險提高。');
     }
     if (!_onlyRising) {
-      warnings.add('?��??�當?��?漲�??�場?��??�能下�???);
+      warnings.add('未限制當日上漲，進場勝率可能下降。');
     }
     if (_stopLossPercent > 8) {
-      warnings.add('?��??�寬，單筆�??�可?��?大�?);
+      warnings.add('停損過寬，單筆回撤可能偏大。');
     }
     if (!_requireOpenConfirm) {
-      warnings.add('?��??��???0?��?確�?，追?�風?��?高�?);
+      warnings.add('未啟用開盤30分鐘確認，追價風險提高。');
     }
     if (_autoRefreshEnabled && _autoRefreshMinutes > 20) {
-      warnings.add('?��??�新?��??�長，可?�錯?�盤中�??��?);
+      warnings.add('自動更新間隔偏長，可能錯過盤中變化。');
     }
     if (!_autoDefensiveOnHighNewsRisk) {
-      warnings.add('?�大事件模�?已�??��?突發消息下�??��?調整策略??);
+      warnings.add('重大事件模式已關閉，突發消息下需手動調整策略。');
     }
     if (!_useRelativeVolumeFilter) {
-      warnings.add('?��??�相對�??��?檻�?行�?轉弱?�可?�誤?��?訊�?);
+      warnings.add('未啟用相對量能門檻，行情轉弱時可能誤抓雜訊。');
     }
     if (!_enableTrailingStop) {
-      warnings.add('?��??�移?��??��?強勢?��??��?護�?弱�?);
+      warnings.add('未啟用移動停利，強勢股回撤保護較弱。');
     }
     if (_autoLossStreakFromJournal() >= 3) {
-      warnings.add('?��???��?��?，系統�??��??�倉�?);
+      warnings.add('目前連虧偏高，系統會自動降倉。');
     }
     if (!_autoRegimeEnabled) {
-      warnings.add('?��???Regime ?��??��?，�??��??�隨?�勢調整??);
+      warnings.add('未啟用 Regime 自動切換，參數不會隨盤勢調整。');
     }
     if (!_timeSegmentTuningEnabled) {
-      warnings.add('?��??��?段�??��??��??�盤?��??�防護�?弱�?);
+      warnings.add('未啟用時段動態參數，開盤雜訊期防護較弱。');
     }
     if (!_enableAdaptiveAtrExit) {
-      warnings.add('?��???ATR ?�適?��??��??�利?�檻�?波�??��?較僵硬�?);
+      warnings.add('未啟用 ATR 自適應停利，停利門檻對波動盤型較僵硬。');
     }
     if (!_enableBreakoutQuality) {
-      warnings.add('?��??��??��?質�?濾�??��??��??�可?��??��?);
+      warnings.add('未啟用突破品質過濾，假突破訊號可能增加。');
     }
     if (_breakoutMinVolumeRatioPercent < 120) {
-      warnings.add('突破?�能?��??��?，建議至�?120% 以�???);
+      warnings.add('突破量能倍率偏低，建議至少 120% 以上。');
     }
     if (_enableChipConcentrationFilter && _minChipConcentrationPercent > 0) {
-      warnings.add('已�??��?碼�?中度?�濾，�???${_minChipConcentrationPercent.toInt()}% ?��?顯示??);
+      warnings.add('已啟用籌碼集中度過濾，低於 ${_minChipConcentrationPercent.toInt()}% 的不顯示。');
     }
     if (_enableMasterTrapFilter) {
-      warnings.add('主�?誘�??�濾?��?，�?�?${_masterTrapDropPercent.toInt()}% ?�為誘�?');
+      warnings.add('主力誘多過濾開啟，跌幅>${_masterTrapDropPercent.toInt()}% 判為誘多');
     }
     if (!_enableRiskRewardPrefilter) {
-      warnings.add('?��??�風?�報?��?置�?濾�?低報?��?交�??�能增�???);
+      warnings.add('未啟用風險報酬前置過濾，低報酬比交易可能增加。');
     }
     if (_minRiskRewardRatioX100 < 150) {
-      warnings.add('?�低風?�報?��??��?，建議至�?1.50??);
+      warnings.add('最低風險報酬比偏低，建議至少 1.50。');
     }
-    switch (BreakoutMode) {
-      case BreakoutMode.confirmed:
+    switch (_breakoutStageMode) {
+      case _BreakoutStageMode.confirmed:
         if (!_enableMultiDayBreakout) {
-          warnings.add('確�?突破模�?下�??��??突破確�?，建議�??�以?��??��???);
+          warnings.add('確認突破模式下關閉連續突破確認，建議開啟以降低雜訊。');
         }
         if (_minBreakoutStreakDays < 2) {
-          warnings.add('???突破天數?��?，建議至�?2 天�?);
+          warnings.add('連續突破天數偏低，建議至少 2 天。');
         }
         break;
-      case BreakoutMode.lowBaseTheme:
-        warnings.add('?��??��??��?題�?模�?，�??��?事件風險?��??�控管�?);
+      case _BreakoutStageMode.lowBaseTheme:
+        warnings.add('目前為低基期題材模式，請搭配事件風險與停損控管。');
         break;
-      case BreakoutMode.pullbackRebreak:
-        warnings.add('?��??��?檔�??�模式�?建議?��?觀察�??�是?��?步放大�?);
+      case _BreakoutStageMode.pullbackRebreak:
+        warnings.add('目前為回檔再攻模式，建議重點觀察量能是否同步放大。');
         break;
-      case BreakoutMode.squeezeSetup:
-        warnings.add('?��??��?縮整?��??�模式�?訊�??�早但�?訊可?��??��?);
+      case _BreakoutStageMode.squeezeSetup:
+        warnings.add('目前為量縮整理待噴模式，訊號提早但雜訊可能增加。');
         break;
-      case BreakoutMode.preEventPosition:
-        warnings.add('?��??��?件�??��?模�?，�?必控?�單筆風?��??��???);
+      case _BreakoutStageMode.preEventPosition:
+        warnings.add('目前為事件前卡位模式，務必控制單筆風險與部位。');
         break;
-      case BreakoutMode.early:
+      case _BreakoutStageMode.early:
         break;
     }
     if (!_enableFalseBreakoutProtection) {
-      warnings.add('?��??��?突破?�護，追高風?�可?��??��?);
+      warnings.add('未啟用假突破防護，追高風險可能上升。');
     }
     if (!_enableMarketBreadthFilter) {
-      warnings.add('?��??��??�寬度�?濾�?弱�?中誤?�場機�??��???);
+      warnings.add('未啟用市場寬度過濾，弱市中誤進場機率提高。');
     }
     if ((_minMarketBreadthRatioX100 / 100) < 1.0) {
-      warnings.add('市場寬度?�檻�?低�?建議?��? 1.00??);
+      warnings.add('市場寬度門檻偏低，建議至少 1.00。');
     }
     if (!_enableEventRiskExclusion) {
-      warnings.add('?��??��?件風?��??��?財報/?��??��?後波?��??��?管�???);
+      warnings.add('未啟用事件風險排除，財報/重訊日前後波動需手動管理。');
     }
     if (!_enableWeeklyWalkForwardAutoTune) {
-      warnings.add('?��??��???walk-forward 微調，�??�適?�盤?�速度?��??��?);
+      warnings.add('未啟用每週 walk-forward 微調，參數適應盤型速度會下降。');
     }
     if (_cooldownDays <= 0) {
-      warnings.add('?��??�卻?�為 0 天�?????��?風險?�能上�???);
+      warnings.add('停損冷卻期為 0 天，連續虧損風險可能上升。');
     }
     if (!_enableSectorRotationBoost) {
-      warnings.add('?��??�板塊輪?��?權�??��??�能忽略?��?強板塊�?);
+      warnings.add('未啟用板塊輪動加權，排序可能忽略當前強板塊。');
     }
 
     return warnings;
@@ -3877,7 +3869,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_lockSelectionParameters) {
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已�?定選?��??��??��?套用事件模板')),
+          const SnackBar(content: Text('已鎖定選股參數，無法套用事件模板')),
         );
       }
       return;
@@ -3926,7 +3918,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '已�???{template.label}：�???${prevMinScore}??_minScoreThreshold?��?交�?${_formatWithThousandsSeparator(prevMinTradeValue)}??{_formatWithThousandsSeparator(_minTradeValueThreshold)}?�追�?${prevMaxChase}%??_maxChaseChangePercent%?��???${prevStopLoss}%??_stopLossPercent%?��???${prevTakeProfit}%??_takeProfitPercent%?�單筆風??${_formatCurrency(prevRiskBudget.toDouble())}??{_formatCurrency(_riskBudgetPerTrade.toDouble())}',
+          '已套用${template.label}：分數 ${prevMinScore}→$_minScoreThreshold、成交值 ${_formatWithThousandsSeparator(prevMinTradeValue)}→${_formatWithThousandsSeparator(_minTradeValueThreshold)}、追高 ${prevMaxChase}%→$_maxChaseChangePercent%、停損 ${prevStopLoss}%→$_stopLossPercent%、停利 ${prevTakeProfit}%→$_takeProfitPercent%、單筆風險 ${_formatCurrency(prevRiskBudget.toDouble())}→${_formatCurrency(_riskBudgetPerTrade.toDouble())}',
         ),
       ),
     );
@@ -3936,7 +3928,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_lockSelectionParameters) {
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已�?定選?��??��??��??��?事件模板?�數')),
+          const SnackBar(content: Text('已鎖定選股參數，無法還原事件模板參數')),
         );
       }
       return;
@@ -3979,7 +3971,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '已�??��?件�??�數：�???$_minScoreThreshold?��?交�?${_formatWithThousandsSeparator(_minTradeValueThreshold)}?�追高�???$_maxChaseChangePercent%?��???$_stopLossPercent%?��???$_takeProfitPercent%?�單筆風??${_formatCurrency(_riskBudgetPerTrade.toDouble())}',
+          '已還原事件前參數：分數 $_minScoreThreshold、成交值 ${_formatWithThousandsSeparator(_minTradeValueThreshold)}、追高上限 $_maxChaseChangePercent%、停損 $_stopLossPercent%、停利 $_takeProfitPercent%、單筆風險 ${_formatCurrency(_riskBudgetPerTrade.toDouble())}',
         ),
       ),
     );
@@ -3996,8 +3988,8 @@ class _StockListPageState extends State<StockListPage> {
 
     await _openExternalUrisWithFallback(
       uris: uris,
-      webClipboardHint: '?�覽?�阻?�新?��?，已複製 CMoney ????�剪貼簿',
-      fallbackClipboardHint: '?��??�接?��?，已複製 CMoney ?�援????�剪貼簿',
+      webClipboardHint: '瀏覽器阻擋新分頁，已複製 CMoney 連結到剪貼簿',
+      fallbackClipboardHint: '無法直接開啟，已複製 CMoney 備援連結到剪貼簿',
     );
   }
 
@@ -4009,8 +4001,8 @@ class _StockListPageState extends State<StockListPage> {
 
     await _openExternalUrisWithFallback(
       uris: uris,
-      webClipboardHint: '?�覽?�阻?�新?��?，已複製 CMoney 討�?????�剪貼簿',
-      fallbackClipboardHint: '?��??�接?��?，已複製 CMoney 討�?????�剪貼簿',
+      webClipboardHint: '瀏覽器阻擋新分頁，已複製 CMoney 討論連結到剪貼簿',
+      fallbackClipboardHint: '無法直接開啟，已複製 CMoney 討論連結到剪貼簿',
     );
   }
 
@@ -4108,7 +4100,7 @@ class _StockListPageState extends State<StockListPage> {
     });
     _savePreferences();
     final added = _favoriteStockCodes.length - before;
-    final message = added > 0 ? '已新�?$added 檔到?��??�單' : '?�選?�都已在?��??�單�?;
+    final message = added > 0 ? '已新增 $added 檔到收藏名單' : '候選股都已在收藏名單中';
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
@@ -4120,7 +4112,7 @@ class _StockListPageState extends State<StockListPage> {
 
     if (favorites.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?��?沒�??�匯?��??��??�票')),
+        const SnackBar(content: Text('目前沒有可匯出的收藏股票')),
       );
       return;
     }
@@ -4131,9 +4123,9 @@ class _StockListPageState extends State<StockListPage> {
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
     final lines = <String>[
-      '?? ?�股?��??�選清單',
-      '?? ?�出?��?�?dateText',
-      '?? 檔數�?{favorites.length}',
+      '📌 台股收藏候選清單',
+      '🕒 匯出時間：$dateText',
+      '📊 檔數：${favorites.length}',
       '------------------------------',
     ];
 
@@ -4142,12 +4134,12 @@ class _StockListPageState extends State<StockListPage> {
       final stock = item.stock;
       final isUp = stock.change >= 0;
       final changePrefix = isUp ? '+' : '';
-      final changeEmoji = isUp ? '?��' : '?��';
+      final changeEmoji = isUp ? '🔺' : '🔻';
       final scoreEmoji = item.score >= 80
-          ? '??'
+          ? '🚀'
           : item.score >= 65
-              ? '??
-              : '?��?';
+              ? '✅'
+              : '⚠️';
       final entryPrice = _entryPriceByCode[stock.code];
       final lots = _positionLotsByCode[stock.code];
       final pnlPercent = _calculatePnlPercent(stock, entryPrice);
@@ -4156,14 +4148,14 @@ class _StockListPageState extends State<StockListPage> {
         '${i + 1}. ${stock.code} ${stock.name} $scoreEmoji',
       );
       lines.add(
-          '   ?�� ${stock.closePrice.toStringAsFixed(2)}  $changeEmoji $changePrefix${stock.change.toStringAsFixed(2)}');
+          '   💰 ${stock.closePrice.toStringAsFixed(2)}  $changeEmoji $changePrefix${stock.change.toStringAsFixed(2)}');
       lines.add(
-        '   ?�� ??${_formatWithThousandsSeparator(stock.volume)}  ?�� ??${item.score}${entryPrice == null || pnlPercent == null ? '' : '  ?�� ?�本 ${entryPrice.toStringAsFixed(2)}'}${lots == null ? '' : '  張數 ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}'}${pnlPercent == null ? '' : '  ?��? ${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%'}${pnlAmount == null ? '' : '  (${pnlAmount >= 0 ? '+' : ''}${_formatCurrency(pnlAmount)})'}',
+        '   📦 量 ${_formatWithThousandsSeparator(stock.volume)}  🎯 分 ${item.score}${entryPrice == null || pnlPercent == null ? '' : '  💼 成本 ${entryPrice.toStringAsFixed(2)}'}${lots == null ? '' : '  張數 ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}'}${pnlPercent == null ? '' : '  損益 ${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%'}${pnlAmount == null ? '' : '  (${pnlAmount >= 0 ? '+' : ''}${_formatCurrency(pnlAmount)})'}',
       );
       lines.add('');
     }
 
-    lines.add('?��? ?��??�究?�考�?請自行控管風?��?);
+    lines.add('⚠️ 僅供研究參考，請自行控管風險。');
 
     await Clipboard.setData(ClipboardData(text: lines.join('\n')));
     if (!mounted) {
@@ -4171,7 +4163,7 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('?��?清單已�?製到?�貼�?)),
+      const SnackBar(content: Text('收藏清單已複製到剪貼簿')),
     );
   }
 
@@ -4225,7 +4217,7 @@ class _StockListPageState extends State<StockListPage> {
         _enableWeeklyWalkForwardAutoTune;
     bool localEnableScoreTierSizing = _enableScoreTierSizing;
     bool localEnableSectorRotationBoost = _enableSectorRotationBoost;
-    BreakoutMode localBreakoutStageMode = BreakoutMode;
+    _BreakoutStageMode localBreakoutStageMode = _breakoutStageMode;
     double localMinScore = _minScoreThreshold.toDouble();
     double localAutoRefreshMinutes = _autoRefreshMinutes.toDouble();
     double localRelativeVolumePercent = _relativeVolumePercent.toDouble();
@@ -4250,7 +4242,7 @@ class _StockListPageState extends State<StockListPage> {
     double localPriceWeight = _priceWeight.toDouble();
     double localConcentrationWeight = _concentrationWeight.toDouble();
     double localTradeValueWeight = _tradeValueWeight.toDouble();
-    // fund?�flow / margin filter locals
+    // fund‑flow / margin filter locals
     bool localEnableForeignFlowFilter = _enableForeignFlowFilter;
     double localMinForeignNet = _minForeignNet.toDouble();
     bool localEnableTrustFlowFilter = _enableTrustFlowFilter;
@@ -4296,12 +4288,12 @@ class _StockListPageState extends State<StockListPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '篩選飆股設�?',
+                          '篩選飆股設定',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          '?��?介面密度�?{_mobileUiDensityLabel(localMobileUiDensity)}',
+                          '手機介面密度：${_mobileUiDensityLabel(localMobileUiDensity)}',
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         const SizedBox(height: 6),
@@ -4310,7 +4302,7 @@ class _StockListPageState extends State<StockListPage> {
                           runSpacing: 8,
                           children: [
                             ChoiceChip(
-                              label: const Text('?�適'),
+                              label: const Text('舒適'),
                               selected: localMobileUiDensity ==
                                   _MobileUiDensity.comfortable,
                               onSelected: (_) {
@@ -4321,7 +4313,7 @@ class _StockListPageState extends State<StockListPage> {
                               },
                             ),
                             ChoiceChip(
-                              label: const Text('緊�?'),
+                              label: const Text('緊湊'),
                               selected: localMobileUiDensity ==
                                   _MobileUiDensity.compact,
                               onSelected: (_) {
@@ -4334,14 +4326,14 @@ class _StockListPageState extends State<StockListPage> {
                           ],
                         ),
                         Text(
-                          '?�示：�?湊�??��?機寬度�??��?< 600）�?,
+                          '提示：緊湊僅在手機寬度生效（< 600）。',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 8),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localExpandCardDetailsByDefault,
-                          title: const Text('?�設展�??��?詳細說�?'),
+                          title: const Text('預設展開卡片詳細說明'),
                           onChanged: (value) {
                             setLocalState(() {
                               localExpandCardDetailsByDefault = value;
@@ -4349,7 +4341,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?��?字�?�?{_mobileTextScaleLabel(localMobileTextScale)}',
+                          '手機字級：${_mobileTextScaleLabel(localMobileTextScale)}',
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         const SizedBox(height: 6),
@@ -4358,7 +4350,7 @@ class _StockListPageState extends State<StockListPage> {
                           runSpacing: 8,
                           children: [
                             ChoiceChip(
-                              label: const Text('�?),
+                              label: const Text('小'),
                               selected:
                                   localMobileTextScale == _MobileTextScale.small,
                               onSelected: (_) {
@@ -4368,7 +4360,7 @@ class _StockListPageState extends State<StockListPage> {
                               },
                             ),
                             ChoiceChip(
-                              label: const Text('�?),
+                              label: const Text('中'),
                               selected: localMobileTextScale ==
                                   _MobileTextScale.medium,
                               onSelected: (_) {
@@ -4379,7 +4371,7 @@ class _StockListPageState extends State<StockListPage> {
                               },
                             ),
                             ChoiceChip(
-                              label: const Text('�?),
+                              label: const Text('大'),
                               selected:
                                   localMobileTextScale == _MobileTextScale.large,
                               onSelected: (_) {
@@ -4391,14 +4383,14 @@ class _StockListPageState extends State<StockListPage> {
                           ],
                         ),
                         Text(
-                          '?�示：�??��?機寬度�??��?< 600）�?,
+                          '提示：僅在手機寬度生效（< 600）。',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 8),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableStrategyFilter,
-                          title: const Text('?�用策略篩選'),
+                          title: const Text('啟用策略篩選'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableStrategyFilter = value;
@@ -4408,7 +4400,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoRefreshEnabled,
-                          title: const Text('?��?定�??�新'),
+                          title: const Text('自動定時更新'),
                           onChanged: (value) {
                             setLocalState(() {
                               localAutoRefreshEnabled = value;
@@ -4418,8 +4410,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: _intradayEnabled,
-                          title: const Text('?�用?�中?��??�測（�?5?��?�?),
-                          subtitle: const Text('App ?��??��?�??��?輪詢 TWSE ?�中資�?並�?算�???),
+                          title: const Text('啟用盤中即時偵測（每5分鐘）'),
+                          subtitle: const Text('App 在前景時每5分鐘輪詢 TWSE 盤中資料並計算變動'),
                           onChanged: (value) async {
                             if (_intradayController != null) {
                               if (value) {
@@ -4437,8 +4429,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localLockSelectionParameters,
-                          title: const Text('?��??�股?�數（防?��?漂移�?),
-                          subtitle: const Text('?�用後�??�自?��??��???事件模板/高風?�自?��?�?),
+                          title: const Text('鎖定選股參數（防自動漂移）'),
+                          subtitle: const Text('啟用後停用自動策略切換/事件模板/高風險自動保守'),
                           onChanged: (value) {
                             setLocalState(() {
                               localLockSelectionParameters = value;
@@ -4453,7 +4445,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoApplyRecommendedMode,
-                          title: const Text('?��??��?建議模�?（�??��?次�?'),
+                          title: const Text('自動切換建議模式（每日一次）'),
                           onChanged: localLockSelectionParameters
                               ? null
                               : (value) {
@@ -4465,15 +4457,15 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoApplyOnlyTradingMorning,
-                          title: const Text('?�在交�??�早上自?��???),
-                          subtitle: const Text('?��??�週�? 08:00-10:30 ?��??��?套用建議'),
+                          title: const Text('只在交易日早上自動切換'),
+                          subtitle: const Text('週一至週五 08:00-10:30 才會自動套用建議'),
                           onChanged: (value) {
                             setLocalState(() {
                               localAutoApplyOnlyTradingMorning = value;
                             });
                           },
                         ),
-                        Text('?��??�新?��?�?{localAutoRefreshMinutes.toInt()} ?��?'),
+                        Text('自動更新間隔：${localAutoRefreshMinutes.toInt()} 分鐘'),
                         Slider(
                           value: localAutoRefreshMinutes,
                           min: 5,
@@ -4489,7 +4481,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localRequireOpenConfirm,
-                          title: const Text('?�盤30?��?確�??�場'),
+                          title: const Text('開盤30分鐘確認進場'),
                           onChanged: (value) {
                             setLocalState(() {
                               localRequireOpenConfirm = value;
@@ -4499,7 +4491,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoDefensiveOnHighNewsRisk,
-                          title: const Text('?�大事件模�?（新?��?風險?��?保�?�?),
+                          title: const Text('重大事件模式（新聞高風險自動保守）'),
                           onChanged: localLockSelectionParameters
                               ? null
                               : (value) {
@@ -4511,8 +4503,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoApplyNewsEventTemplate,
-                          title: const Text('事件模板?��?套用'),
-                          subtitle: const Text('?�測?�戰???��?/?�藥等�?件�?，自?��??��??��???),
+                          title: const Text('事件模板自動套用'),
+                          subtitle: const Text('偵測到戰爭/疫情/新藥等事件時，自動套用對應參數'),
                           onChanged: localLockSelectionParameters
                               ? null
                               : (value) {
@@ -4522,7 +4514,7 @@ class _StockListPageState extends State<StockListPage> {
                                 },
                         ),
                         Text(
-                          '事件模板?��??��?天數�?{localAutoRestoreNewsEventTemplateAfterDays.toInt()} 天�?????��?件命中�??��?�?,
+                          '事件模板自動還原天數：${localAutoRestoreNewsEventTemplateAfterDays.toInt()} 天（連續無事件命中後還原）',
                         ),
                         Slider(
                           value: localAutoRestoreNewsEventTemplateAfterDays,
@@ -4530,7 +4522,7 @@ class _StockListPageState extends State<StockListPage> {
                           max: 14,
                           divisions: 13,
                           label:
-                              '${localAutoRestoreNewsEventTemplateAfterDays.toInt()}�?,
+                              '${localAutoRestoreNewsEventTemplateAfterDays.toInt()}天',
                           onChanged: (value) {
                             setLocalState(() {
                               localAutoRestoreNewsEventTemplateAfterDays =
@@ -4541,7 +4533,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoRegimeEnabled,
-                          title: const Text('Regime ?��??��?（�????�整/?��?�?),
+                          title: const Text('Regime 自動切換（多頭/盤整/防守）'),
                           onChanged: (value) {
                             setLocalState(() {
                               localAutoRegimeEnabled = value;
@@ -4551,7 +4543,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localTimeSegmentTuningEnabled,
-                          title: const Text('?�段?��??�數（�??��?守�?'),
+                          title: const Text('時段動態參數（開盤保守）'),
                           onChanged: (value) {
                             setLocalState(() {
                               localTimeSegmentTuningEnabled = value;
@@ -4564,8 +4556,8 @@ class _StockListPageState extends State<StockListPage> {
                           maxLines: 5,
                           initialValue: localSectorRulesText,
                           decoration: const InputDecoration(
-                            labelText: '?��??��?規�?（格式�?11-17=食�?/塑�?�?,
-                            helperText: '?��?行�?例�?25-29=?��?/?��?�?,
+                            labelText: '板塊分組規則（格式：11-17=食品/塑化）',
+                            helperText: '可多行；例：25-29=通訊/半導體',
                             border: OutlineInputBorder(),
                           ),
                           onChanged: (value) {
@@ -4612,7 +4604,7 @@ class _StockListPageState extends State<StockListPage> {
                             child: ListTile(
                               dense: true,
                               leading: const Icon(Icons.info_outline),
-                              title: Text('${preset.label}?�設'),
+                              title: Text('${preset.label}預設'),
                               subtitle: Text(preset.description),
                             ),
                           ),
@@ -4621,7 +4613,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localOnlyRising,
-                          title: const Text('?��??�日上漲'),
+                          title: const Text('只看當日上漲'),
                           onChanged: (value) {
                             setLocalState(() {
                               localOnlyRising = value;
@@ -4630,7 +4622,7 @@ class _StockListPageState extends State<StockListPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '?�價上�?�?{_formatWithThousandsSeparator(localMaxPrice.toInt())}',
+                          '股價上限：${_formatWithThousandsSeparator(localMaxPrice.toInt())}',
                         ),
                         Slider(
                           value: localMaxPrice,
@@ -4645,7 +4637,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?�交?��?檻�?${_formatWithThousandsSeparator(localVolumeThreshold.toInt())}',
+                          '成交量門檻：${_formatWithThousandsSeparator(localVolumeThreshold.toInt())}',
                         ),
                         Slider(
                           value: localVolumeThreshold,
@@ -4662,7 +4654,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localUseRelativeVolumeFilter,
-                          title: const Text('?�用?��??�能?��?),
+                          title: const Text('啟用相對量能門檻'),
                           onChanged: (value) {
                             setLocalState(() {
                               localUseRelativeVolumeFilter = value;
@@ -4670,7 +4662,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?��??�能?�檻�?${localRelativeVolumePercent.toInt()}%（相對大?�平?��?�?),
+                            '相對量能門檻：${localRelativeVolumePercent.toInt()}%（相對大盤平均量）'),
                         Slider(
                           value: localRelativeVolumePercent,
                           min: 100,
@@ -4684,7 +4676,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?�交?��?檻�?${_formatCurrency(localTradeValueThreshold)}',
+                          '成交值門檻：${_formatCurrency(localTradeValueThreshold)}',
                         ),
                         Slider(
                           value: localTradeValueThreshold,
@@ -4702,8 +4694,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableForeignFlowFilter,
-                          title: const Text('外�?淨買超篩??),
-                          subtitle: Text('?�檻�?${_formatWithThousandsSeparator(localMinForeignNet.toInt())}'),
+                          title: const Text('外資淨買超篩選'),
+                          subtitle: Text('門檻：${_formatWithThousandsSeparator(localMinForeignNet.toInt())}'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableForeignFlowFilter = value;
@@ -4727,8 +4719,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableTrustFlowFilter,
-                          title: const Text('?�信淨買超篩??),
-                          subtitle: Text('?�檻�?${_formatWithThousandsSeparator(localMinTrustNet.toInt())}'),
+                          title: const Text('投信淨買超篩選'),
+                          subtitle: Text('門檻：${_formatWithThousandsSeparator(localMinTrustNet.toInt())}'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableTrustFlowFilter = value;
@@ -4752,8 +4744,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableDealerFlowFilter,
-                          title: const Text('?��??�淨買�?篩選'),
-                          subtitle: Text('?�檻�?${_formatWithThousandsSeparator(localMinDealerNet.toInt())}'),
+                          title: const Text('自營商淨買超篩選'),
+                          subtitle: Text('門檻：${_formatWithThousandsSeparator(localMinDealerNet.toInt())}'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableDealerFlowFilter = value;
@@ -4777,8 +4769,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableMarginDiffFilter,
-                          title: const Text('?��?餘�?變�?篩選'),
-                          subtitle: Text('?�檻�?${_formatWithThousandsSeparator(localMinMarginBalanceDiff.toInt())}'),
+                          title: const Text('融資餘額變動篩選'),
+                          subtitle: Text('門檻：${_formatWithThousandsSeparator(localMinMarginBalanceDiff.toInt())}'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableMarginDiffFilter = value;
@@ -4803,7 +4795,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableScoring,
-                          title: const Text('?�用?��??��?'),
+                          title: const Text('啟用打分排序'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableScoring = value;
@@ -4813,14 +4805,14 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localExcludeOverheated,
-                          title: const Text('?�除追�?風險（�??��?'),
+                          title: const Text('排除追高風險（過熱）'),
                           onChanged: (value) {
                             setLocalState(() {
                               localExcludeOverheated = value;
                             });
                           },
                         ),
-                        Text('?�熱漲�?上�?�?{localMaxChaseChangePercent.toInt()}%'),
+                        Text('過熱漲幅上限：${localMaxChaseChangePercent.toInt()}%'),
                         Slider(
                           value: localMaxChaseChangePercent,
                           min: 3,
@@ -4836,7 +4828,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localLimitTopCandidates,
-                          title: const Text('?�顯示�?20�?),
+                          title: const Text('僅顯示前20檔'),
                           onChanged: (value) {
                             setLocalState(() {
                               localLimitTopCandidates = value;
@@ -4847,7 +4839,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableExitSignal,
-                          title: const Text('?�用?�場訊�?'),
+                          title: const Text('啟用出場訊號'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableExitSignal = value;
@@ -4857,8 +4849,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localHoldingNotifyIncludeCaution,
-                          title: const Text('庫�??��??�含警�?訊�?'),
-                          subtitle: const Text('?��?後�??�知?��?/?�利（�?少通知�?),
+                          title: const Text('庫存提醒包含警戒訊號'),
+                          subtitle: const Text('關閉後僅通知停損/停利（較少通知）'),
                           onChanged: (value) {
                             setLocalState(() {
                               localHoldingNotifyIncludeCaution = value;
@@ -4868,8 +4860,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableAutoRiskAdjustment,
-                          title: const Text('?�用?��?調�?（風?��??��?'),
-                          subtitle: const Text('依新???�勢/寬度/??��?��?調整?�數?��??��??�利?��?'),
+                          title: const Text('啟用自動調參（風險分數）'),
+                          subtitle: const Text('依新聞/盤勢/寬度/連虧動態調整分數、量能與停利目標'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableAutoRiskAdjustment = value;
@@ -4877,7 +4869,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?��?調�?強度�?{localAutoRiskAdjustmentStrength.toInt()}�?{_riskAdjustmentIntensityLabel(localAutoRiskAdjustmentStrength.toInt())}�?,
+                          '自動調參強度：${localAutoRiskAdjustmentStrength.toInt()}（${_riskAdjustmentIntensityLabel(localAutoRiskAdjustmentStrength.toInt())}）',
                         ),
                         Slider(
                           value: localAutoRiskAdjustmentStrength,
@@ -4897,9 +4889,9 @@ class _StockListPageState extends State<StockListPage> {
                           runSpacing: 8,
                           children: [
                             Tooltip(
-                              message: '?�格?�濾：�??�更少、�??��???,
+                              message: '嚴格過濾：訊號更少、偏防守。',
                               child: ChoiceChip(
-                                label: const Text('保�? 25'),
+                                label: const Text('保守 25'),
                                 selected:
                                     localAutoRiskAdjustmentStrength.toInt() ==
                                         25,
@@ -4911,7 +4903,7 @@ class _StockListPageState extends State<StockListPage> {
                               ),
                             ),
                             Tooltip(
-                              message: '標�?設�?：進攻?�風?�平衡�?,
+                              message: '標準設定：進攻與風控平衡。',
                               child: ChoiceChip(
                                 label: const Text('平衡 50'),
                                 selected:
@@ -4925,7 +4917,7 @@ class _StockListPageState extends State<StockListPage> {
                               ),
                             ),
                             Tooltip(
-                              message: '快速�??��?調�??��??��?,
+                              message: '快速反應：調參更敏感。',
                               child: ChoiceChip(
                                 label: const Text('積極 75'),
                                 selected:
@@ -4943,14 +4935,14 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localExpandAggressiveEstimateByDefault,
-                          title: const Text('?�設展�?積極估�?'),
+                          title: const Text('預設展開積極估算'),
                           onChanged: (value) {
                             setLocalState(() {
                               localExpandAggressiveEstimateByDefault = value;
                             });
                           },
                         ),
-                        Text('?��?警示�?${localStopLossPercent.toInt()}%'),
+                        Text('停損警示：-${localStopLossPercent.toInt()}%'),
                         Slider(
                           value: localStopLossPercent,
                           min: 3,
@@ -4963,7 +4955,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?�利警示�?${localTakeProfitPercent.toInt()}%'),
+                        Text('停利警示：+${localTakeProfitPercent.toInt()}%'),
                         Slider(
                           value: localTakeProfitPercent,
                           min: 5,
@@ -4979,7 +4971,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableTrailingStop,
-                          title: const Text('?�用移�??�利'),
+                          title: const Text('啟用移動停利'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableTrailingStop = value;
@@ -4987,8 +4979,8 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         const Divider(height: 24),
-                        Text('權�?設�?�?＝忽?��?'),
-                        Text('?�交?��??��?${localVolumeWeight.toInt()}'),
+                        Text('權重設定（0＝忽略）'),
+                        Text('成交量權重：${localVolumeWeight.toInt()}'),
                         Slider(
                           value: localVolumeWeight.toDouble(),
                           min: 0,
@@ -5001,7 +4993,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('漲�??��?比�??��?${localChangeWeight.toInt()}'),
+                        Text('漲跌百分比權重：${localChangeWeight.toInt()}'),
                         Slider(
                           value: localChangeWeight.toDouble(),
                           min: 0,
@@ -5014,7 +5006,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?�價距離權�?�?{localPriceWeight.toInt()}'),
+                        Text('股價距離權重：${localPriceWeight.toInt()}'),
                         Slider(
                           value: localPriceWeight.toDouble(),
                           min: 0,
@@ -5027,7 +5019,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('籌碼?�中度�??��?${localConcentrationWeight.toInt()}'),
+                        Text('籌碼集中度權重：${localConcentrationWeight.toInt()}'),
                         Slider(
                           value: localConcentrationWeight.toDouble(),
                           min: 0,
@@ -5040,7 +5032,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?�交?��??��?${localTradeValueWeight.toInt()}'),
+                        Text('成交值權重：${localTradeValueWeight.toInt()}'),
                         Slider(
                           value: localTradeValueWeight.toDouble(),
                           min: 0,
@@ -5059,7 +5051,7 @@ class _StockListPageState extends State<StockListPage> {
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             icon: const Icon(Icons.auto_fix_high),
-                            label: const Text('?��??��?權�?'),
+                            label: const Text('自動搜尋權重'),
                             onPressed: _latestStocks.isEmpty
                                 ? null
                                 : () {
@@ -5079,12 +5071,12 @@ class _StockListPageState extends State<StockListPage> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                           content:
-                                              const Text('權�?已根?��??�表?�自?�調??)),
+                                              const Text('權重已根據近期表現自動調整')),
                                     );
                                   },
                           ),
                         ),
-                        Text('移�??�利?�撤�?{localTrailingPullbackPercent.toInt()}%'),
+                        Text('移動停利回撤：${localTrailingPullbackPercent.toInt()}%'),
                         Slider(
                           value: localTrailingPullbackPercent,
                           min: 2,
@@ -5100,7 +5092,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableAdaptiveAtrExit,
-                          title: const Text('?�用 ATR ?�適?��???),
+                          title: const Text('啟用 ATR 自適應停利'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableAdaptiveAtrExit = value;
@@ -5110,7 +5102,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableScoreTierSizing,
-                          title: const Text('?�數?�層?��?'),
+                          title: const Text('分數分層倉位'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableScoreTierSizing = value;
@@ -5120,7 +5112,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableBreakoutQuality,
-                          title: const Text('突破?�質?�濾'),
+                          title: const Text('突破品質過濾'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableBreakoutQuality = value;
@@ -5128,7 +5120,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '突破?�能?��??�檻�?${localBreakoutMinVolumeRatio.toInt()}%'),
+                            '突破量能倍率門檻：${localBreakoutMinVolumeRatio.toInt()}%'),
                         Slider(
                           value: localBreakoutMinVolumeRatio,
                           min: 100,
@@ -5145,15 +5137,15 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableChipConcentrationFilter,
-                          title: const Text('籌碼?�中度�?�?),
-                          subtitle: Text('?�顯示�?中度 ??${localMinChipConcentrationPercent.toInt()}% ?�個股'),
+                          title: const Text('籌碼集中度過濾'),
+                          subtitle: Text('只顯示集中度 ≥ ${localMinChipConcentrationPercent.toInt()}% 的個股'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableChipConcentrationFilter = value;
                             });
                           },
                         ),
-                        Text('?�低�?碼�?中度�?{localMinChipConcentrationPercent.toInt()}%'),
+                        Text('最低籌碼集中度：${localMinChipConcentrationPercent.toInt()}%'),
                         Slider(
                           value: localMinChipConcentrationPercent,
                           min: 0,
@@ -5169,7 +5161,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableRiskRewardPrefilter,
-                          title: const Text('風險?�酬?�置?�濾'),
+                          title: const Text('風險報酬前置過濾'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableRiskRewardPrefilter = value;
@@ -5177,7 +5169,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?�低風?�報?��?�?{localMinRiskRewardRatio.toStringAsFixed(2)}'),
+                            '最低風險報酬比：${localMinRiskRewardRatio.toStringAsFixed(2)}'),
                         Slider(
                           value: localMinRiskRewardRatio,
                           min: 1.0,
@@ -5191,17 +5183,17 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<BreakoutMode>(
+                        DropdownButtonFormField<_BreakoutStageMode>(
                           initialValue: localBreakoutStageMode,
                           decoration: const InputDecoration(
-                            labelText: '飆股篩選模�?',
+                            labelText: '飆股篩選模式',
                             border: OutlineInputBorder(),
                           ),
-                          items: BreakoutMode.values
+                          items: _BreakoutStageMode.values
                               .map(
-                                (mode) => DropdownMenuItem<BreakoutMode>(
+                                (mode) => DropdownMenuItem<_BreakoutStageMode>(
                                   value: mode,
-                                  child: Text(BreakoutModeLabel(mode)),
+                                  child: Text(_breakoutStageModeLabel(mode)),
                                 ),
                               )
                               .toList(),
@@ -5216,13 +5208,13 @@ class _StockListPageState extends State<StockListPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '?��???確�?突破/低基?��????��??�攻/?�縮待噴/事件?�卡位�??��??�勢快速�??��?,
+                          '剛突破/確認突破/低基期題材/回檔再攻/量縮待噴/事件前卡位，可依盤勢快速切換。',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableMultiDayBreakout,
-                          title: const Text('???突破確�?'),
+                          title: const Text('連續突破確認'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableMultiDayBreakout = value;
@@ -5230,13 +5222,13 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?�低�??突破天數�?{localMinBreakoutStreakDays.toInt()} �?),
+                            '最低連續突破天數：${localMinBreakoutStreakDays.toInt()} 天'),
                         Slider(
                           value: localMinBreakoutStreakDays,
                           min: 1,
                           max: 5,
                           divisions: 4,
-                          label: '${localMinBreakoutStreakDays.toInt()}�?,
+                          label: '${localMinBreakoutStreakDays.toInt()}天',
                           onChanged: (value) {
                             setLocalState(() {
                               localMinBreakoutStreakDays = value;
@@ -5246,7 +5238,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableFalseBreakoutProtection,
-                          title: const Text('?��??�防�?),
+                          title: const Text('假突破防護'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableFalseBreakoutProtection = value;
@@ -5256,7 +5248,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableMarketBreadthFilter,
-                          title: const Text('市場寬度?�濾（漲跌家?��?�?),
+                          title: const Text('市場寬度過濾（漲跌家數比）'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableMarketBreadthFilter = value;
@@ -5264,7 +5256,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?�低�??�寬度�?�?{localMinMarketBreadthRatio.toStringAsFixed(2)}'),
+                            '最低市場寬度比：${localMinMarketBreadthRatio.toStringAsFixed(2)}'),
                         Slider(
                           value: localMinMarketBreadthRatio,
                           min: 0.8,
@@ -5280,7 +5272,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableEventRiskExclusion,
-                          title: const Text('事件風險?�除（財???��?�?),
+                          title: const Text('事件風險排除（財報/重訊）'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableEventRiskExclusion = value;
@@ -5289,7 +5281,7 @@ class _StockListPageState extends State<StockListPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '三�?子快?��?設�?MVP�?,
+                          '三因子快速預設（MVP）',
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         const SizedBox(height: 6),
@@ -5298,7 +5290,7 @@ class _StockListPageState extends State<StockListPage> {
                           runSpacing: 8,
                           children: [
                             ChoiceChip(
-                              label: const Text('保�?'),
+                              label: const Text('保守'),
                               selected: selectedMvpPresetId == 'mvp_conservative',
                               onSelected: (_) {
                                 setLocalState(() {
@@ -5345,14 +5337,14 @@ class _StockListPageState extends State<StockListPage> {
                           ],
                         ),
                         Text(
-                          '保�?：避?��?件�?且�?求�?高�??��?平衡：�?準�?檻�?積極：放寬�?件�??��??��?檻�?,
+                          '保守：避開事件窗且要求較高動能；平衡：標準門檻；積極：放寬事件窗與分數門檻。',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableEventCalendarWindow,
-                          title: const Text('法說/財報事件窗�?濾�?MVP�?),
-                          subtitle: const Text('事件?��?後天?�內?�避?��?事件?�卡位模式除�?),
+                          title: const Text('法說/財報事件窗過濾（MVP）'),
+                          subtitle: const Text('事件日前後天數內先避開，事件前卡位模式除外'),
                           onChanged: (value) {
                             setLocalState(() {
                               selectedMvpPresetId = null;
@@ -5360,13 +5352,13 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('事件窗天?��?±${localEventCalendarGuardDays.toInt()} �?),
+                        Text('事件窗天數：±${localEventCalendarGuardDays.toInt()} 天'),
                         Slider(
                           value: localEventCalendarGuardDays,
                           min: 0,
                           max: 3,
                           divisions: 3,
-                          label: '±${localEventCalendarGuardDays.toInt()}�?,
+                          label: '±${localEventCalendarGuardDays.toInt()}天',
                           onChanged: (value) {
                             setLocalState(() {
                               selectedMvpPresetId = null;
@@ -5377,7 +5369,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableRevenueMomentumFilter,
-                          title: const Text('?��??��??��?濾�?MVP�?),
+                          title: const Text('月營收動能過濾（MVP）'),
                           onChanged: (value) {
                             setLocalState(() {
                               selectedMvpPresetId = null;
@@ -5386,7 +5378,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?�低�??��??��??��?${localMinRevenueMomentumScore.toInt()}�?3 ~ +3�?),
+                            '最低營收動能分數：${localMinRevenueMomentumScore.toInt()}（-3 ~ +3）'),
                         Slider(
                           value: localMinRevenueMomentumScore,
                           min: -3,
@@ -5404,7 +5396,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableEarningsSurpriseFilter,
-                          title: const Text('財報 surprise ?�濾（MVP�?),
+                          title: const Text('財報 surprise 過濾（MVP）'),
                           onChanged: (value) {
                             setLocalState(() {
                               selectedMvpPresetId = null;
@@ -5413,7 +5405,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?�低財??surprise ?�數�?{localMinEarningsSurpriseScore.toInt()}�?3 ~ +3�?),
+                            '最低財報 surprise 分數：${localMinEarningsSurpriseScore.toInt()}（-3 ~ +3）'),
                         Slider(
                           value: localMinEarningsSurpriseScore,
                           min: -3,
@@ -5431,7 +5423,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableOvernightGapRiskGuard,
-                          title: const Text('?�日跳空風險?�護（盤�?夜�?�?),
+                          title: const Text('隔日跳空風險防護（盤後/夜間）'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableOvernightGapRiskGuard = value;
@@ -5441,7 +5433,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableSectorExposureCap,
-                          title: const Text('?�業?�中度�??��?依�??��?'),
+                          title: const Text('產業集中度上限（依持股）'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableSectorExposureCap = value;
@@ -5449,26 +5441,26 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?��??�業?�多�????�選�?{localMaxHoldingPerSector.toInt()} �?),
+                            '單一產業最多持股/候選：${localMaxHoldingPerSector.toInt()} 檔'),
                         Slider(
                           value: localMaxHoldingPerSector,
                           min: 1,
                           max: 6,
                           divisions: 5,
-                          label: '${localMaxHoldingPerSector.toInt()}�?,
+                          label: '${localMaxHoldingPerSector.toInt()}檔',
                           onChanged: (value) {
                             setLocalState(() {
                               localMaxHoldingPerSector = value;
                             });
                           },
                         ),
-                        Text('?��??�卻?��?${localCooldownDays.toInt()} �?),
+                        Text('停損冷卻期：${localCooldownDays.toInt()} 天'),
                         Slider(
                           value: localCooldownDays,
                           min: 0,
                           max: 7,
                           divisions: 7,
-                          label: '${localCooldownDays.toInt()}�?,
+                          label: '${localCooldownDays.toInt()}天',
                           onChanged: (value) {
                             setLocalState(() {
                               localCooldownDays = value;
@@ -5478,7 +5470,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableSectorRotationBoost,
-                          title: const Text('?��?輪�?強度?��?'),
+                          title: const Text('板塊輪動強度排序'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableSectorRotationBoost = value;
@@ -5488,7 +5480,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableWeeklyWalkForwardAutoTune,
-                          title: const Text('每週自??walk-forward 微調'),
+                          title: const Text('每週自動 walk-forward 微調'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableWeeklyWalkForwardAutoTune = value;
@@ -5496,7 +5488,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            'ATR ?�利?�數�?{localAtrTakeProfitMultiplier.toInt()}x'),
+                            'ATR 停利倍數：${localAtrTakeProfitMultiplier.toInt()}x'),
                         Slider(
                           value: localAtrTakeProfitMultiplier,
                           min: 1,
@@ -5509,7 +5501,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?��?????��?筆數�?{localManualLossStreak.toInt()}'),
+                        Text('目前連續虧損筆數：${localManualLossStreak.toInt()}'),
                         Slider(
                           value: localManualLossStreak,
                           min: 0,
@@ -5522,7 +5514,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?�低�??�檻�?${localMinScore.toInt()}'),
+                        Text('最低分門檻：${localMinScore.toInt()}'),
                         Slider(
                           value: localMinScore,
                           min: _minScore.toDouble(),
@@ -5535,7 +5527,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?�能權�?�?{localVolumeWeight.toInt()}'),
+                        Text('量能權重：${localVolumeWeight.toInt()}'),
                         Slider(
                           value: localVolumeWeight,
                           min: 0,
@@ -5548,7 +5540,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('漲�?權�?�?{localChangeWeight.toInt()}'),
+                        Text('漲幅權重：${localChangeWeight.toInt()}'),
                         Slider(
                           value: localChangeWeight,
                           min: 0,
@@ -5561,7 +5553,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('低價權�?�?{localPriceWeight.toInt()}'),
+                        Text('低價權重：${localPriceWeight.toInt()}'),
                         Slider(
                           value: localPriceWeight,
                           min: 0,
@@ -5575,7 +5567,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?�示：可?��??�設，�?微調?�數?��?轉判?��??�歷史資�?，目?�用?�能＋漲幅�?低價建�??�步?�數??,
+                          '提示：可先點預設，再微調參數。反轉判斷仍需歷史資料，目前用量能＋漲幅＋低價建立初步分數。',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 12),
@@ -5771,7 +5763,7 @@ class _StockListPageState extends State<StockListPage> {
       enableOvernightGapRiskGuard: _enableOvernightGapRiskGuard,
       enableSectorExposureCap: _enableSectorExposureCap,
       maxHoldingPerSector: _maxHoldingPerSector,
-      breakoutStageMode: BreakoutMode,
+      breakoutStageMode: _breakoutStageMode,
       minScoreThreshold: _minScoreThreshold,
       volumeWeight: _volumeWeight,
       changeWeight: _changeWeight,
@@ -5895,7 +5887,7 @@ class _StockListPageState extends State<StockListPage> {
       _enableOvernightGapRiskGuard = result.enableOvernightGapRiskGuard;
       _enableSectorExposureCap = result.enableSectorExposureCap;
       _maxHoldingPerSector = result.maxHoldingPerSector;
-      BreakoutMode = result.breakoutStageMode;
+      _breakoutStageMode = result.breakoutStageMode;
       _enableWeeklyWalkForwardAutoTune = result.enableWeeklyWalkForwardAutoTune;
       _manualLossStreak = result.manualLossStreak;
       _minScoreThreshold = result.minScore;
@@ -5938,7 +5930,7 @@ class _StockListPageState extends State<StockListPage> {
         _enableOvernightGapRiskGuard = coreBefore.enableOvernightGapRiskGuard;
         _enableSectorExposureCap = coreBefore.enableSectorExposureCap;
         _maxHoldingPerSector = coreBefore.maxHoldingPerSector;
-        BreakoutMode = coreBefore.breakoutStageMode;
+        _breakoutStageMode = coreBefore.breakoutStageMode;
         _minScoreThreshold = coreBefore.minScoreThreshold;
         _volumeWeight = coreBefore.volumeWeight;
         _changeWeight = coreBefore.changeWeight;
@@ -5953,13 +5945,13 @@ class _StockListPageState extends State<StockListPage> {
     _savePreferencesTagged('filter_sheet_apply');
 
     final message = _enableStrategyFilter
-        ? '已�??��??��??�價 <= $_maxPriceThreshold，�? ${_useRelativeVolumeFilter ? '>= $_relativeVolumePercent%?��?�? : '>='} ${_formatWithThousandsSeparator(_surgeVolumeThreshold)}，�?>= ${_formatCurrency(_minTradeValueThreshold)}${_onlyRising ? '，只?��?�? : ''}'
-        : '已顯示全?�股�?;
+        ? '已套用策略：股價 <= $_maxPriceThreshold，量 ${_useRelativeVolumeFilter ? '>= $_relativeVolumePercent%均量且' : '>='} ${_formatWithThousandsSeparator(_surgeVolumeThreshold)}，值 >= ${_formatCurrency(_minTradeValueThreshold)}${_onlyRising ? '，只看上漲' : ''}'
+        : '已顯示全部股票';
     ScaffoldMessenger.of(context)
         .showSnackBar(
       SnackBar(
         content: Text(
-          attemptedCoreChange ? '$message（已?��??��??�數，�?套用?�選?�設定�?' : message,
+          attemptedCoreChange ? '$message（已鎖定核心參數，僅套用非選股設定）' : message,
         ),
       ),
     );
@@ -6055,7 +6047,7 @@ class _StockListPageState extends State<StockListPage> {
     if (stock != null) {
       threshold += _sectorRegimeScoreBias(_regimeForStock(stock));
     }
-    // breadth-based adjustment: ?�貨寬度?�弱?��?高�?檻�?寬度強�??�寬
+    // breadth-based adjustment: 現貨寬度偏弱時提高門檻，寬度強時放寬
     if (_latestMarketBreadthRatio < 0.9) {
       threshold += 2;
     } else if (_latestMarketBreadthRatio > 1.1) {
@@ -6086,10 +6078,10 @@ class _StockListPageState extends State<StockListPage> {
     final score = _smoothedRiskScore(rawScore);
 
     final level = score >= 75
-        ? '高風??
+        ? '高風險'
         : score >= 55
-            ? '中性�?保�?'
-            : '風險?�控';
+            ? '中性偏保守'
+            : '風險可控';
     return _RiskSnapshot(score: score, level: level);
   }
 
@@ -6146,7 +6138,7 @@ class _StockListPageState extends State<StockListPage> {
     if (last.isEmpty) {
       return '-';
     }
-    const bars = <String>['??, '??, '??, '??, '??, '??, '??, '??];
+    const bars = <String>['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
     return last
         .map((point) =>
             bars[(point.score / 13).floor().clamp(0, bars.length - 1)])
@@ -6294,7 +6286,7 @@ class _StockListPageState extends State<StockListPage> {
   String _riskAdjustmentIntensityLabel([int? strength]) {
     final value = (strength ?? _autoRiskAdjustmentStrength).clamp(0, 100);
     if (value <= 33) {
-      return '保�?';
+      return '保守';
     }
     if (value <= 66) {
       return '平衡';
@@ -6386,18 +6378,18 @@ class _StockListPageState extends State<StockListPage> {
 
   String _sectorGroupForCode(String code) {
     if (code.length < 2) {
-      return '?��?';
+      return '其他';
     }
     final prefix = int.tryParse(code.substring(0, 2));
     if (prefix == null) {
-      return '?��?';
+      return '其他';
     }
     for (final rule in _sectorRules) {
       if (prefix >= rule.start && prefix <= rule.end) {
         return rule.group;
       }
     }
-    return '?��?';
+    return '其他';
   }
 
   void _rebuildSectorRegime(List<StockModel> stocks) {
@@ -6522,8 +6514,8 @@ class _StockListPageState extends State<StockListPage> {
   String _regimeLabelOf(_MarketRegime regime) {
     return switch (regime) {
       _MarketRegime.bull => '多頭',
-      _MarketRegime.range => '?�整',
-      _MarketRegime.defensive => '?��?',
+      _MarketRegime.range => '盤整',
+      _MarketRegime.defensive => '防守',
     };
   }
 
@@ -6559,7 +6551,7 @@ class _StockListPageState extends State<StockListPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('設�??�股 - ${stock.code} ${stock.name}'),
+          title: Text('設定持股 - ${stock.code} ${stock.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -6568,8 +6560,8 @@ class _StockListPageState extends State<StockListPage> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                  labelText: '買入?�本',
-                  hintText: '例�? 48.50',
+                  labelText: '買入成本',
+                  hintText: '例如 48.50',
                 ),
               ),
               const SizedBox(height: 12),
@@ -6578,8 +6570,8 @@ class _StockListPageState extends State<StockListPage> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                  labelText: '?�股張數',
-                  hintText: '例�? 1 ??0.5',
+                  labelText: '持股張數',
+                  hintText: '例如 1 或 0.5',
                 ),
               ),
             ],
@@ -6587,13 +6579,13 @@ class _StockListPageState extends State<StockListPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('?��?'),
+              child: const Text('取消'),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(
                 const _PositionInput(clear: true),
               ),
-              child: const Text('清除?�股'),
+              child: const Text('清除持股'),
             ),
             TextButton(
               onPressed: () async {
@@ -6614,7 +6606,7 @@ class _StockListPageState extends State<StockListPage> {
                 lotsController.text = result.totalLots
                     .toStringAsFixed(result.totalLots % 1 == 0 ? 0 : 2);
               },
-              child: const Text('?�批計�?'),
+              child: const Text('分批計算'),
             ),
             FilledButton(
               onPressed: () {
@@ -6627,7 +6619,7 @@ class _StockListPageState extends State<StockListPage> {
                   ),
                 );
               },
-              child: const Text('?��?'),
+              child: const Text('儲存'),
             ),
           ],
         );
@@ -6645,7 +6637,7 @@ class _StockListPageState extends State<StockListPage> {
       });
       await _savePreferences();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已�???${stock.code} ?�股設�?')),
+        SnackBar(content: Text('已清除 ${stock.code} 持股設定')),
       );
       return;
     }
@@ -6654,14 +6646,14 @@ class _StockListPageState extends State<StockListPage> {
     final lots = result.lots;
     if (entryPrice == null || entryPrice <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?�本必�?大於 0')),
+        const SnackBar(content: Text('成本必須大於 0')),
       );
       return;
     }
 
     if (lots == null || lots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('張數必�?大於 0')),
+        const SnackBar(content: Text('張數必須大於 0')),
       );
       return;
     }
@@ -6674,7 +6666,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '已儲�?${stock.code} ?�本 ${entryPrice.toStringAsFixed(2)} / 張數 ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}',
+          '已儲存 ${stock.code} 成本 ${entryPrice.toStringAsFixed(2)} / 張數 ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}',
         ),
       ),
     );
@@ -6689,7 +6681,7 @@ class _StockListPageState extends State<StockListPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('?��??��?/?�新庫�?'),
+          title: const Text('手動新增/更新庫存'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -6697,8 +6689,8 @@ class _StockListPageState extends State<StockListPage> {
                 controller: codeController,
                 textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
-                  labelText: '?�票�??',
-                  hintText: '例�? 2324',
+                  labelText: '股票代號',
+                  hintText: '例如 2324',
                 ),
               ),
               const SizedBox(height: 10),
@@ -6707,8 +6699,8 @@ class _StockListPageState extends State<StockListPage> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                  labelText: '買入?�本',
-                  hintText: '例�? 39.25',
+                  labelText: '買入成本',
+                  hintText: '例如 39.25',
                 ),
               ),
               const SizedBox(height: 10),
@@ -6717,8 +6709,8 @@ class _StockListPageState extends State<StockListPage> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                  labelText: '?�股張數',
-                  hintText: '例�? 1 ??0.5',
+                  labelText: '持股張數',
+                  hintText: '例如 1 或 0.5',
                 ),
               ),
             ],
@@ -6726,7 +6718,7 @@ class _StockListPageState extends State<StockListPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('?��?'),
+              child: const Text('取消'),
             ),
             FilledButton(
               onPressed: () {
@@ -6738,7 +6730,7 @@ class _StockListPageState extends State<StockListPage> {
                   _PositionInput(entryPrice: entryPrice, lots: lots),
                 ));
               },
-              child: const Text('?��?'),
+              child: const Text('儲存'),
             ),
           ],
         );
@@ -6753,7 +6745,7 @@ class _StockListPageState extends State<StockListPage> {
     final payload = result.$2;
     if (code.isEmpty || !RegExp(r'^[0-9A-Z]+$').hasMatch(code)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?�票�???��??�誤')),
+        const SnackBar(content: Text('股票代號格式錯誤')),
       );
       return;
     }
@@ -6762,13 +6754,13 @@ class _StockListPageState extends State<StockListPage> {
     final lots = payload.lots;
     if (entryPrice == null || entryPrice <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?�本必�?大於 0')),
+        const SnackBar(content: Text('成本必須大於 0')),
       );
       return;
     }
     if (lots == null || lots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('張數必�?大於 0')),
+        const SnackBar(content: Text('張數必須大於 0')),
       );
       return;
     }
@@ -6786,7 +6778,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '已儲�?$code ?�本 ${entryPrice.toStringAsFixed(2)} / 張數 ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}',
+          '已儲存 $code 成本 ${entryPrice.toStringAsFixed(2)} / 張數 ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}',
         ),
       ),
     );
@@ -6800,7 +6792,7 @@ class _StockListPageState extends State<StockListPage> {
     final lots = _positionLotsByCode[stock.code];
     if (entryPrice == null || lots == null || lots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('請�?設�??�股?�本?�張?��?記�?平�?)),
+        const SnackBar(content: Text('請先設定持股成本與張數再記錄平倉')),
       );
       return;
     }
@@ -6820,11 +6812,11 @@ class _StockListPageState extends State<StockListPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('記�?平�?- ${stock.code} ${stock.name}'),
+              title: Text('記錄平倉 - ${stock.code} ${stock.name}'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('?�股?�本 ${entryPrice.toStringAsFixed(2)}'),
+                  Text('持股成本 ${entryPrice.toStringAsFixed(2)}'),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -6852,30 +6844,30 @@ class _StockListPageState extends State<StockListPage> {
                     controller: exitPriceController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: '?�場??),
+                    decoration: const InputDecoration(labelText: '出場價'),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: lotsController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: '平倉張??),
+                    decoration: const InputDecoration(labelText: '平倉張數'),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: reasonController,
-                    decoration: const InputDecoration(labelText: '平倉�???),
+                    decoration: const InputDecoration(labelText: '平倉原因'),
                   ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('?��?'),
+                  child: const Text('取消'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('記�?'),
+                  child: const Text('記錄'),
                 ),
               ],
             );
@@ -6896,7 +6888,7 @@ class _StockListPageState extends State<StockListPage> {
         exitPrice <= 0 ||
         closeLots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('平倉�??�格式錯�?)),
+        const SnackBar(content: Text('平倉資料格式錯誤')),
       );
       return;
     }
@@ -6904,7 +6896,7 @@ class _StockListPageState extends State<StockListPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
-                '平倉張?��??�大?�目?��???${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)} �?)),
+                '平倉張數不可大於目前持股 ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)} 張')),
       );
       return;
     }
@@ -6945,7 +6937,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '已�??�平?��?${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%（�?�� $autoStreak 筆�?',
+          '已記錄平倉：${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%（連虧 $autoStreak 筆）',
         ),
       ),
     );
@@ -6954,7 +6946,7 @@ class _StockListPageState extends State<StockListPage> {
   Future<void> _openTradeJournalPage() async {
     if (_tradeJournalEntries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?��?尚無交�??��?紀??)),
+        const SnackBar(content: Text('目前尚無交易日誌紀錄')),
       );
       return;
     }
@@ -6984,14 +6976,14 @@ class _StockListPageState extends State<StockListPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('?�批買進�?�?),
+              title: const Text('分批買進計算'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('每�?一筆�??��?：價??張數'),
+                  const Text('每行一筆，格式：價格,張數'),
                   const SizedBox(height: 6),
-                  const Text('例�?：\n48,1\n52,2\n50,0.5'),
+                  const Text('例如：\n48,1\n52,2\n50,0.5'),
                   const SizedBox(height: 12),
                   TextField(
                     controller: linesController,
@@ -7001,7 +6993,7 @@ class _StockListPageState extends State<StockListPage> {
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
-                      hintText: '?�格,張數',
+                      hintText: '價格,張數',
                       errorText: errorText,
                     ),
                   ),
@@ -7010,7 +7002,7 @@ class _StockListPageState extends State<StockListPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('?��?'),
+                  child: const Text('取消'),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -7018,13 +7010,13 @@ class _StockListPageState extends State<StockListPage> {
                         _parseBatchCostInput(linesController.text);
                     if (parseResult == null) {
                       setDialogState(() {
-                        errorText = '?��??�誤，�?使用?�價??張數?��??�大??0';
+                        errorText = '格式錯誤，請使用「價格,張數」且都大於 0';
                       });
                       return;
                     }
                     Navigator.of(context).pop(parseResult);
                   },
-                  child: const Text('套用結�?'),
+                  child: const Text('套用結果'),
                 ),
               ],
             );
@@ -7081,7 +7073,7 @@ class _StockListPageState extends State<StockListPage> {
   _ExitSignal _evaluateExitSignal(StockModel stock, int score) {
     if (!_enableExitSignal) {
       return const _ExitSignal(
-        label: '?��??�出?��???,
+        label: '未啟用出場訊號',
         type: _ExitSignalType.neutral,
       );
     }
@@ -7102,7 +7094,7 @@ class _StockListPageState extends State<StockListPage> {
 
     if (pnlPercent != null && pnlPercent <= -_stopLossPercent) {
       return _ExitSignal(
-        label: '?��?警示 ${pnlPercent.toStringAsFixed(1)}%',
+        label: '停損警示 ${pnlPercent.toStringAsFixed(1)}%',
         type: _ExitSignalType.danger,
       );
     }
@@ -7116,36 +7108,36 @@ class _StockListPageState extends State<StockListPage> {
         if (peak >= adaptiveTakeProfit &&
             pullback >= effectivePullbackPercent) {
           return _ExitSignal(
-            label: '移�??�利?�場 ${pullback.toStringAsFixed(1)}%',
+            label: '移動停利出場 ${pullback.toStringAsFixed(1)}%',
             type: _ExitSignalType.profit,
           );
         }
         return _ExitSignal(
-          label: '移�??�利??�� 峰�?{peak.toStringAsFixed(1)}%',
+          label: '移動停利監控 峰值${peak.toStringAsFixed(1)}%',
           type: _ExitSignalType.hold,
         );
       }
       return _ExitSignal(
         label:
-            '?�批?�利 +${pnlPercent.toStringAsFixed(1)}%（目�?${adaptiveTakeProfit.toStringAsFixed(1)}%�?,
+            '分批停利 +${pnlPercent.toStringAsFixed(1)}%（目標 ${adaptiveTakeProfit.toStringAsFixed(1)}%）',
         type: _ExitSignalType.profit,
       );
     }
 
     if (_excludeOverheated && stock.change >= _maxChaseChangePercent) {
-      return const _ExitSignal(label: '追�?風險', type: _ExitSignalType.caution);
+      return const _ExitSignal(label: '追高風險', type: _ExitSignalType.caution);
     }
 
     if (score < _effectiveMinScoreThreshold(stock)) {
-      return const _ExitSignal(label: '轉弱觀�?, type: _ExitSignalType.caution);
+      return const _ExitSignal(label: '轉弱觀察', type: _ExitSignalType.caution);
     }
 
     if (pnlPercent == null) {
       return const _ExitSignal(
-          label: '?��??��??�出?��?', type: _ExitSignalType.neutral);
+          label: '未持有（免出場）', type: _ExitSignalType.neutral);
     }
 
-    return const _ExitSignal(label: '續抱觀�?, type: _ExitSignalType.hold);
+    return const _ExitSignal(label: '續抱觀察', type: _ExitSignalType.hold);
   }
 
   _EntrySignal _evaluateEntrySignal(StockModel stock, int score) {
@@ -7153,7 +7145,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         const _EntrySignal(
-          label: '?��??�進場篩選',
+          label: '未啟用進場篩選',
           type: _EntrySignalType.neutral,
         ),
       );
@@ -7162,7 +7154,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_excludeOverheated && stock.change >= _maxChaseChangePercent) {
       return _commitImmediateEntrySignal(
         stock.code,
-        const _EntrySignal(label: '?��?追�?', type: _EntrySignalType.avoid),
+        const _EntrySignal(label: '避免追高', type: _EntrySignalType.avoid),
       );
     }
 
@@ -7170,7 +7162,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         const _EntrySignal(
-          label: '�?9:30後確�?,
+          label: '待09:30後確認',
           type: _EntrySignalType.wait,
         ),
       );
@@ -7185,7 +7177,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         _EntrySignal(
-          label: '?��??�卻中�???$remain 天�?',
+          label: '停損冷卻中（剩 $remain 天）',
           type: _EntrySignalType.wait,
         ),
       );
@@ -7206,7 +7198,7 @@ class _StockListPageState extends State<StockListPage> {
         stock.code,
         _EntrySignal(
           label:
-              '風險?�酬不足�? ${(_minRiskRewardRatioX100 / 100).toStringAsFixed(2)}�?,
+              '風險報酬不足（< ${(_minRiskRewardRatioX100 / 100).toStringAsFixed(2)}）',
           type: _EntrySignalType.wait,
         ),
       );
@@ -7217,7 +7209,7 @@ class _StockListPageState extends State<StockListPage> {
         stock.code,
         _EntrySignal(
           label:
-              '市場寬度不足�? ${(_minMarketBreadthRatioX100 / 100).toStringAsFixed(2)}�?,
+              '市場寬度不足（< ${(_minMarketBreadthRatioX100 / 100).toStringAsFixed(2)}）',
           type: _EntrySignalType.wait,
         ),
       );
@@ -7227,7 +7219,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         const _EntrySignal(
-          label: '?�似?��???,
+          label: '疑似假突破',
           type: _EntrySignalType.avoid,
         ),
       );
@@ -7237,7 +7229,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         const _EntrySignal(
-          label: '事件風險?�除',
+          label: '事件風險排除',
           type: _EntrySignalType.wait,
         ),
       );
@@ -7254,7 +7246,7 @@ class _StockListPageState extends State<StockListPage> {
         stock.volume >= strongVolumeThreshold) {
       return _applyEntrySignalHysteresis(
         stock.code,
-        const _EntrySignal(label: '強勢?�場', type: _EntrySignalType.strong),
+        const _EntrySignal(label: '強勢進場', type: _EntrySignalType.strong),
       );
     }
 
@@ -7267,7 +7259,7 @@ class _StockListPageState extends State<StockListPage> {
 
     return _applyEntrySignalHysteresis(
       stock.code,
-      const _EntrySignal(label: '等�?訊�?', type: _EntrySignalType.wait),
+      const _EntrySignal(label: '等待訊號', type: _EntrySignalType.wait),
     );
   }
 
@@ -7314,11 +7306,11 @@ class _StockListPageState extends State<StockListPage> {
 
   String _entrySignalDefaultLabel(_EntrySignalType type) {
     return switch (type) {
-      _EntrySignalType.strong => '強勢?�場',
+      _EntrySignalType.strong => '強勢進場',
       _EntrySignalType.watch => '觀察進場',
-      _EntrySignalType.wait => '等�?訊�?',
-      _EntrySignalType.avoid => '?��?追�?',
-      _EntrySignalType.neutral => '?��??�進場篩選',
+      _EntrySignalType.wait => '等待訊號',
+      _EntrySignalType.avoid => '避免追高',
+      _EntrySignalType.neutral => '未啟用進場篩選',
     };
   }
 
@@ -7350,13 +7342,13 @@ class _StockListPageState extends State<StockListPage> {
   }
 
   int _strongScoreBuffer() {
-    var buffer = switch (BreakoutMode) {
-      BreakoutMode.confirmed => 12,
-      BreakoutMode.early => 9,
-      BreakoutMode.pullbackRebreak => 9,
-      BreakoutMode.preEventPosition => 9,
-      BreakoutMode.lowBaseTheme => 8,
-      BreakoutMode.squeezeSetup => 7,
+    var buffer = switch (_breakoutStageMode) {
+      _BreakoutStageMode.confirmed => 12,
+      _BreakoutStageMode.early => 9,
+      _BreakoutStageMode.pullbackRebreak => 9,
+      _BreakoutStageMode.preEventPosition => 9,
+      _BreakoutStageMode.lowBaseTheme => 8,
+      _BreakoutStageMode.squeezeSetup => 7,
     };
 
     if (_currentRegime == _MarketRegime.bull) {
@@ -7375,13 +7367,13 @@ class _StockListPageState extends State<StockListPage> {
   }
 
   double _strongVolumeMultiplier() {
-    var multiplier = switch (BreakoutMode) {
-      BreakoutMode.confirmed => 1.15,
-      BreakoutMode.early => 1.05,
-      BreakoutMode.pullbackRebreak => 1.05,
-      BreakoutMode.preEventPosition => 1.0,
-      BreakoutMode.lowBaseTheme => 0.95,
-      BreakoutMode.squeezeSetup => 0.92,
+    var multiplier = switch (_breakoutStageMode) {
+      _BreakoutStageMode.confirmed => 1.15,
+      _BreakoutStageMode.early => 1.05,
+      _BreakoutStageMode.pullbackRebreak => 1.05,
+      _BreakoutStageMode.preEventPosition => 1.0,
+      _BreakoutStageMode.lowBaseTheme => 0.95,
+      _BreakoutStageMode.squeezeSetup => 0.92,
     };
 
     if (_currentRegime == _MarketRegime.bull) {
@@ -7394,13 +7386,13 @@ class _StockListPageState extends State<StockListPage> {
   }
 
   double _strongMinChangePercent() {
-    return switch (BreakoutMode) {
-      BreakoutMode.confirmed => 1.2,
-      BreakoutMode.early => 0.8,
-      BreakoutMode.pullbackRebreak => 0.6,
-      BreakoutMode.preEventPosition => 0.5,
-      BreakoutMode.lowBaseTheme => 0.3,
-      BreakoutMode.squeezeSetup => 0.2,
+    return switch (_breakoutStageMode) {
+      _BreakoutStageMode.confirmed => 1.2,
+      _BreakoutStageMode.early => 0.8,
+      _BreakoutStageMode.pullbackRebreak => 0.6,
+      _BreakoutStageMode.preEventPosition => 0.5,
+      _BreakoutStageMode.lowBaseTheme => 0.3,
+      _BreakoutStageMode.squeezeSetup => 0.2,
     };
   }
 
@@ -7419,8 +7411,8 @@ class _StockListPageState extends State<StockListPage> {
 
     if (minutes < 9 * 60) {
       return const _MarketTimingStatus(
-        label: '?��?觀�?,
-        description: '尚未?�盤，�??�候選?�風?��??��?,
+        label: '盤前觀察',
+        description: '尚未開盤，先看候選與風險燈號。',
         type: _MarketTimingType.premarket,
       );
     }
@@ -7428,30 +7420,30 @@ class _StockListPageState extends State<StockListPage> {
     if (minutes < (9 * 60 + 30)) {
       if (_requireOpenConfirm) {
         return const _MarketTimingStatus(
-          label: '?�盤確�???,
-          description: '09:30 ?��?觀察�??��?追價??,
+          label: '開盤確認期',
+          description: '09:30 前先觀察，避免追價。',
           type: _MarketTimingType.openConfirm,
         );
       }
 
       return const _MarketTimingStatus(
-        label: '?�盤?�段',
-        description: '已�???09:30 確�?，�??��?風險?��???,
+        label: '開盤初段',
+        description: '已關閉 09:30 確認，請提高風險意識。',
         type: _MarketTimingType.openConfirm,
       );
     }
 
     if (minutes <= (13 * 60 + 30)) {
       return const _MarketTimingStatus(
-        label: '?�確認進場',
-        description: '?��?策略?�風?��?件確認進場??,
+        label: '可確認進場',
+        description: '可依策略與風險條件確認進場。',
         type: _MarketTimingType.tradable,
       );
     }
 
     return const _MarketTimingStatus(
-      label: '?�盤後檢�?,
-      description: '?��??��?測�?調整?�日?�數??,
+      label: '收盤後檢視',
+      description: '盤後可回測與調整明日參數。',
       type: _MarketTimingType.closed,
     );
   }
@@ -7459,7 +7451,7 @@ class _StockListPageState extends State<StockListPage> {
   _PremarketRisk _evaluatePremarketRisk(StockModel stock) {
     if (stock.change.abs() >= 7) {
       return const _PremarketRisk(
-        label: '高波??,
+        label: '高波動',
         type: _PremarketRiskType.high,
       );
     }
@@ -7467,20 +7459,20 @@ class _StockListPageState extends State<StockListPage> {
     if (normalizedTradeValueForFilter(stock.tradeValue) <
         _minTradeValueThreshold) {
       return const _PremarketRisk(
-        label: '?�能?�弱',
+        label: '量能偏弱',
         type: _PremarketRiskType.medium,
       );
     }
 
     if (stock.change < -2) {
       return const _PremarketRisk(
-        label: '?�弱?�盪',
+        label: '偏弱震盪',
         type: _PremarketRiskType.medium,
       );
     }
 
     return const _PremarketRisk(
-      label: '風險?�控',
+      label: '風險可控',
       type: _PremarketRiskType.low,
     );
   }
@@ -7593,8 +7585,8 @@ class _StockListPageState extends State<StockListPage> {
         if (_masterTrapAlertedByCode[stock.code] == true) continue;
         await NotificationService.showAlert(
           id: 4000 + stock.code.hashCode.abs() % 900,
-          title: '主�?誘�?警示 ${stock.code} ${stock.name}',
-          body: '籌碼?�中度急�?，現??${stock.chipConcentration.toStringAsFixed(1)}%',
+          title: '主力誘多警示 ${stock.code} ${stock.name}',
+          body: '籌碼集中度急跌，現值 ${stock.chipConcentration.toStringAsFixed(1)}%',
         );
         _masterTrapAlertedByCode[stock.code] = true;
       } else {
@@ -7624,15 +7616,15 @@ class _StockListPageState extends State<StockListPage> {
 
   String _googleBackupStatusLabel() {
     if (!_isGoogleBackupConnected()) {
-      return 'Google ?�份：未??��';
+      return 'Google 備份：未連接';
     }
     if (_lastGoogleBackupAt == null) {
-      return 'Google ?�份：已??��，�??��?�?;
+      return 'Google 備份：已連接，尚未備份';
     }
     if (_isGoogleBackupFreshToday()) {
-      return 'Google ?�份：�??�已?�份 ${_lastGoogleBackupAt!.hour.toString().padLeft(2, '0')}:${_lastGoogleBackupAt!.minute.toString().padLeft(2, '0')}';
+      return 'Google 備份：今日已備份 ${_lastGoogleBackupAt!.hour.toString().padLeft(2, '0')}:${_lastGoogleBackupAt!.minute.toString().padLeft(2, '0')}';
     }
-    return 'Google ?�份：�?�?${_formatCompactDateTime(_lastGoogleBackupAt!)}';
+    return 'Google 備份：最近 ${_formatCompactDateTime(_lastGoogleBackupAt!)}';
   }
 
   IconData _googleBackupStatusIcon() {
@@ -7722,13 +7714,13 @@ class _StockListPageState extends State<StockListPage> {
     return streak >= _minBreakoutStreakDays;
   }
 
-  BreakoutMode BreakoutModeFromStorage(String? raw) {
+  _BreakoutStageMode _breakoutStageModeFromStorage(String? raw) {
     if (raw == null || raw.isEmpty) {
-      return BreakoutMode.early;
+      return _BreakoutStageMode.early;
     }
-    return BreakoutMode.values.firstWhere(
+    return _BreakoutStageMode.values.firstWhere(
       (mode) => mode.name == raw,
-      orElse: () => BreakoutMode.early,
+      orElse: () => _BreakoutStageMode.early,
     );
   }
 
@@ -7744,8 +7736,8 @@ class _StockListPageState extends State<StockListPage> {
 
   String _mobileUiDensityLabel(_MobileUiDensity density) {
     return switch (density) {
-      _MobileUiDensity.comfortable => '?�適',
-      _MobileUiDensity.compact => '緊�?',
+      _MobileUiDensity.comfortable => '舒適',
+      _MobileUiDensity.compact => '緊湊',
     };
   }
 
@@ -7761,9 +7753,9 @@ class _StockListPageState extends State<StockListPage> {
 
   String _mobileTextScaleLabel(_MobileTextScale scale) {
     return switch (scale) {
-      _MobileTextScale.small => '�?,
-      _MobileTextScale.medium => '�?,
-      _MobileTextScale.large => '�?,
+      _MobileTextScale.small => '小',
+      _MobileTextScale.medium => '中',
+      _MobileTextScale.large => '大',
     };
   }
 
@@ -7789,7 +7781,7 @@ class _StockListPageState extends State<StockListPage> {
       'excludeOverheated': _excludeOverheated ? '1' : '0',
       'maxChase': _maxChaseChangePercent.toString(),
       'minScore': _minScoreThreshold.toString(),
-      'breakoutMode': BreakoutMode.name,
+      'breakoutMode': _breakoutStageMode.name,
       'eventWindowEnabled': _enableEventCalendarWindow ? '1' : '0',
       'eventWindowDays': _eventCalendarGuardDays.toString(),
       'revenueEnabled': _enableRevenueMomentumFilter ? '1' : '0',
@@ -7811,29 +7803,29 @@ class _StockListPageState extends State<StockListPage> {
   }) {
     String? labelFor(String key) {
       return switch (key) {
-        'strategy' => '?�用策略篩選',
-        'score' => '?�用?��??��?',
-        'onlyRising' => '?��?上漲',
-        'excludeOverheated' => '?�除追�?風險',
-        'maxChase' => '追�?漲�?上�?',
-        'minScore' => '?�低�??��?�?,
-        'breakoutMode' => '飆股篩選模�?',
-        'eventWindowEnabled' => '事件窗�?�?,
-        'eventWindowDays' => '事件窗天??,
-        'revenueEnabled' => '?�收?�能?�濾',
-        'revenueMin' => '?�收?�能?�數?��?,
-        'earningsEnabled' => '財報 surprise ?�濾',
-        'earningsMin' => '財報 surprise ?�數?��?,
-        'riskRewardEnabled' => '風險?�酬?�置?�濾',
-        'riskRewardMin' => '風險?�酬比�?�?,
-        'breadthEnabled' => '市場寬度?�濾',
-        'breadthMin' => '市場寬度?��?,
-        'sectorCapEnabled' => '?�業?�中度�???,
-        'sectorCap' => '?��??�業上�?',
-        'concentrationWeight' => '籌碼權�?',
-        'tradeValueWeight' => '?�交?��???,
-        'enableMasterTrapFilter' => '主�?誘�??�濾',
-        'masterTrapDropPercent' => '誘�?跌�??��?,
+        'strategy' => '啟用策略篩選',
+        'score' => '啟用打分排序',
+        'onlyRising' => '只看上漲',
+        'excludeOverheated' => '排除追高風險',
+        'maxChase' => '追高漲幅上限',
+        'minScore' => '最低分數門檻',
+        'breakoutMode' => '飆股篩選模式',
+        'eventWindowEnabled' => '事件窗過濾',
+        'eventWindowDays' => '事件窗天數',
+        'revenueEnabled' => '營收動能過濾',
+        'revenueMin' => '營收動能分數門檻',
+        'earningsEnabled' => '財報 surprise 過濾',
+        'earningsMin' => '財報 surprise 分數門檻',
+        'riskRewardEnabled' => '風險報酬前置過濾',
+        'riskRewardMin' => '風險報酬比門檻',
+        'breadthEnabled' => '市場寬度過濾',
+        'breadthMin' => '市場寬度門檻',
+        'sectorCapEnabled' => '產業集中度上限',
+        'sectorCap' => '單一產業上限',
+        'concentrationWeight' => '籌碼權重',
+        'tradeValueWeight' => '成交值權重',
+        'enableMasterTrapFilter' => '主力誘多過濾',
+        'masterTrapDropPercent' => '誘多跌幅門檻',
         _ => null,
       };
     }
@@ -7875,15 +7867,15 @@ class _StockListPageState extends State<StockListPage> {
 
   String _candidateDriftHistoryLabel(_CandidateDriftRecord record) {
     final base =
-        '${_formatTimeHHmm(record.timestamp)} ${record.type == 'reset' ? '?��??�置' : '?�單變�? +${record.addedCount}/-${record.removedCount}'}';
+        '${_formatTimeHHmm(record.timestamp)} ${record.type == 'reset' ? '基準重置' : '名單變動 +${record.addedCount}/-${record.removedCount}'}';
     if (record.changedFilters.isEmpty) {
       return base;
     }
-    final tags = record.changedFilters.take(3).join('??);
+    final tags = record.changedFilters.take(3).join('、');
     final more = record.changedFilters.length > 3
         ? ' +${record.changedFilters.length - 3}'
         : '';
-    return '$base�?tags$more�?;
+    return '$base（$tags$more）';
   }
 
   void _scheduleDiagnosticsSnapshotPersist() {
@@ -7916,9 +7908,9 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     final modeRaw = _lastCandidateFilterContextBeforeReset['breakoutMode'];
-    final restoredMode = BreakoutMode.values.firstWhere(
+    final restoredMode = _BreakoutStageMode.values.firstWhere(
       (mode) => mode.name == modeRaw,
-      orElse: () => BreakoutMode,
+      orElse: () => _breakoutStageMode,
     );
 
     setState(() {
@@ -7933,7 +7925,7 @@ class _StockListPageState extends State<StockListPage> {
           .clamp(3, 10);
       _minScoreThreshold = intValue('minScore', _minScoreThreshold)
           .clamp(_minScore, _maxScore);
-      BreakoutMode = restoredMode;
+      _breakoutStageMode = restoredMode;
       _enableEventCalendarWindow =
           boolValue('eventWindowEnabled', _enableEventCalendarWindow);
       _eventCalendarGuardDays =
@@ -7965,40 +7957,40 @@ class _StockListPageState extends State<StockListPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已�??��?次�?較�??�快??)),
+      const SnackBar(content: Text('已還原上次比較參數快照')),
     );
   }
 
-  String BreakoutModeLabel(BreakoutMode mode) {
+  String _breakoutStageModeLabel(_BreakoutStageMode mode) {
     return switch (mode) {
-      BreakoutMode.early => '?��???,
-      BreakoutMode.confirmed => '確�?突破',
-      BreakoutMode.lowBaseTheme => '低基?��???,
-      BreakoutMode.pullbackRebreak => '?��??�攻',
-      BreakoutMode.squeezeSetup => '?�縮待噴',
-      BreakoutMode.preEventPosition => '事件?�卡�?,
+      _BreakoutStageMode.early => '剛突破',
+      _BreakoutStageMode.confirmed => '確認突破',
+      _BreakoutStageMode.lowBaseTheme => '低基期題材',
+      _BreakoutStageMode.pullbackRebreak => '回檔再攻',
+      _BreakoutStageMode.squeezeSetup => '量縮待噴',
+      _BreakoutStageMode.preEventPosition => '事件前卡位',
     };
   }
 
-  IconData BreakoutModeIcon(BreakoutMode mode) {
+  IconData _breakoutStageModeIcon(_BreakoutStageMode mode) {
     return switch (mode) {
-      BreakoutMode.early => Icons.trending_up,
-      BreakoutMode.confirmed => Icons.verified,
-      BreakoutMode.lowBaseTheme => Icons.lightbulb,
-      BreakoutMode.pullbackRebreak => Icons.replay,
-      BreakoutMode.squeezeSetup => Icons.compress,
-      BreakoutMode.preEventPosition => Icons.event,
+      _BreakoutStageMode.early => Icons.trending_up,
+      _BreakoutStageMode.confirmed => Icons.verified,
+      _BreakoutStageMode.lowBaseTheme => Icons.lightbulb,
+      _BreakoutStageMode.pullbackRebreak => Icons.replay,
+      _BreakoutStageMode.squeezeSetup => Icons.compress,
+      _BreakoutStageMode.preEventPosition => Icons.event,
     };
   }
 
   String _breakoutStageRejectLabel() {
-    return switch (BreakoutMode) {
-      BreakoutMode.early => '尚未?�入?��??��???,
-      BreakoutMode.confirmed => '???突破不足�? $_minBreakoutStreakDays 天�?',
-      BreakoutMode.lowBaseTheme => '?��?低基?��??��?�?,
-      BreakoutMode.pullbackRebreak => '?��??��??�攻條件',
-      BreakoutMode.squeezeSetup => '?��??�縮?��?待噴條件',
-      BreakoutMode.preEventPosition => '?��?事件?�卡位�?�?,
+    return switch (_breakoutStageMode) {
+      _BreakoutStageMode.early => '尚未進入剛突破型態',
+      _BreakoutStageMode.confirmed => '連續突破不足（< $_minBreakoutStreakDays 天）',
+      _BreakoutStageMode.lowBaseTheme => '未達低基期題材條件',
+      _BreakoutStageMode.pullbackRebreak => '未達回檔再攻條件',
+      _BreakoutStageMode.squeezeSetup => '未達量縮整理待噴條件',
+      _BreakoutStageMode.preEventPosition => '未達事件前卡位條件',
     };
   }
 
@@ -8008,15 +8000,15 @@ class _StockListPageState extends State<StockListPage> {
       return false;
     }
     final keywords = <String>[
-      '題�?',
-      '?��?',
-      '?��?',
+      '題材',
+      '合作',
+      '新品',
       'AI',
-      '?��?',
+      '政策',
       '補助',
       '訂單',
       '轉單',
-      '?�收',
+      '營收',
       '法說'
     ];
     for (final item in snapshot.items.take(30)) {
@@ -8035,7 +8027,7 @@ class _StockListPageState extends State<StockListPage> {
     if (snapshot == null || snapshot.items.isEmpty) {
       return false;
     }
-    final keywords = <String>['財報', '法說', '?�收', '?��?', '訂單', '轉單', '展�?', '?��?'];
+    final keywords = <String>['財報', '法說', '營收', '新品', '訂單', '轉單', '展望', '合作'];
     for (final item in snapshot.items.take(30)) {
       final title = item.title;
       final hitStock = title.contains(stock.code) || title.contains(stock.name);
@@ -8071,7 +8063,7 @@ class _StockListPageState extends State<StockListPage> {
       return null;
     }
 
-    final eventKeywords = <String>['法說', '法說??, '財報', '法說?��?', '業績?�表'];
+    final eventKeywords = <String>['法說', '法說會', '財報', '法說明會', '業績發表'];
     final items = _newsItemsForStock(stock, limit: 25)
         .where((item) => eventKeywords.any((k) => item.title.contains(k)))
         .toList();
@@ -8151,7 +8143,7 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     final items = _newsItemsForStock(stock, limit: 20)
-        .where((item) => item.title.contains('?�收'))
+        .where((item) => item.title.contains('營收'))
         .toList();
     if (items.isEmpty) {
       return 0;
@@ -8160,18 +8152,18 @@ class _StockListPageState extends State<StockListPage> {
     var score = 0;
     for (final item in items) {
       final title = item.title;
-      if (title.contains('?��?') || title.contains('?��?')) {
+      if (title.contains('雙增') || title.contains('創高')) {
         score += 2;
       }
-      if (title.contains('年�?') || title.contains('?��?')) {
+      if (title.contains('年減') || title.contains('月減')) {
         score -= 1;
       }
-      if (title.contains('衰退') || title.contains('下�?')) {
+      if (title.contains('衰退') || title.contains('下滑')) {
         score -= 2;
       }
 
-      final yoy = _extractPercentSignal(title, '年�?');
-      final mom = _extractPercentSignal(title, '?��?');
+      final yoy = _extractPercentSignal(title, '年增');
+      final mom = _extractPercentSignal(title, '月增');
       score += yoy >= 15 ? 2 : (yoy > 0 ? 1 : 0);
       score += mom >= 10 ? 1 : (mom > 0 ? 1 : 0);
     }
@@ -8188,7 +8180,7 @@ class _StockListPageState extends State<StockListPage> {
         .where((item) =>
             item.title.contains('財報') ||
             item.title.contains('EPS') ||
-            item.title.contains('每股?��?') ||
+            item.title.contains('每股盈餘') ||
             item.title.contains('法說'))
         .toList();
     if (items.isEmpty) {
@@ -8198,17 +8190,17 @@ class _StockListPageState extends State<StockListPage> {
     var score = 0;
     for (final item in items) {
       final title = item.title;
-      if (title.contains('?�於?��?') ||
-          title.contains('超�???) ||
+      if (title.contains('優於預期') ||
+          title.contains('超預期') ||
           title.contains('上修') ||
-          title.contains('轉�?')) {
+          title.contains('轉盈')) {
         score += 2;
       }
-      if (title.contains('低於?��?') ||
-          title.contains('不�??��?') ||
+      if (title.contains('低於預期') ||
+          title.contains('不如預期') ||
           title.contains('下修') ||
           title.contains('轉虧') ||
-          title.contains('?��?')) {
+          title.contains('虧損')) {
         score -= 2;
       }
     }
@@ -8217,82 +8209,62 @@ class _StockListPageState extends State<StockListPage> {
   }
 
   bool _passesBreakoutStage(StockModel stock, int score) {
-    // Evaluate using the unified BreakoutFilterService
-    return BreakoutFilterService.evaluateAllModes(
-      stock,
-      score,
-      latestVolumeReference: _latestVolumeReference,
-      minTradeValueThreshold: _minTradeValueThreshold,
-      minScoreThreshold: _minScoreThreshold,
-      maxChaseChangePercent: _maxChaseChangePercent,
-      minPriceThreshold: _maxPriceThreshold,
-      enableBreakoutQuality: _enableBreakoutQuality,
-      enableMultiDayBreakout: _enableMultiDayBreakout,
-      breakoutStreakByCode: _breakoutStreakByCode,
-      minBreakoutStreakDays: _minBreakoutStreakDays,
-      hasThemeNewsSupport: _hasThemeNewsSupport,
-      hasEventCatalystSupport: _hasEventCatalystNewsSupport,
-      passesChipConcentration: _passesChipConcentration,
-      breakoutMinVolumeRatioPercent: _breakoutMinVolumeRatioPercent,
-      computeSecondaryVolumeRatio: computeSecondaryVolumeRatio,
-      enableStrategyFilter: _enableStrategyFilter,
-      normalizeTradeValue: normalizedTradeValueForFilter,
-    )[BreakoutMode] ?? false;
+    return _passesBreakoutStageByMode(_breakoutStageMode, stock, score);
   }
 
   bool _passesBreakoutStageByMode(
-    BreakoutMode mode,
+    _BreakoutStageMode mode,
     StockModel stock,
     int score,
   ) {
-    // Delegate to BreakoutFilterService
-    return BreakoutFilterService.evaluateAllModes(
-      stock,
-      score,
-      latestVolumeReference: _latestVolumeReference,
-      minTradeValueThreshold: _minTradeValueThreshold,
-      minScoreThreshold: _minScoreThreshold,
-      maxChaseChangePercent: _maxChaseChangePercent,
-      minPriceThreshold: _maxPriceThreshold,
-      enableBreakoutQuality: _enableBreakoutQuality,
-      enableMultiDayBreakout: _enableMultiDayBreakout,
-      breakoutStreakByCode: _breakoutStreakByCode,
-      minBreakoutStreakDays: _minBreakoutStreakDays,
-      hasThemeNewsSupport: _hasThemeNewsSupport,
-      hasEventCatalystSupport: _hasEventCatalystNewsSupport,
-      passesChipConcentration: _passesChipConcentration,
-      breakoutMinVolumeRatioPercent: _breakoutMinVolumeRatioPercent,
-      computeSecondaryVolumeRatio: computeSecondaryVolumeRatio,
-      enableStrategyFilter: _enableStrategyFilter,
-      normalizeTradeValue: normalizedTradeValueForFilter,
-    )[mode] ?? false;
+    final effectiveMinScore = _effectiveMinScoreThreshold(stock);
+    final volumeRatio = _latestVolumeReference <= 0
+        ? 0.0
+        : stock.volume / _latestVolumeReference;
+
+    return switch (mode) {
+      _BreakoutStageMode.early => (!_enableBreakoutQuality ||
+          (stock.change >= 0.8 &&
+              stock.change <= (_maxChaseChangePercent + 0.5) &&
+              volumeRatio >= 1.0 &&
+              score >= (effectiveMinScore - 8).clamp(0, 100) &&
+              stock.tradeValue >= (_minTradeValueThreshold * 0.8))),
+      _BreakoutStageMode.confirmed => _passesBreakoutQuality(stock, score) &&
+          _passesMultiDayBreakout(stock, score: score),
+      _BreakoutStageMode.lowBaseTheme =>
+        (stock.closePrice <= (_maxPriceThreshold * 0.65) &&
+            stock.change >= -1.0 &&
+            stock.change <= 4.5 &&
+            volumeRatio >= 0.9 &&
+            stock.tradeValue >= (_minTradeValueThreshold * 0.6) &&
+            (_hasThemeNewsSupport(stock) ||
+                score >= (effectiveMinScore - 10).clamp(0, 100))),
+      _BreakoutStageMode.pullbackRebreak => (stock.change >= 0.5 &&
+          stock.change <= 4.0 &&
+          volumeRatio >= 1.05 &&
+          score >= (effectiveMinScore - 5).clamp(0, 100) &&
+          stock.tradeValue >= (_minTradeValueThreshold * 0.75) &&
+          (_breakoutStreakByCode[stock.code] ?? 0) >= 1),
+      _BreakoutStageMode.squeezeSetup => (stock.change.abs() <= 1.2 &&
+          volumeRatio >= 0.75 &&
+          volumeRatio <= 1.1 &&
+          score >= (effectiveMinScore - 12).clamp(0, 100) &&
+          stock.tradeValue >= (_minTradeValueThreshold * 0.65)),
+      _BreakoutStageMode.preEventPosition => (stock.change.abs() <= 3.2 &&
+          volumeRatio >= 0.9 &&
+          score >= (effectiveMinScore - 6).clamp(0, 100) &&
+          stock.tradeValue >= (_minTradeValueThreshold * 0.75) &&
+          _hasEventCatalystNewsSupport(stock)),
+    };
   }
 
-  List<BreakoutMode> _matchedBreakoutModesForStock(
+  List<_BreakoutStageMode> _matchedBreakoutModesForStock(
     StockModel stock,
     int score,
   ) {
-    // Use BreakoutFilterService to get all matched modes
-    return BreakoutFilterService.getMatchedModes(
-      stock,
-      score,
-      latestVolumeReference: _latestVolumeReference,
-      minTradeValueThreshold: _minTradeValueThreshold,
-      minScoreThreshold: _minScoreThreshold,
-      maxChaseChangePercent: _maxChaseChangePercent,
-      minPriceThreshold: _maxPriceThreshold,
-      enableBreakoutQuality: _enableBreakoutQuality,
-      enableMultiDayBreakout: _enableMultiDayBreakout,
-      breakoutStreakByCode: _breakoutStreakByCode,
-      minBreakoutStreakDays: _minBreakoutStreakDays,
-      hasThemeNewsSupport: _hasThemeNewsSupport,
-      hasEventCatalystSupport: _hasEventCatalystNewsSupport,
-      passesChipConcentration: _passesChipConcentration,
-      breakoutMinVolumeRatioPercent: _breakoutMinVolumeRatioPercent,
-      computeSecondaryVolumeRatio: computeSecondaryVolumeRatio,
-      enableStrategyFilter: _enableStrategyFilter,
-      normalizeTradeValue: normalizedTradeValueForFilter,
-    );
+    return _BreakoutStageMode.values
+        .where((mode) => _passesBreakoutStageByMode(mode, stock, score))
+        .toList();
   }
 
 /// Diagnostic helper: prints detailed breakout-stage checks for a stock.
@@ -8309,7 +8281,7 @@ void diagnoseStock(StockModel stock, int score) {
   final volumeRatio = volumeReference <= 0 ? 0.0 : stock.volume / volumeReference;
   debugPrint('volumeReference=$volumeReference volumeRatio=${volumeRatio.toStringAsFixed(3)}');
 
-  for (final mode in BreakoutMode.values) {
+  for (final mode in _BreakoutStageMode.values) {
     final passes = _passesBreakoutStageByMode(mode, stock, score);
     debugPrint('mode=${mode.toString().split('.').last} => ${passes ? 'PASS' : 'FAIL'}');
   }
@@ -8345,7 +8317,7 @@ void diagnoseStock(StockModel stock, int score) {
     if (!_enableEventRiskExclusion) {
       return true;
     }
-    if (BreakoutMode == BreakoutMode.preEventPosition) {
+    if (_breakoutStageMode == _BreakoutStageMode.preEventPosition) {
       return true;
     }
     final snapshot = _marketNewsSnapshot;
@@ -8353,7 +8325,7 @@ void diagnoseStock(StockModel stock, int score) {
       return true;
     }
 
-    final riskKeywords = <String>['財報', '法說', '?��???, '增�?', '減�?', '?��?'];
+    final riskKeywords = <String>['財報', '法說', '除權息', '增資', '減資', '重訊'];
     for (final item in snapshot.items.take(20)) {
       final title = item.title;
       final hitStock = title.contains(stock.code) || title.contains(stock.name);
@@ -8390,61 +8362,61 @@ void diagnoseStock(StockModel stock, int score) {
       if (newsLevel == NewsRiskLevel.medium ||
           newsLevel == NewsRiskLevel.high) {
         return _ModeRecommendation(
-          mode: BreakoutMode.preEventPosition,
-          reason: '?��??�盤�?夜�?，�??��??�度較�?，建議用事件?�卡位�??�日觀察�??��?,
+          mode: _BreakoutStageMode.preEventPosition,
+          reason: '目前為盤後/夜間，且新聞熱度較高，建議用事件前卡位做隔日觀察名單。',
         );
       }
       if (regime == _MarketRegime.defensive || breadth < 1.0) {
         return _ModeRecommendation(
-          mode: BreakoutMode.squeezeSetup,
+          mode: _BreakoutStageMode.squeezeSetup,
           reason:
-              '?��??�盤�?夜�?，�??��?弱�?寬度 ${breadth.toStringAsFixed(2)}）�?建議?�以?�縮待噴?��?風險?�選??,
+              '目前為盤後/夜間，市場偏弱（寬度 ${breadth.toStringAsFixed(2)}），建議先以量縮待噴做低風險候選。',
         );
       }
       return _ModeRecommendation(
-        mode: BreakoutMode.confirmed,
-        reason: '?��??�盤�?夜�?，建議以確�?突破模�?規�??�日?�場，�?低�?夜�?訊�?,
+        mode: _BreakoutStageMode.confirmed,
+        reason: '目前為盤後/夜間，建議以確認突破模式規劃隔日進場，降低隔夜雜訊。',
       );
     }
 
     if (regime == _MarketRegime.defensive || breadth < 0.95) {
       return _ModeRecommendation(
-        mode: BreakoutMode.squeezeSetup,
-        reason: '?�勢?�防守�?寬度 ${breadth.toStringAsFixed(2)}）�??�用?�縮待噴?��?追�?風險??,
+        mode: _BreakoutStageMode.squeezeSetup,
+        reason: '盤勢偏防守（寬度 ${breadth.toStringAsFixed(2)}），先用量縮待噴降低追高風險。',
       );
     }
 
     if (regime == _MarketRegime.bull && breadth >= 1.25) {
       return _ModeRecommendation(
-        mode: BreakoutMode.early,
-        reason: '?�勢?��?且寬度強�?{breadth.toStringAsFixed(2)}）�??�用?��??�搶第�?段�?,
+        mode: _BreakoutStageMode.early,
+        reason: '盤勢偏多且寬度強（${breadth.toStringAsFixed(2)}），可用剛突破搶第一段。',
       );
     }
 
     if (regime == _MarketRegime.bull && breadth >= 1.05) {
       return _ModeRecommendation(
-        mode: BreakoutMode.pullbackRebreak,
-        reason: '多頭延�?但�?極強，�?檔�??�可?�顧?��??�入?��??��?,
+        mode: _BreakoutStageMode.pullbackRebreak,
+        reason: '多頭延續但非極強，回檔再攻可兼顧勝率與入場效率。',
       );
     }
 
     if (newsLevel == NewsRiskLevel.medium && breadth >= 1.0) {
       return const _ModeRecommendation(
-        mode: BreakoutMode.preEventPosition,
-        reason: '?��??�度?�溫但未?�極端�??�用事件?�卡位�??�試?��?,
+        mode: _BreakoutStageMode.preEventPosition,
+        reason: '新聞熱度升溫但未到極端，可用事件前卡位小倉試單。',
       );
     }
 
     if (regime == _MarketRegime.range && breadth >= 1.0) {
       return _ModeRecommendation(
-        mode: BreakoutMode.confirmed,
-        reason: '?�整市以確�?突破?�濾?��?，避?��?突破??,
+        mode: _BreakoutStageMode.confirmed,
+        reason: '盤整市以確認突破過濾雜訊，避免假突破。',
       );
     }
 
     return const _ModeRecommendation(
-      mode: BreakoutMode.lowBaseTheme,
-      reason: '輪�??�快?��?低基?��??�模式通常較容?�找?��?漲股??,
+      mode: _BreakoutStageMode.lowBaseTheme,
+      reason: '輪動偏快時，低基期題材模式通常較容易找到補漲股。',
     );
   }
 
@@ -8570,7 +8542,7 @@ void diagnoseStock(StockModel stock, int score) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '每週自?�微調�??��?${tunedSymbols.join('/')}）�??��? -$tunedStopLoss% / ?�利 +$tunedTakeProfit% / ?�低�? $tunedMinScore',
+          '每週自動微調完成（${tunedSymbols.join('/')}）：停損 -$tunedStopLoss% / 停利 +$tunedTakeProfit% / 最低分 $tunedMinScore',
         ),
       ),
     );
@@ -8646,7 +8618,7 @@ void diagnoseStock(StockModel stock, int score) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('?��?計�? - ${stock.code} ${stock.name}'),
+              title: Text('部位計算 - ${stock.code} ${stock.name}'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -8654,7 +8626,7 @@ void diagnoseStock(StockModel stock, int score) {
                     controller: riskController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: '?��??�大可?��??��?（�?�?,
+                      labelText: '單筆最大可承受虧損（元）',
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -8662,14 +8634,14 @@ void diagnoseStock(StockModel stock, int score) {
                     controller: entryController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: '?��??�場??),
+                    decoration: const InputDecoration(labelText: '預計進場價'),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: stopController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: '?��???),
+                    decoration: const InputDecoration(labelText: '停損價'),
                   ),
                   const SizedBox(height: 12),
                   if (resultText.isNotEmpty)
@@ -8682,7 +8654,7 @@ void diagnoseStock(StockModel stock, int score) {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('?��?'),
+                  child: const Text('關閉'),
                 ),
                 TextButton(
                   onPressed: calculatedLots == null || calculatedEntry == null
@@ -8700,12 +8672,12 @@ void diagnoseStock(StockModel stock, int score) {
                           ScaffoldMessenger.of(this.context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                '已�???${stock.code} ?�本 ${calculatedEntry!.toStringAsFixed(2)} / 張數 ${calculatedLots!.toStringAsFixed(calculatedLots! % 1 == 0 ? 0 : 2)}',
+                                '已套用 ${stock.code} 成本 ${calculatedEntry!.toStringAsFixed(2)} / 張數 ${calculatedLots!.toStringAsFixed(calculatedLots! % 1 == 0 ? 0 : 2)}',
                               ),
                             ),
                           );
                         },
-                  child: const Text('套用?��???),
+                  child: const Text('套用到持股'),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -8716,7 +8688,7 @@ void diagnoseStock(StockModel stock, int score) {
 
                     if (riskBudget == null || entry == null || stop == null) {
                       setDialogState(() {
-                        resultText = '請輸?�正確數�?;
+                        resultText = '請輸入正確數字';
                       });
                       return;
                     }
@@ -8734,7 +8706,7 @@ void diagnoseStock(StockModel stock, int score) {
 
                     if (lots == null) {
                       setDialogState(() {
-                        resultText = '?��??��?小於?�場?��?且虧?��?額�?大於 0';
+                        resultText = '停損價需小於進場價，且虧損金額需大於 0';
                       });
                       return;
                     }
@@ -8749,7 +8721,7 @@ void diagnoseStock(StockModel stock, int score) {
                       calculatedLots = roundedLots;
                       calculatedEntry = entry;
                       resultText =
-                          '建議張數：�? $roundedLots 張�??�數?��? ${tierPercent}%）\n?�估?�入：�? ${_formatCurrency(positionAmount)}\n每股風險�?{(entry - stop).toStringAsFixed(2)}\n?��?係數 x${newsRiskMultiplier.toStringAsFixed(2)} ? ??��係數 x${streakMultiplier.toStringAsFixed(2)} = x${riskMultiplier.toStringAsFixed(2)}（可?��??��? ${_formatCurrency(effectiveRiskBudget)}�?;
+                          '建議張數：約 $roundedLots 張（分數倉位 ${tierPercent}%）\n預估投入：約 ${_formatCurrency(positionAmount)}\n每股風險：${(entry - stop).toStringAsFixed(2)}\n新聞係數 x${newsRiskMultiplier.toStringAsFixed(2)} × 連虧係數 x${streakMultiplier.toStringAsFixed(2)} = x${riskMultiplier.toStringAsFixed(2)}（可承受虧損 ${_formatCurrency(effectiveRiskBudget)}）';
                     });
 
                     setState(() {
@@ -8757,7 +8729,7 @@ void diagnoseStock(StockModel stock, int score) {
                     });
                     _savePreferences();
                   },
-                  child: const Text('計�?'),
+                  child: const Text('計算'),
                 ),
               ],
             );
@@ -8796,26 +8768,26 @@ void diagnoseStock(StockModel stock, int score) {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Google ?�端?�份',
+                    'Google 雲端備份',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _googleBackupEmail == null
-                        ? '?��??��?�� Google 帳�?'
-                        : '已�?���?_googleBackupEmail',
+                        ? '目前未連接 Google 帳號'
+                        : '已連接：$_googleBackupEmail',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   if (_lastGoogleBackupAt != null)
                     Text(
-                      '?�近�?份�?${_lastGoogleBackupAt!.year}-${_lastGoogleBackupAt!.month.toString().padLeft(2, '0')}-${_lastGoogleBackupAt!.day.toString().padLeft(2, '0')} ${_lastGoogleBackupAt!.hour.toString().padLeft(2, '0')}:${_lastGoogleBackupAt!.minute.toString().padLeft(2, '0')}',
+                      '最近備份：${_lastGoogleBackupAt!.year}-${_lastGoogleBackupAt!.month.toString().padLeft(2, '0')}-${_lastGoogleBackupAt!.day.toString().padLeft(2, '0')} ${_lastGoogleBackupAt!.hour.toString().padLeft(2, '0')}:${_lastGoogleBackupAt!.minute.toString().padLeft(2, '0')}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: localEnableDaily,
-                    title: const Text('每日?��??�份（�???App ?�新?�觸?��?'),
+                    title: const Text('每日自動備份（開啟 App 更新時觸發）'),
                     onChanged: (value) {
                       setLocalState(() {
                         localEnableDaily = value;
@@ -8842,7 +8814,7 @@ void diagnoseStock(StockModel stock, int score) {
                                 }
                                 if (email == null) {
                                   _showGoogleSignInNullFeedback(
-                                    fallback: 'Google ?�入?��?',
+                                    fallback: 'Google 登入取消',
                                     showFeedback: true,
                                   );
                                   return;
@@ -8852,25 +8824,25 @@ void diagnoseStock(StockModel stock, int score) {
                                 });
                                 await _savePreferences();
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('已�?�� Google�?email�?)),
+                                  SnackBar(content: Text('已連接 Google（$email）')),
                                 );
                               },
                         icon: const Icon(Icons.login),
-                        label: const Text('??�� Google'),
+                        label: const Text('連接 Google'),
                       ),
                       FilledButton.tonalIcon(
                         onPressed: _isGoogleBackupBusy
                             ? null
                             : () => _backupNowToGoogle(showFeedback: true),
                         icon: const Icon(Icons.cloud_upload),
-                        label: const Text('立即?�份'),
+                        label: const Text('立即備份'),
                       ),
                       FilledButton.tonalIcon(
                         onPressed: _isGoogleBackupBusy
                             ? null
                             : _restoreFromGoogleBackup,
                         icon: const Icon(Icons.cloud_download),
-                        label: const Text('?�端?��?'),
+                        label: const Text('雲端還原'),
                       ),
                       TextButton.icon(
                         onPressed: _isGoogleBackupBusy
@@ -8886,7 +8858,7 @@ void diagnoseStock(StockModel stock, int score) {
                                 await _savePreferences();
                               },
                         icon: const Icon(Icons.logout),
-                        label: const Text('?�出'),
+                        label: const Text('登出'),
                       ),
                     ],
                   ),
@@ -8936,7 +8908,7 @@ void diagnoseStock(StockModel stock, int score) {
                 final query = queryController.text.trim();
                 if (query.isEmpty) {
                   setDialogState(() {
-                    diagnosis = '請輸?�股票代?��??�稱';
+                    diagnosis = '請輸入股票代號或名稱';
                   });
                   return;
                 }
@@ -8973,7 +8945,7 @@ void diagnoseStock(StockModel stock, int score) {
 
                 if (matched.code.isEmpty) {
                   setDialogState(() {
-                    diagnosis = '?��??�符?��??�票';
+                    diagnosis = '找不到符合的股票';
                   });
                   return;
                 }
@@ -8984,47 +8956,47 @@ void diagnoseStock(StockModel stock, int score) {
                 final effectiveShowStrongOnly = _showStrongOnly && _enableScoring;
                 if (effectiveShowStrongOnly &&
                     !strongOnlyCodes.contains(matched.code)) {
-                  reasons.add('強勢?��?（�?強勢訊�?�?);
+                  reasons.add('強勢限定（非強勢訊號）');
                 }
                 if (_searchKeyword.trim().isNotEmpty &&
                     !searchedCodes.contains(matched.code)) {
-                  reasons.add('不符?�目?��?尋�??��?');
+                  reasons.add('不符合目前搜尋關鍵字');
                 }
                 if (_limitTopCandidates &&
                     searchedCodes.contains(matched.code) &&
                     !limitedCodes.contains(matched.code)) {
-                  reasons.add('超出??$_topCandidateLimit 檔�???);
+                  reasons.add('超出前 $_topCandidateLimit 檔上限');
                 }
                 if (_showOnlyFavorites &&
                     !_favoriteStockCodes.contains(matched.code)) {
-                  reasons.add('?��??�收?�模式�?此�??�收?��?');
+                  reasons.add('目前為收藏模式（此檔非收藏）');
                 }
                 if (_showOnlyHoldings &&
                     !_positionLotsByCode.containsKey(matched.code) &&
                     !_entryPriceByCode.containsKey(matched.code)) {
-                  reasons.add('?��??��??�模式�?此�??��??��?');
+                  reasons.add('目前為持股模式（此檔非持股）');
                 }
 
                 final inDisplay = displayedCodes.contains(matched.code);
                 final stage = !strategyCodes.contains(matched.code)
-                    ? '?��?條件?�段'
+                    ? '基礎條件階段'
                     : (!candidateCodes.contains(matched.code)
-                        ? '?�數?�檻�?�?
+                        ? '分數門檻階段'
                         : (!qualityCodes.contains(matched.code)
-                            ? '?��?/風險?�段'
-                            : (inDisplay ? '已在?��?清單' : '後�?視�??�濾?�段')));
+                            ? '型態/風險階段'
+                            : (inDisplay ? '已在目前清單' : '後續視圖過濾階段')));
 
                 final lines = <String>[
                   '${matched.code} ${matched.name}',
-                  '?��??�段�?stage',
+                  '目前階段：$stage',
                 ];
                 if (inDisplay) {
-                  lines.add('???��??��??�中');
+                  lines.add('✅ 目前在清單中');
                 } else if (reasons.isEmpty) {
-                  lines.add('?��? ?��??�顯示�?但無?�確?�除?��?（可?��??��?/?�制影響�?);
+                  lines.add('ℹ️ 目前未顯示，但無明確排除原因（可能受排序/限制影響）');
                 } else {
-                  lines.add('?�除?��?�?);
-                  lines.addAll(reasons.map((reason) => '??$reason'));
+                  lines.add('排除原因：');
+                  lines.addAll(reasons.map((reason) => '• $reason'));
                 }
 
                 setDialogState(() {
@@ -9033,7 +9005,7 @@ void diagnoseStock(StockModel stock, int score) {
               }
 
               return AlertDialog(
-                title: const Text('?��??�除診斷'),
+                title: const Text('單檔排除診斷'),
                 content: SizedBox(
                   width: 420,
                   child: Column(
@@ -9043,7 +9015,7 @@ void diagnoseStock(StockModel stock, int score) {
                       TextField(
                         controller: queryController,
                         decoration: const InputDecoration(
-                          labelText: '輸入�???��?稱�?例�?3576 ???��??��?�?,
+                          labelText: '輸入代號或名稱（例：3576 或 聯合再生）',
                         ),
                         onSubmitted: (_) => runDiagnosis(),
                       ),
@@ -9062,7 +9034,7 @@ void diagnoseStock(StockModel stock, int score) {
                               setDialogState(() {});
                             },
                             icon: const Icon(Icons.input),
-                            label: Text('帶入?��??��?�?{_searchKeyword.trim()}'),
+                            label: Text('帶入目前搜尋：${_searchKeyword.trim()}'),
                           ),
                         ),
                       ],
@@ -9071,7 +9043,7 @@ void diagnoseStock(StockModel stock, int score) {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            '?�近查�?,
+                            '最近查詢',
                             style: Theme.of(context).textTheme.labelSmall,
                           ),
                         ),
@@ -9111,7 +9083,7 @@ void diagnoseStock(StockModel stock, int score) {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('?��?'),
+                    child: const Text('關閉'),
                   ),
                   FilledButton(
                     onPressed: runDiagnosis,
@@ -9159,98 +9131,98 @@ void diagnoseStock(StockModel stock, int score) {
     final sector = _sectorGroupForCode(stock.code);
     final matchedModes = _matchedBreakoutModesForStock(stock, score);
     final modeLabel = matchedModes.isEmpty
-        ? BreakoutModeLabel(BreakoutMode)
-        : BreakoutModeLabel(matchedModes.first);
+        ? _breakoutStageModeLabel(_breakoutStageMode)
+        : _breakoutStageModeLabel(matchedModes.first);
 
-    String modeNarrative(BreakoutMode mode) {
+    String modeNarrative(_BreakoutStageMode mode) {
       return switch (mode) {
-        BreakoutMode.early => '?��??�「�?突破?��??��??��??�是?�延�?,
-        BreakoutMode.confirmed => '?��??�「確認�??�」�??��??��??��??�否站穩',
-        BreakoutMode.lowBaseTheme => '?��??�「�??��?補漲?��??�常屬�??�輪?�接�?,
-        BreakoutMode.pullbackRebreak => '?��??�「�?檔�??�」�??��??��?測�??�放??,
-        BreakoutMode.squeezeSetup => '?��??�「�?縮�??�」�??��??�是?�放?�脫?�盤??,
-        BreakoutMode.preEventPosition => '?��??�「�?件�??��??��??��??��?件�?資�??�否?��?',
+        _BreakoutStageMode.early => '型態偏「剛突破」，重點看量價是否延續',
+        _BreakoutStageMode.confirmed => '型態偏「確認突破」，重點看突破後是否站穩',
+        _BreakoutStageMode.lowBaseTheme => '型態偏「低基期補漲」，通常屬題材輪動接棒',
+        _BreakoutStageMode.pullbackRebreak => '型態偏「回檔再攻」，重點看回測後再放量',
+        _BreakoutStageMode.squeezeSetup => '型態偏「量縮待噴」，重點看是否放量脫離盤整',
+        _BreakoutStageMode.preEventPosition => '型態偏「事件前卡位」，重點看事件前資金是否持續',
       };
     }
 
     String sectorNarrative(String value) {
-      if (value.contains('?��?')) {
-        return '?��?屬�??��?常�??��?/?��??��??��??��??�影??;
+      if (value.contains('金融')) {
+        return '板塊屬金融，常受利率/政策與權值資金切換影響';
       }
-      if (value.contains('?��?') ||
-          value.contains('?��?�?) ||
-          value.contains('?��?')) {
-        return '?��?屬�??�?�長，常?�AI/伺�????�氣循環帶�?';
+      if (value.contains('電子') ||
+          value.contains('半導體') ||
+          value.contains('通訊')) {
+        return '板塊屬科技成長，常受AI/伺服器/景氣循環帶動';
       }
-      if (value.contains('?�鐵')) {
-        return '?��?屬景�?��?��?常�??�價?��??��??�格影響';
+      if (value.contains('鋼鐵')) {
+        return '板塊屬景氣循環，常受報價與原物料價格影響';
       }
-      if (value.contains('食�?') || value.contains('塑�?')) {
-        return '?��??��????�物?��?常�??�本?��?求�??�影??;
+      if (value.contains('食品') || value.contains('塑化')) {
+        return '板塊偏民生/原物料，常受成本與需求變化影響';
       }
-      return '?��?資�??�輪?�跡象�?建議?��??�價?��??��?�?;
+      return '板塊資金有輪動跡象，建議搭配量價持續性觀察';
     }
 
     final topicNarrativeByTag = <String, String>{
-      'AI': 'AI/算�?題�??�溫，�??��?好伺?�器?��?導�???,
-      '低�?衛�?': '低�?衛�?題�??�溫，�??��?好網?��??��?設�???,
-      '?��?': '?�疫/?��?題�??�溫，�??�可?��??��??�?��??�防?��?',
-      '?�藥?��?': '?�藥/?��?題�??�溫，�??�可?��??��??�?�醫?��?',
-      '軍工?�緣': '?�緣風險題�??�溫，�??�可?��??��?�?安控/資�???,
-      '?��??�物??: '?��??��??��?題�??�溫，�??�可?��??��?游�??�代?��???,
-      '供�???: '供�??��?組�??��?溫�?資�??�能流�??�代供�??�在?��???,
-      '?��??��?': '?��?/?��?題�??�溫，�??��??��??��??�群較�??��?�?,
+      'AI': 'AI/算力題材升溫，資金偏好伺服器與半導體鏈',
+      '低軌衛星': '低軌衛星題材升溫，資金偏好網通與通訊設備鏈',
+      '疫情': '防疫/醫療題材升溫，資金可能流向生技醫療與防疫鏈',
+      '新藥生技': '新藥/臨床題材升溫，資金可能流向生技與醫藥鏈',
+      '軍工地緣': '地緣風險題材升溫，資金可能流向軍工/安控/資安鏈',
+      '能源原物料': '能源與原物料題材升溫，資金可能流向上游與替代能源鏈',
+      '供應鏈': '供應鏈重組題材升溫，資金可能流向替代供應與在地化鏈',
+      '政策利率': '政策/利率題材升溫，金融與政策受惠族群較易受關注',
     };
 
     final topicSectorKeywords = <String, List<String>>{
-      'AI': <String>['?��?', '?��?�?, '?��?'],
-      '低�?衛�?': <String>['?��?', '?��?'],
-      '?��?': <String>['食�?', '塑�?'],
-      '?�藥?��?': <String>['食�?', '塑�?'],
-      '軍工?�緣': <String>['?��?', '?��?'],
-      '?��??�物??: <String>['食�?', '塑�?', '?�鐵'],
-      '供�???: <String>['?�鐵', '?��?'],
-      '?��??��?': <String>['?��?'],
+      'AI': <String>['電子', '半導體', '通訊'],
+      '低軌衛星': <String>['通訊', '電子'],
+      '疫情': <String>['食品', '塑化'],
+      '新藥生技': <String>['食品', '塑化'],
+      '軍工地緣': <String>['電子', '通訊'],
+      '能源原物料': <String>['食品', '塑化', '鋼鐵'],
+      '供應鏈': <String>['鋼鐵', '電子'],
+      '政策利率': <String>['金融'],
     };
 
     switch (entrySignal.type) {
       case _EntrySignalType.strong:
         reasons.add(
-          '?�術面：�???$score ?�強?��?�?${strongScoreThreshold.toStringAsFixed(0)}，�?漲�? ${stock.change.toStringAsFixed(2)}% ??${strongMinChange.toStringAsFixed(2)}%',
+          '技術面：分數 $score 達強勢門檻 ${strongScoreThreshold.toStringAsFixed(0)}，且漲幅 ${stock.change.toStringAsFixed(2)}% ≥ ${strongMinChange.toStringAsFixed(2)}%',
         );
         reasons.add(
-          '?�價?��??�交??${_formatWithThousandsSeparator(stock.volume)} 高於強勢?��?�?${_formatWithThousandsSeparator(strongVolumeThreshold.round())}',
+          '量價面：成交量 ${_formatWithThousandsSeparator(stock.volume)} 高於強勢量門檻 ${_formatWithThousandsSeparator(strongVolumeThreshold.round())}',
         );
         break;
       case _EntrySignalType.watch:
         reasons.add(
-          '?�術面：�???$score 已�??��?察�?�?$effectiveMinScore，價?�維?��?漲�?${stock.change.toStringAsFixed(2)}%�?,
+          '技術面：分數 $score 已達可觀察門檻 $effectiveMinScore，價格維持上漲（${stock.change.toStringAsFixed(2)}%）',
         );
-        reasons.add('節奏面：目?��??��?觀察、�?延�??�而�?追價');
+        reasons.add('節奏面：目前偏「先觀察、等延續」而非追價');
         break;
       case _EntrySignalType.wait:
-        reasons.add('訊�??�?��??��??��?待�?建議等�??��?確�?後�??�場');
+        reasons.add('訊號狀態：目前偏等待，建議等量價再確認後再進場');
         break;
       case _EntrySignalType.avoid:
-        reasons.add('訊�??�?��??��??�避?�追高�??��?風險?�溫較穩??);
+        reasons.add('訊號狀態：目前偏避免追高，先等風險降溫較穩健');
         break;
       case _EntrySignalType.neutral:
-        reasons.add('訊�??�?��??��??��??�進場篩選，建議�??�風?�控管設�?);
+        reasons.add('訊號狀態：目前未啟用進場篩選，建議先看風險控管設定');
         break;
     }
 
     reasons.add(
-      '?��??��?$modeLabel�?{modeNarrative(matchedModes.isEmpty ? BreakoutMode : matchedModes.first)}',
+      '型態面：$modeLabel；${modeNarrative(matchedModes.isEmpty ? _breakoutStageMode : matchedModes.first)}',
     );
     reasons.add(
-      '?�本?��?：�??��?標�?${_formatWithThousandsSeparator(stock.volume)} ??${_formatWithThousandsSeparator(effectiveVolumeThreshold)}�?,
+      '基本面向：量能達標（${_formatWithThousandsSeparator(stock.volume)} ≥ ${_formatWithThousandsSeparator(effectiveVolumeThreshold)}）',
     );
 
     final sectorBonus = _sectorRotationBonus(stock);
     if (sectorBonus > 0) {
-      reasons.add('?��??��?$sector（輪?��???+$sectorBonus）�?${sectorNarrative(sector)}');
+      reasons.add('板塊面：$sector（輪動加分 +$sectorBonus）；${sectorNarrative(sector)}');
     } else {
-      reasons.add('?��??��?$sector�?{sectorNarrative(sector)}');
+      reasons.add('板塊面：$sector；${sectorNarrative(sector)}');
     }
 
     final matchedTopic = topicStrengths.firstWhere(
@@ -9266,37 +9238,37 @@ void diagnoseStock(StockModel stock, int score) {
 
     if (matchedTopic.tag.isNotEmpty) {
       reasons.add(
-        '題�??��?${topicNarrativeByTag[matchedTopic.tag] ?? '主�?資�?輪�??�強'}�?{matchedTopic.tag} 強度 ${matchedTopic.score}�?,
+        '題材面：${topicNarrativeByTag[matchedTopic.tag] ?? '主題資金輪動偏強'}（${matchedTopic.tag} 強度 ${matchedTopic.score}）',
       );
     } else {
       final topTopic =
           topicStrengths.isEmpty ? (tag: '', score: 0) : topicStrengths.first;
       if (topTopic.score >= 30) {
         reasons.add(
-          '題�??��??��??�面主�??��?{topTopic.tag}?��?強度 ${topTopic.score}）�?但�?此股?�聯度普?��?建議保�??�批',
+          '題材面：目前盤面主題偏「${topTopic.tag}」（強度 ${topTopic.score}），但與此股關聯度普通，建議保守分批',
         );
       }
     }
 
     if (revenueMomentumScore != null) {
       final momentumText = revenueMomentumScore >= 2
-          ? '?�強'
-          : (revenueMomentumScore >= 0 ? '中�? : '?�弱');
-      reasons.add('?�收?�能�?momentumText（�???$revenueMomentumScore�?);
+          ? '偏強'
+          : (revenueMomentumScore >= 0 ? '中性' : '偏弱');
+      reasons.add('營收動能：$momentumText（分數 $revenueMomentumScore）');
     }
 
     if (earningsSurpriseScore != null) {
       final surpriseText = earningsSurpriseScore >= 2
-          ? '?�正??
-          : (earningsSurpriseScore >= 0 ? '中�? : '?��???);
-      reasons.add('財報 surprise�?surpriseText（�???$earningsSurpriseScore�?);
+          ? '偏正向'
+          : (earningsSurpriseScore >= 0 ? '中性' : '偏負向');
+      reasons.add('財報 surprise：$surpriseText（分數 $earningsSurpriseScore）');
     }
 
     if (nearestEventWindowDays != null) {
       final eventText = nearestEventWindowDays >= 0
           ? 'D-${nearestEventWindowDays.abs()}'
           : 'D+${nearestEventWindowDays.abs()}';
-      reasons.add('法說/財報事件窗�?$eventText');
+      reasons.add('法說/財報事件窗：$eventText');
     }
 
     final deduped = <String>[];
@@ -9311,9 +9283,9 @@ void diagnoseStock(StockModel stock, int score) {
 
   String _premarketRiskTypeLabel(_PremarketRiskType type) {
     return switch (type) {
-      _PremarketRiskType.high => '�?,
-      _PremarketRiskType.medium => '�?,
-      _PremarketRiskType.low => '�?,
+      _PremarketRiskType.high => '高',
+      _PremarketRiskType.medium => '中',
+      _PremarketRiskType.low => '低',
     };
   }
 
@@ -9322,17 +9294,17 @@ void diagnoseStock(StockModel stock, int score) {
     _PremarketRiskType riskType,
   ) {
     final riskTail = switch (riskType) {
-      _PremarketRiskType.high => '（盤?�風?��?，嚴?�倉�?�?,
-      _PremarketRiskType.medium => '（盤?�風?�中，�??��?佳�?',
+      _PremarketRiskType.high => '（盤前風險高，嚴控倉位）',
+      _PremarketRiskType.medium => '（盤前風險中，分批較佳）',
       _PremarketRiskType.low => '',
     };
 
     return switch (signalType) {
-      _EntrySignalType.strong => '?��??�試??riskTail',
-      _EntrySignalType.watch => '?��?察�?等�?強�???riskTail',
-      _EntrySignalType.wait => '?��?訊�?確�?$riskTail',
-      _EntrySignalType.avoid => '?�避?��?不追??riskTail',
-      _EntrySignalType.neutral => '?��?風險設�??�決�?riskTail',
+      _EntrySignalType.strong => '可小倉試單$riskTail',
+      _EntrySignalType.watch => '先觀察，等續強再進$riskTail',
+      _EntrySignalType.wait => '先等訊號確認$riskTail',
+      _EntrySignalType.avoid => '先避開，不追價$riskTail',
+      _EntrySignalType.neutral => '先看風險設定再決策$riskTail',
     };
   }
 
@@ -9361,7 +9333,7 @@ void diagnoseStock(StockModel stock, int score) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?��?沒�??��?供�??�建議�?�?中風?��???)),
+        const SnackBar(content: Text('目前沒有可提供降倉建議的高/中風險持股')),
       );
       return;
     }
@@ -9395,7 +9367,7 @@ void diagnoseStock(StockModel stock, int score) {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('�?中風?��??��??�建�?),
+          title: const Text('高/中風險持股降倉建議'),
           content: SizedBox(
             width: 520,
             child: Column(
@@ -9403,12 +9375,12 @@ void diagnoseStock(StockModel stock, int score) {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '建議規�?：�?風險保�? 50%?�中風險保�? 75%（�??�示，�??�自?�改?�庫存�?',
+                  '建議規則：高風險保留 50%、中風險保留 75%（僅提示，不會自動改動庫存）',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '建議?��??��?減碼 ${totalCloseLots.toStringAsFixed(totalCloseLots % 1 == 0 ? 0 : 2)} �?,
+                  '建議合計可先減碼 ${totalCloseLots.toStringAsFixed(totalCloseLots % 1 == 0 ? 0 : 2)} 張',
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
                 const SizedBox(height: 8),
@@ -9429,8 +9401,8 @@ void diagnoseStock(StockModel stock, int score) {
                         contentPadding: EdgeInsets.zero,
                         title: Text('${row.code} ${row.name}'),
                         subtitle: Text(
-                          '風險 ${_premarketRiskTypeLabel(row.premarketRiskType)}｜目??${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)} 張�?建議?��?�?$closeRatioText（�? $closeLots 張�?保�? $keepLots 張�?\n'
-                          '${row.entryPrice == null || row.closePrice == null ? '' : '?�本 ${row.entryPrice!.toStringAsFixed(2)} / ?�價 ${row.closePrice!.toStringAsFixed(2)}�?}${row.decisionSummary}',
+                          '風險 ${_premarketRiskTypeLabel(row.premarketRiskType)}｜目前 ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)} 張｜建議先減碼 $closeRatioText（約 $closeLots 張，保留 $keepLots 張）\n'
+                          '${row.entryPrice == null || row.closePrice == null ? '' : '成本 ${row.entryPrice!.toStringAsFixed(2)} / 現價 ${row.closePrice!.toStringAsFixed(2)}｜'}${row.decisionSummary}',
                         ),
                       );
                     }).toList(),
@@ -9442,7 +9414,7 @@ void diagnoseStock(StockModel stock, int score) {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('?��?'),
+              child: const Text('關閉'),
             ),
           ],
         );
@@ -9482,21 +9454,21 @@ void diagnoseStock(StockModel stock, int score) {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('?�股飆股?��?'),
+        title: const Text('台股飆股分析'),
         actions: useCompactAppBarActions
             ? [
                 IconButton(
-                  tooltip: '?�新?��?資�?',
+                  tooltip: '重新整理資料',
                   onPressed: _refreshStocks,
                   icon: const Icon(Icons.refresh),
                 ),
                 IconButton(
-                  tooltip: 'Google ?�份',
+                  tooltip: 'Google 備份',
                   onPressed: _openGoogleBackupSheet,
                   icon: const Icon(Icons.cloud_sync),
                 ),
                 PopupMenuButton<_CompactTopAction>(
-                  tooltip: '?��??�能',
+                  tooltip: '更多功能',
                   onSelected: (action) {
                     switch (action) {
                       case _CompactTopAction.backtest:
@@ -9515,7 +9487,7 @@ void diagnoseStock(StockModel stock, int score) {
                       child: ListTile(
                         dense: true,
                         leading: Icon(Icons.analytics),
-                        title: Text('?�測MVP'),
+                        title: Text('回測MVP'),
                       ),
                     ),
                     PopupMenuItem<_CompactTopAction>(
@@ -9523,7 +9495,7 @@ void diagnoseStock(StockModel stock, int score) {
                       child: ListTile(
                         dense: true,
                         leading: Icon(Icons.bolt),
-                        title: Text('?�盤一?��???),
+                        title: Text('晨盤一鍵掃描'),
                       ),
                     ),
                     PopupMenuItem<_CompactTopAction>(
@@ -9531,7 +9503,7 @@ void diagnoseStock(StockModel stock, int score) {
                       child: ListTile(
                         dense: true,
                         leading: Icon(Icons.menu_book),
-                        title: Text('交�??��?'),
+                        title: Text('交易日誌'),
                       ),
                     ),
                     PopupMenuItem<_CompactTopAction>(
@@ -9539,7 +9511,7 @@ void diagnoseStock(StockModel stock, int score) {
                       child: ListTile(
                         dense: true,
                         leading: Icon(Icons.notifications_active),
-                        title: Text('測試?��?'),
+                        title: Text('測試提醒'),
                       ),
                     ),
                   ],
@@ -9547,32 +9519,32 @@ void diagnoseStock(StockModel stock, int score) {
               ]
             : [
                 IconButton(
-                  tooltip: '?�測MVP',
+                  tooltip: '回測MVP',
                   onPressed: _openBacktestPage,
                   icon: const Icon(Icons.analytics),
                 ),
                 IconButton(
-                  tooltip: '?�盤一?��???,
+                  tooltip: '晨盤一鍵掃描',
                   onPressed: _runMorningScan,
                   icon: const Icon(Icons.bolt),
                 ),
                 IconButton(
-                  tooltip: '交�??��?',
+                  tooltip: '交易日誌',
                   onPressed: _openTradeJournalPage,
                   icon: const Icon(Icons.menu_book),
                 ),
                 IconButton(
-                  tooltip: '測試?��?',
+                  tooltip: '測試提醒',
                   onPressed: _sendTestNotification,
                   icon: const Icon(Icons.notifications_active),
                 ),
                 IconButton(
-                  tooltip: '?�新?��?資�?',
+                  tooltip: '重新整理資料',
                   onPressed: _refreshStocks,
                   icon: const Icon(Icons.refresh),
                 ),
                 IconButton(
-                  tooltip: 'Google ?�份',
+                  tooltip: 'Google 備份',
                   onPressed: _openGoogleBackupSheet,
                   icon: const Icon(Icons.cloud_sync),
                 ),
@@ -9616,7 +9588,7 @@ void diagnoseStock(StockModel stock, int score) {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '載入?�股資�?失�?',
+                        '載入台股資料失敗',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
@@ -9629,7 +9601,7 @@ void diagnoseStock(StockModel stock, int score) {
                       FilledButton.icon(
                         onPressed: _retryFetch,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('?�試'),
+                        label: const Text('重試'),
                       ),
                     ],
                   ),
@@ -9721,50 +9693,50 @@ void diagnoseStock(StockModel stock, int score) {
               }
 
               if (stock.closePrice > _maxPriceThreshold) {
-                markDrop(stock, '?�價超�???);
+                markDrop(stock, '股價超上限');
                 continue;
               }
               if (stock.volume < effectiveVolumeThreshold) {
-                markDrop(stock, '?�能不足');
+                markDrop(stock, '量能不足');
                 continue;
               }
               if (normalizedTradeValueForFilter(stock.tradeValue) <
                   _minTradeValueThreshold) {
-                markDrop(stock, '?�交?��?�?);
+                markDrop(stock, '成交值不足');
                 continue;
               }
               if (_onlyRising && stock.change <= 0) {
-                markDrop(stock, '?��?漲股');
+                markDrop(stock, '非上漲股');
                 continue;
               }
               if (_excludeOverheated &&
                   stock.change >= _maxChaseChangePercent) {
-                markDrop(stock, '追�?風險');
+                markDrop(stock, '追高風險');
                 continue;
               }
               if (_enableForeignFlowFilter &&
                   stock.foreignNet < _minForeignNet) {
-                markDrop(stock, '外�?買�?不足');
+                markDrop(stock, '外資買超不足');
                 continue;
               }
               if (_enableTrustFlowFilter && stock.trustNet < _minTrustNet) {
-                markDrop(stock, '?�信買�?不足');
+                markDrop(stock, '投信買超不足');
                 continue;
               }
               if (_enableDealerFlowFilter &&
                   stock.dealerNet < _minDealerNet) {
-                markDrop(stock, '?��??�買超�?�?);
+                markDrop(stock, '自營商買超不足');
                 continue;
               }
               if (_enableMarginDiffFilter &&
                   stock.marginBalanceDiff < _minMarginBalanceDiff) {
-                markDrop(stock, '?��?餘�?變�?不足');
+                markDrop(stock, '融資餘額變動不足');
                 continue;
               }
               strategyStocks.add(stock);
             }
 
-            // save today?�s drop reasons for historical analysis
+            // save today’s drop reasons for historical analysis
             recordFilterStats();
 
             final scoredStocks = strategyStocks
@@ -9819,7 +9791,7 @@ void diagnoseStock(StockModel stock, int score) {
                 regime: marketRegime,
               );
               if (item.score < minScore) {
-                markDrop(item.stock, '?�數不足');
+                markDrop(item.stock, '分數不足');
                 continue;
               }
               candidateStocks.add(item);
@@ -9845,45 +9817,45 @@ void diagnoseStock(StockModel stock, int score) {
             final qualityFilteredStocks = <_ScoredStock>[];
             for (final item in candidateStocks) {
               if (!_passesBreakoutStage(item.stock, item.score)) {
-                markDrop(item.stock, '?��?不符');
+                markDrop(item.stock, '型態不符');
                 continue;
               }
               if (!_passesRiskRewardPrefilter(item.stock)) {
-                markDrop(item.stock, '風險?�酬不足');
+                markDrop(item.stock, '風險報酬不足');
                 continue;
               }
               if (_isLikelyFalseBreakout(item.stock, item.score)) {
-                markDrop(item.stock, '?�似?��???);
+                markDrop(item.stock, '疑似假突破');
                 continue;
               }
               if (!_passesEventRiskExclusion(item.stock)) {
-                markDrop(item.stock, '事件風險?�除');
+                markDrop(item.stock, '事件風險排除');
                 continue;
               }
               if (_enableEventCalendarWindow &&
-                  BreakoutMode != BreakoutMode.preEventPosition) {
+                  _breakoutStageMode != _BreakoutStageMode.preEventPosition) {
                 final days = eventWindowDaysOf(item.stock);
                 if (days != null && days.abs() <= _eventCalendarGuardDays) {
-                  markDrop(item.stock, '法說/財報事件�?);
+                  markDrop(item.stock, '法說/財報事件窗');
                   continue;
                 }
               }
               if (_enableRevenueMomentumFilter) {
                 final momentum = revenueMomentumOf(item.stock);
                 if (momentum < _minRevenueMomentumScore) {
-                  markDrop(item.stock, '?�收?�能?�弱');
+                  markDrop(item.stock, '營收動能偏弱');
                   continue;
                 }
               }
               if (_enableEarningsSurpriseFilter) {
                 final surprise = earningsSurpriseOf(item.stock);
                 if (surprise < _minEarningsSurpriseScore) {
-                  markDrop(item.stock, '財報驚�?度�?�?);
+                  markDrop(item.stock, '財報驚喜度偏弱');
                   continue;
                 }
               }
               if (_isLikelyOvernightGapRisk(item.stock)) {
-                markDrop(item.stock, '?�日跳空風險');
+                markDrop(item.stock, '隔日跳空風險');
                 continue;
               }
               if (_enableSectorExposureCap &&
@@ -9891,7 +9863,7 @@ void diagnoseStock(StockModel stock, int score) {
                 final sector = _sectorGroupForCode(item.stock.code);
                 final used = sectorQuotaUsage[sector] ?? 0;
                 if (used >= _maxHoldingPerSector) {
-                  markDrop(item.stock, '?�業?�中度�???);
+                  markDrop(item.stock, '產業集中度上限');
                   continue;
                 }
                 sectorQuotaUsage[sector] = used + 1;
@@ -9984,46 +9956,46 @@ void diagnoseStock(StockModel stock, int score) {
             String removedReasonHint(String code) {
               final reasons = dropReasonsByCode[code] ?? const <String>[];
               if (reasons.isNotEmpty) {
-                return reasons.take(2).join('??);
+                return reasons.take(2).join('、');
               }
               if (effectiveShowStrongOnly && !strongOnlyCodes.contains(code)) {
-                return '強勢?��?（�?強勢訊�?�?;
+                return '強勢限定（非強勢訊號）';
               }
               if (_limitTopCandidates &&
                   searchedCodes.contains(code) &&
                   !limitedCodes.contains(code)) {
-                return '超出??$_topCandidateLimit 檔�???;
+                return '超出前 $_topCandidateLimit 檔上限';
               }
-              return '?��?變�?（無主�??�除條件�?;
+              return '排序變動（無主要排除條件）';
             }
 
             String addedReasonHint(String code) {
               final previousReasons =
                   _lastDropReasonsByCodeSnapshot[code] ?? const <String>[];
               if (previousReasons.isNotEmpty) {
-                return '?��??��?�?{previousReasons.take(2).join('??)}';
+                return '先前受限：${previousReasons.take(2).join('、')}';
               }
               if (_limitTopCandidates) {
-                return '?��??�能?��? $_topCandidateLimit 檔�???;
+                return '先前可能受前 $_topCandidateLimit 檔限制';
               }
-              return '條件轉佳?��?序�?�?;
+              return '條件轉佳或排序前移';
             }
 
             String reasonBucketLabel(String reason) {
-              if (reason.startsWith('?��??��?�?)) {
-                final text = reason.substring('?��??��?�?.length);
-                return text.split('??).first;
+              if (reason.startsWith('先前受限：')) {
+                final text = reason.substring('先前受限：'.length);
+                return text.split('、').first;
               }
-              return reason.split('�?).first.split('??).first;
+              return reason.split('（').first.split('、').first;
             }
 
             final removedReasonPreview = removedCodes
                 .take(3)
-                .map((code) => '$code�?{removedReasonHint(code)}�?)
+                .map((code) => '$code（${removedReasonHint(code)}）')
                 .toList();
             final addedReasonPreview = addedCodes
                 .take(3)
-                .map((code) => '$code�?{addedReasonHint(code)}�?)
+                .map((code) => '$code（${addedReasonHint(code)}）')
                 .toList();
 
             final reasonWeight = <String, int>{};
@@ -10135,7 +10107,7 @@ void diagnoseStock(StockModel stock, int score) {
               final lots = _positionLotsByCode[code];
               final score = stock == null ? null : _calculateStockScore(stock);
               final matchedModes = (stock == null || score == null)
-                  ? const <BreakoutMode>[]
+                  ? const <_BreakoutStageMode>[]
                   : _matchedBreakoutModesForStock(stock, score);
               final pnlPercent = stock == null
                   ? null
@@ -10145,13 +10117,13 @@ void diagnoseStock(StockModel stock, int score) {
                   : _calculatePnlAmount(stock, entryPrice, lots);
               final entrySignal = (stock == null || score == null)
                   ? const _EntrySignal(
-                      label: '資�?不足',
+                      label: '資料不足',
                       type: _EntrySignalType.wait,
                     )
                   : resolveEntrySignal(stock, score);
               final premarketRisk = stock == null
                   ? const _PremarketRisk(
-                      label: '資�?不足',
+                      label: '資料不足',
                       type: _PremarketRiskType.medium,
                     )
                   : _evaluatePremarketRisk(stock);
@@ -10253,14 +10225,14 @@ void diagnoseStock(StockModel stock, int score) {
               isNightSession: _isPostMarketOrNight(),
             );
             final recommendationSessionLabel =
-                _isPostMarketOrNight() ? '?��?/夜�?' : '?�中';
+                _isPostMarketOrNight() ? '盤後/夜間' : '盤中';
             final autoStreak = _autoLossStreakFromJournal();
             final sectorRegimeSummary = _sectorRegimeByGroup.entries
                 .take(3)
                 .map((entry) => '${entry.key}:${_regimeLabelOf(entry.value)}')
                 .join(' / ');
             final scanSummary =
-                '?�選 ${limitedCandidateStocks.length} 檔�?強勢 ${tagCounts[_EntrySignalType.strong] ?? 0} 檔�?觀�?${tagCounts[_EntrySignalType.watch] ?? 0} 檔�?模�? ${BreakoutModeLabel(BreakoutMode)}｜寬�?${marketBreadthRatio.toStringAsFixed(2)}｜Regime ${_regimeLabelOf(marketRegime)}｜板�?${sectorRegimeSummary.isEmpty ? '-' : sectorRegimeSummary}｜�?�� $autoStreak �?;
+                '候選 ${limitedCandidateStocks.length} 檔｜強勢 ${tagCounts[_EntrySignalType.strong] ?? 0} 檔｜觀察 ${tagCounts[_EntrySignalType.watch] ?? 0} 檔｜模式 ${_breakoutStageModeLabel(_breakoutStageMode)}｜寬度 ${marketBreadthRatio.toStringAsFixed(2)}｜Regime ${_regimeLabelOf(marketRegime)}｜板塊 ${sectorRegimeSummary.isEmpty ? '-' : sectorRegimeSummary}｜連虧 $autoStreak 筆';
             final googleBackupStatusLabel = _googleBackupStatusLabel();
             final googleBackupConnected = _isGoogleBackupConnected();
             final googleBackupFreshToday = _isGoogleBackupFreshToday();
@@ -10333,7 +10305,7 @@ void diagnoseStock(StockModel stock, int score) {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '議�??��??��?�?,
+                                      '議題→受惠族群',
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall,
@@ -10343,7 +10315,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       (hint) => Padding(
                                         padding:
                                             const EdgeInsets.only(bottom: 4),
-                                        child: Text('??$hint'),
+                                        child: Text('• $hint'),
                                       ),
                                     ),
                                   ],
@@ -10378,7 +10350,7 @@ void diagnoseStock(StockModel stock, int score) {
                                           .account_balance_wallet_outlined),
                                       const SizedBox(width: 6),
                                       Text(
-                                        '?�股總覽�?{filteredHoldingRows.length}/${holdingRows.length} 檔�?',
+                                        '持股總覽（${filteredHoldingRows.length}/${holdingRows.length} 檔）',
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleSmall,
@@ -10389,7 +10361,7 @@ void diagnoseStock(StockModel stock, int score) {
                                           padding:
                                               const EdgeInsets.only(right: 8),
                                           child: Text(
-                                            '高風??$highRiskHoldingCount｜中風險 $mediumRiskHoldingCount',
+                                            '高風險 $highRiskHoldingCount｜中風險 $mediumRiskHoldingCount',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .labelSmall,
@@ -10397,7 +10369,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         ),
                                       if (highRiskHoldingCount > 0)
                                         IconButton(
-                                          tooltip: '檢�?第�?檔�?風險K�?,
+                                          tooltip: '檢視第一檔高風險K線',
                                           onPressed: () {
                                             final target =
                                                 filteredHoldingRows.firstWhere(
@@ -10424,12 +10396,12 @@ void diagnoseStock(StockModel stock, int score) {
                                           rows: holdingReductionRows,
                                         ),
                                         icon: const Icon(Icons.shield_outlined),
-                                        label: const Text('?�倉建�?),
+                                        label: const Text('降倉建議'),
                                       ),
                                       TextButton.icon(
                                         onPressed: _openManualHoldingDialog,
                                         icon: const Icon(Icons.add),
-                                        label: const Text('?��?庫�?'),
+                                        label: const Text('新增庫存'),
                                       ),
                                     ],
                                   ),
@@ -10439,7 +10411,7 @@ void diagnoseStock(StockModel stock, int score) {
                                     runSpacing: 6,
                                     children: [
                                       FilterChip(
-                                        label: const Text('依風?��?�?),
+                                        label: const Text('依風險排序'),
                                         selected: _sortHoldingsByRisk,
                                         onSelected: (selected) {
                                           setState(() {
@@ -10449,7 +10421,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         },
                                       ),
                                       FilterChip(
-                                        label: const Text('?��?高風?��???),
+                                        label: const Text('只看高風險持股'),
                                         selected: _showOnlyHighRiskHoldings,
                                         onSelected: (selected) {
                                           setState(() {
@@ -10463,9 +10435,9 @@ void diagnoseStock(StockModel stock, int score) {
                                   ),
                                   const SizedBox(height: 8),
                                   if (holdingRows.isEmpty)
-                                    const Text('?��?尚未設�?任�??�股（�???張數�?)
+                                    const Text('目前尚未設定任何持股（成本/張數）')
                                   else if (filteredHoldingRows.isEmpty)
-                                    const Text('?��?沒�?符�?篩選條件?��???)
+                                    const Text('目前沒有符合篩選條件的持股')
                                   else
                                     ...filteredHoldingRows.map(
                                       (row) => ListTile(
@@ -10473,13 +10445,13 @@ void diagnoseStock(StockModel stock, int score) {
                                         contentPadding: EdgeInsets.zero,
                                         title: Text('${row.code} ${row.name}'),
                                         subtitle: Text(
-                                          '${row.entryPrice == null ? '?�本 -' : '?�本 ${row.entryPrice!.toStringAsFixed(2)}'}�?
-                                          '${row.lots == null ? '張數 -' : '張數 ${row.lots!.toStringAsFixed(row.lots! % 1 == 0 ? 0 : 2)}'}�?
-                                          '${row.closePrice == null ? '?�價 -' : '?�價 ${row.closePrice!.toStringAsFixed(2)}'}'
-                                          '\n一?�話�?{row.decisionSummary}'
-                                          '｜�???${row.entrySignalLabel}'
-                                          '｜盤?�風??${_premarketRiskTypeLabel(row.premarketRiskType)}'
-                                          '${row.matchedModes.isEmpty ? '' : '\n?�中模�?�?{row.matchedModes.take(3).map(BreakoutModeLabel).join(' / ')}${row.matchedModes.length > 3 ? ' +${row.matchedModes.length - 3}' : ''}'}',
+                                          '${row.entryPrice == null ? '成本 -' : '成本 ${row.entryPrice!.toStringAsFixed(2)}'}｜'
+                                          '${row.lots == null ? '張數 -' : '張數 ${row.lots!.toStringAsFixed(row.lots! % 1 == 0 ? 0 : 2)}'}｜'
+                                          '${row.closePrice == null ? '現價 -' : '現價 ${row.closePrice!.toStringAsFixed(2)}'}'
+                                          '\n一句話：${row.decisionSummary}'
+                                          '｜訊號 ${row.entrySignalLabel}'
+                                          '｜盤前風險 ${_premarketRiskTypeLabel(row.premarketRiskType)}'
+                                          '${row.matchedModes.isEmpty ? '' : '\n命中模式：${row.matchedModes.take(3).map(_breakoutStageModeLabel).join(' / ')}${row.matchedModes.length > 3 ? ' +${row.matchedModes.length - 3}' : ''}'}',
                                         ),
                                         trailing: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -10496,14 +10468,14 @@ void diagnoseStock(StockModel stock, int score) {
                                             const SizedBox(width: 6),
                                             if (row.stock != null)
                                               IconButton(
-                                                tooltip: '?��?K�?,
+                                                tooltip: '查看K線',
                                                 icon: const Icon(
                                                     Icons.candlestick_chart),
                                                 onPressed: () =>
                                                     _openKLineChart(row.stock!),
                                               ),
                                             IconButton(
-                                              tooltip: '?�除庫�?',
+                                              tooltip: '刪除庫存',
                                               icon: const Icon(
                                                   Icons.delete_outline),
                                               onPressed: () async {
@@ -10521,7 +10493,7 @@ void diagnoseStock(StockModel stock, int score) {
                                                     .showSnackBar(
                                                   SnackBar(
                                                       content: Text(
-                                                          '已刪??${row.code} 庫�?')),
+                                                          '已刪除 ${row.code} 庫存')),
                                                 );
                                               },
                                             ),
@@ -10566,14 +10538,14 @@ void diagnoseStock(StockModel stock, int score) {
                           child: Card(
                             child: ExpansionTile(
                               leading: const Icon(Icons.tune),
-                              title: const Text('篩選診斷（�??�被?�除主�?�?),
+                              title: const Text('篩選診斷（今日被排除主因）'),
                               childrenPadding:
                                   const EdgeInsets.fromLTRB(12, 0, 12, 10),
                               children: [
                                 if (filterDropReasonCounts.isEmpty)
                                   const Align(
                                     alignment: Alignment.centerLeft,
-                                    child: Text('?��??��??��???),
+                                    child: Text('目前無排除資料'),
                                   )
                                 else
                                   Wrap(
@@ -10636,7 +10608,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       displayedCodes: displayedCodes,
                                     ),
                                     icon: const Icon(Icons.search),
-                                    label: const Text('?��??�除診斷'),
+                                    label: const Text('單檔排除診斷'),
                                   ),
                                 ),
                                 Align(
@@ -10644,7 +10616,7 @@ void diagnoseStock(StockModel stock, int score) {
                                   child: TextButton.icon(
                                     onPressed: _openBullRunReplayDialog,
                                     icon: const Icon(Icons.history_edu_outlined),
-                                    label: const Text('上週�??��???),
+                                    label: const Text('上週飆股回看'),
                                   ),
                                 ),
                                 Align(
@@ -10652,7 +10624,7 @@ void diagnoseStock(StockModel stock, int score) {
                                   child: TextButton.icon(
                                     onPressed: _openAnalyticsExportDialog,
                                     icon: const Icon(Icons.file_download_outlined),
-                                    label: const Text('?�出?�中??CSV'),
+                                    label: const Text('匯出命中率 CSV'),
                                   ),
                                 ),
                               ],
@@ -10665,23 +10637,23 @@ void diagnoseStock(StockModel stock, int score) {
                           child: Card(
                             child: ListTile(
                               leading: const Icon(Icons.compare_arrows),
-                              title: const Text('?�選穩�??��??�次 vs 上次�?),
+                              title: const Text('候選穩定性（本次 vs 上次）'),
                               subtitle: !_hasLimitedCandidateSnapshot
-                                  ? const Text('尚未建�?比�?快照')
+                                  ? const Text('尚未建立比較快照')
                                   : (driftBaselineReset
                                       ? Text(
-                                          '已�?置�?較基準�??��??�數變更）�??��??�選 ${qualityCodes.length} 檔�??�面顯示 ${limitedCodes.length} 檔\n'
-                                          '變更�?{changedFilterContextLabels.take(6).join('??)}${changedFilterContextLabels.length > 6 ? ' +${changedFilterContextLabels.length - 6}' : ''}')
+                                          '已重置比較基準（核心參數變更）｜核心候選 ${qualityCodes.length} 檔，畫面顯示 ${limitedCodes.length} 檔\n'
+                                          '變更：${changedFilterContextLabels.take(6).join('、')}${changedFilterContextLabels.length > 6 ? ' +${changedFilterContextLabels.length - 6}' : ''}')
                                       : !hasCandidateDrift
                                     ? Text(
-                                      '?��??�選 ${qualityCodes.length} 檔�??��?次相?��?｜畫?�顯�?${limitedCodes.length} �?)
+                                      '核心候選 ${qualityCodes.length} 檔（與上次相同）｜畫面顯示 ${limitedCodes.length} 檔')
                                     : Text(
-                                      '?��? ${addedCodes.length}｜移??${removedCodes.length}｜更??${_formatTimeHHmm(DateTime.now())}\n'
-                                      '?��?�?{addedCodes.isEmpty ? '-' : addedCodes.take(5).join('??)}\n'
-                                      '移除�?{removedCodes.isEmpty ? '-' : removedCodes.take(5).join('??)}\n'
-                                      '?��?主�?�?{addedReasonPreview.isEmpty ? '-' : addedReasonPreview.join('??)}\n'
-                                      '移除主�?�?{removedReasonPreview.isEmpty ? '-' : removedReasonPreview.join('??)}\n'
-                                      '?��??�選 ${qualityCodes.length} 檔�??�面顯示 ${limitedCodes.length} �?,
+                                      '新增 ${addedCodes.length}｜移除 ${removedCodes.length}｜更新 ${_formatTimeHHmm(DateTime.now())}\n'
+                                      '新增：${addedCodes.isEmpty ? '-' : addedCodes.take(5).join('、')}\n'
+                                      '移除：${removedCodes.isEmpty ? '-' : removedCodes.take(5).join('、')}\n'
+                                      '新增主因：${addedReasonPreview.isEmpty ? '-' : addedReasonPreview.join('、')}\n'
+                                      '移除主因：${removedReasonPreview.isEmpty ? '-' : removedReasonPreview.join('、')}\n'
+                                      '核心候選 ${qualityCodes.length} 檔｜畫面顯示 ${limitedCodes.length} 檔',
                                     )),
                               isThreeLine: true,
                               trailing: _candidateDriftHistory.isEmpty
@@ -10707,7 +10679,7 @@ void diagnoseStock(StockModel stock, int score) {
                               child: TextButton.icon(
                                 onPressed: _restorePreviousCandidateFilterSnapshot,
                                 icon: const Icon(Icons.history),
-                                label: const Text('?��?上次比�??�數'),
+                                label: const Text('還原上次比較參數'),
                               ),
                             ),
                           ),
@@ -10763,7 +10735,7 @@ void diagnoseStock(StockModel stock, int score) {
                             child: Card(
                               child: ExpansionTile(
                                 leading: const Icon(Icons.timeline),
-                                title: const Text('變�??��?軸�??��?8 次�?'),
+                                title: const Text('變動時間軸（最近 8 次）'),
                                 childrenPadding: const EdgeInsets.fromLTRB(
                                     12, 0, 12, 10),
                                 children: _candidateDriftHistory
@@ -10775,7 +10747,7 @@ void diagnoseStock(StockModel stock, int score) {
                                           padding:
                                               const EdgeInsets.only(bottom: 4),
                                           child: Text(
-                                            '??${_candidateDriftHistoryLabel(entry)}',
+                                            '• ${_candidateDriftHistoryLabel(entry)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -10794,7 +10766,7 @@ void diagnoseStock(StockModel stock, int score) {
                             child: Card(
                               child: ExpansionTile(
                                 leading: const Icon(Icons.manage_history),
-                                title: const Text('?��??�數變更紀?��??��?8 次�?'),
+                                title: const Text('核心參數變更紀錄（最近 8 次）'),
                                 childrenPadding: const EdgeInsets.fromLTRB(
                                     12, 0, 12, 10),
                                 children: _parameterChangeAuditHistory
@@ -10806,7 +10778,7 @@ void diagnoseStock(StockModel stock, int score) {
                                           padding:
                                               const EdgeInsets.only(bottom: 6),
                                           child: Text(
-                                            '??${_parameterAuditHistoryLabel(entry)}\n  ${entry.changes.take(3).join('??)}${entry.changes.length > 3 ? ' +${entry.changes.length - 3}' : ''}',
+                                            '• ${_parameterAuditHistoryLabel(entry)}\n  ${entry.changes.take(3).join('、')}${entry.changes.length > 3 ? ' +${entry.changes.length - 3}' : ''}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -10829,8 +10801,8 @@ void diagnoseStock(StockModel stock, int score) {
                               child: const ListTile(
                                 dense: true,
                                 leading: Icon(Icons.lock_outline),
-                                title: Text('?�股?�數已�?�?),
-                                subtitle: Text('?��?模�??��??��?件模?�自?��??�暫??),
+                                title: Text('選股參數已鎖定'),
+                                subtitle: Text('自動模式切換與事件模板自動套用暫停'),
                               ),
                             ),
                           ),
@@ -10840,14 +10812,14 @@ void diagnoseStock(StockModel stock, int score) {
                           child: Card(
                             child: ExpansionTile(
                               leading: const Icon(Icons.analytics_outlined),
-                              title: const Text('訊�??�中追蹤�?/3/5?�平?��?'),
+                              title: const Text('訊號命中追蹤（1/3/5日平均）'),
                               childrenPadding:
                                   const EdgeInsets.fromLTRB(12, 0, 12, 10),
                               children: [
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
-                                    '強勢�?D ${strongPerf.day1Avg.toStringAsFixed(2)}% / ?��? ${strongPerf.day1WinRate.toStringAsFixed(1)}% / ?�撤 ${strongPerf.day1MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day1Count})�?D ${strongPerf.day3Avg.toStringAsFixed(2)}% / ?��? ${strongPerf.day3WinRate.toStringAsFixed(1)}% / ?�撤 ${strongPerf.day3MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day3Count})�?D ${strongPerf.day5Avg.toStringAsFixed(2)}% / ?��? ${strongPerf.day5WinRate.toStringAsFixed(1)}% / ?�撤 ${strongPerf.day5MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day5Count})',
+                                    '強勢：1D ${strongPerf.day1Avg.toStringAsFixed(2)}% / 勝率 ${strongPerf.day1WinRate.toStringAsFixed(1)}% / 回撤 ${strongPerf.day1MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day1Count})｜3D ${strongPerf.day3Avg.toStringAsFixed(2)}% / 勝率 ${strongPerf.day3WinRate.toStringAsFixed(1)}% / 回撤 ${strongPerf.day3MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day3Count})｜5D ${strongPerf.day5Avg.toStringAsFixed(2)}% / 勝率 ${strongPerf.day5WinRate.toStringAsFixed(1)}% / 回撤 ${strongPerf.day5MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day5Count})',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),
@@ -10856,7 +10828,7 @@ void diagnoseStock(StockModel stock, int score) {
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
-                                    '觀察�?1D ${watchPerf.day1Avg.toStringAsFixed(2)}% / ?��? ${watchPerf.day1WinRate.toStringAsFixed(1)}% / ?�撤 ${watchPerf.day1MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day1Count})�?D ${watchPerf.day3Avg.toStringAsFixed(2)}% / ?��? ${watchPerf.day3WinRate.toStringAsFixed(1)}% / ?�撤 ${watchPerf.day3MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day3Count})�?D ${watchPerf.day5Avg.toStringAsFixed(2)}% / ?��? ${watchPerf.day5WinRate.toStringAsFixed(1)}% / ?�撤 ${watchPerf.day5MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day5Count})',
+                                    '觀察：1D ${watchPerf.day1Avg.toStringAsFixed(2)}% / 勝率 ${watchPerf.day1WinRate.toStringAsFixed(1)}% / 回撤 ${watchPerf.day1MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day1Count})｜3D ${watchPerf.day3Avg.toStringAsFixed(2)}% / 勝率 ${watchPerf.day3WinRate.toStringAsFixed(1)}% / 回撤 ${watchPerf.day3MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day3Count})｜5D ${watchPerf.day5Avg.toStringAsFixed(2)}% / 勝率 ${watchPerf.day5WinRate.toStringAsFixed(1)}% / 回撤 ${watchPerf.day5MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day5Count})',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),
@@ -10865,7 +10837,7 @@ void diagnoseStock(StockModel stock, int score) {
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
-                                    '?��?度�??�?��???1/3/5 ?�交?�日?��?填入對�?欄�?；樣?��?足�??�顯�?0??,
+                                    '成熟度：需至少隔 1/3/5 個交易日才會填入對應欄位；樣本不足時會顯示 0。',
                                     style:
                                         Theme.of(context).textTheme.labelSmall,
                                   ),
@@ -10881,7 +10853,7 @@ void diagnoseStock(StockModel stock, int score) {
                             child: ListTile(
                               dense: true,
                               leading: const Icon(Icons.calendar_view_week),
-                              title: const Text('每週命中�??��?（�?�?7 天�?'),
+                              title: const Text('每週命中率摘要（最近 7 天）'),
                               subtitle: Text(_buildWeeklyHitRateSummaryText()),
                             ),
                           ),
@@ -10894,7 +10866,7 @@ void diagnoseStock(StockModel stock, int score) {
                             child: TextButton.icon(
                               onPressed: _openAutoTuneSuggestionDialog,
                               icon: const Icon(Icons.auto_fix_high_outlined),
-                              label: const Text('?�中?�自?�調?�建�?),
+                              label: const Text('命中率自動調參建議'),
                             ),
                           ),
                         ),
@@ -10909,15 +10881,15 @@ void diagnoseStock(StockModel stock, int score) {
                               ),
                               leading: const Icon(Icons.speed),
                               title: Text(
-                                '風險?�數 ${riskSnapshot.score}�?{riskSnapshot.level}',
+                                '風險分數 ${riskSnapshot.score}｜${riskSnapshot.level}',
                               ),
                               subtitle: Text(
                                 _enableAutoRiskAdjustment
                                     ? (_autoRiskAdjustmentSuppressedReason() ==
                                             null
-                                        ? '已�??�自?�調?��?強度 ${_autoRiskAdjustmentStrength} ${_riskAdjustmentIntensityLabel()}）�??�數?��?${_riskScoreBias(riskSnapshot) >= 0 ? '+' : ''}${_riskScoreBias(riskSnapshot)}?��???x${_riskVolumeMultiplier(riskSnapshot).toStringAsFixed(2)}?��???x${_riskTakeProfitMultiplier(riskSnapshot).toStringAsFixed(2)}｜�?7??${_riskScoreTrendText()}'
-                                        : '已�??�自?�調?��?但目?�為${_autoRiskAdjustmentSuppressedReason()}｜�?7??${_riskScoreTrendText()}')
-                                    : '?��?調�?已�??��?使用?��??�數�?,
+                                        ? '已啟用自動調參（強度 ${_autoRiskAdjustmentStrength} ${_riskAdjustmentIntensityLabel()}）：分數門檻 ${_riskScoreBias(riskSnapshot) >= 0 ? '+' : ''}${_riskScoreBias(riskSnapshot)}、量能 x${_riskVolumeMultiplier(riskSnapshot).toStringAsFixed(2)}、停利 x${_riskTakeProfitMultiplier(riskSnapshot).toStringAsFixed(2)}｜近7日 ${_riskScoreTrendText()}'
+                                        : '已啟用自動調參，但目前為${_autoRiskAdjustmentSuppressedReason()}｜近7日 ${_riskScoreTrendText()}')
+                                    : '自動調參已關閉（使用固定參數）',
                               ),
                             ),
                           ),
@@ -10934,25 +10906,25 @@ void diagnoseStock(StockModel stock, int score) {
                                   Row(
                                     children: [
                                       Icon(
-                                        BreakoutModeIcon(
+                                        _breakoutStageModeIcon(
                                             modeRecommendation.mode),
                                         size: 18,
                                       ),
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          '$recommendationSessionLabel建議模�?�?{BreakoutModeLabel(modeRecommendation.mode)}',
+                                          '$recommendationSessionLabel建議模式：${_breakoutStageModeLabel(modeRecommendation.mode)}',
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleSmall,
                                         ),
                                       ),
-                                      if (BreakoutMode !=
+                                      if (_breakoutStageMode !=
                                           modeRecommendation.mode)
                                         FilledButton.tonal(
                                           onPressed: () {
                                             setState(() {
-                                              BreakoutMode =
+                                              _breakoutStageMode =
                                                   modeRecommendation.mode;
                                             });
                                             _savePreferences();
@@ -10960,7 +10932,7 @@ void diagnoseStock(StockModel stock, int score) {
                                           child: const Text('套用建議'),
                                         )
                                       else
-                                        const Chip(label: Text('已�???)),
+                                        const Chip(label: Text('已套用')),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
@@ -10974,7 +10946,7 @@ void diagnoseStock(StockModel stock, int score) {
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        '?��?事件?��?�?{suggestedEventTemplate.label}�?{suggestedEventTemplate.adjustmentSummary}�?,
+                                        '新聞事件判讀：${suggestedEventTemplate.label}（${suggestedEventTemplate.adjustmentSummary}）',
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall,
@@ -11003,8 +10975,8 @@ void diagnoseStock(StockModel stock, int score) {
                                             Icons.settings_backup_restore),
                                         label: Text(
                                           activeEventTemplate == null
-                                              ? '?��?事件?��???
-                                              : '?��?${activeEventTemplate.label}?��???,
+                                              ? '還原事件前參數'
+                                              : '還原${activeEventTemplate.label}前參數',
                                         ),
                                       ),
                                     ),
@@ -11014,7 +10986,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       Padding(
                                         padding: const EdgeInsets.only(top: 4),
                                         child: Text(
-                                          '?��??��??�數�?eventTemplateAutoRestoreDaysLeft 天�??��?件命中�?',
+                                          '自動還原倒數：$eventTemplateAutoRestoreDaysLeft 天（無事件命中）',
                                           style: Theme.of(context)
                                               .textTheme
                                               .labelSmall,
@@ -11039,14 +11011,14 @@ void diagnoseStock(StockModel stock, int score) {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '策略一?�性警�?,
+                                      '策略一致性警示',
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall,
                                     ),
                                     const SizedBox(height: 4),
                                     ...strategyWarnings.take(2).map(
-                                          (warning) => Text('??$warning'),
+                                          (warning) => Text('• $warning'),
                                         ),
                                   ],
                                 ),
@@ -11059,7 +11031,7 @@ void diagnoseStock(StockModel stock, int score) {
                           child: TextField(
                             decoration: const InputDecoration(
                               prefixIcon: Icon(Icons.search),
-                              hintText: '?��?�???��?稱�??��?�??�?,
+                              hintText: '搜尋代號或名稱（免背代號）',
                               isDense: true,
                               border: OutlineInputBorder(),
                             ),
@@ -11084,21 +11056,21 @@ void diagnoseStock(StockModel stock, int score) {
                                       const Icon(Icons.visibility, size: 16),
                                   label: Text(
                                     _showOnlyHoldings
-                                        ? '?��?視�?：只?��???
+                                        ? '目前視圖：只看持股'
                                         : (_showOnlyFavorites
-                                            ? '?��?視�?：只?�收??
-                                            : '?��?視�?：�??�候選'),
+                                            ? '目前視圖：只看收藏'
+                                            : '目前視圖：策略候選'),
                                   ),
                                   visualDensity: VisualDensity.compact,
                                 ),
                                 if (effectiveShowStrongOnly)
                                   const Chip(
-                                    label: Text('強勢?��?'),
+                                    label: Text('強勢限定'),
                                     visualDensity: VisualDensity.compact,
                                   ),
                                 if (_showStrongOnly && !_enableScoring)
                                   const Chip(
-                                    label: Text('強勢?��?（�??�用?��?�?),
+                                    label: Text('強勢限定（需啟用打分）'),
                                     visualDensity: VisualDensity.compact,
                                   ),
                               ],
@@ -11119,7 +11091,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       : Icons.star_border,
                                   size: 16,
                                 ),
-                                label: const Text('?��?模�?'),
+                                label: const Text('收藏模式'),
                                 selected: _showOnlyFavorites,
                                 onSelected: (_) => _toggleShowOnlyFavorites(),
                               ),
@@ -11130,39 +11102,39 @@ void diagnoseStock(StockModel stock, int score) {
                                       : Icons.account_balance_wallet_outlined,
                                   size: 16,
                                 ),
-                                label: const Text('?�股模�?'),
+                                label: const Text('持股模式'),
                                 selected: _showOnlyHoldings,
                                 onSelected: (_) => _toggleShowOnlyHoldings(),
                               ),
-                              ...BreakoutMode.values.map(
+                              ..._BreakoutStageMode.values.map(
                                 (mode) {
                                   final scheme = Theme.of(context).colorScheme;
                                   final selectedColor = switch (mode) {
-                                    BreakoutMode.early =>
+                                    _BreakoutStageMode.early =>
                                       scheme.errorContainer,
-                                    BreakoutMode.confirmed =>
+                                    _BreakoutStageMode.confirmed =>
                                       scheme.primaryContainer,
-                                    BreakoutMode.lowBaseTheme =>
+                                    _BreakoutStageMode.lowBaseTheme =>
                                       scheme.tertiaryContainer,
-                                    BreakoutMode.pullbackRebreak =>
+                                    _BreakoutStageMode.pullbackRebreak =>
                                       scheme.secondaryContainer,
-                                    BreakoutMode.squeezeSetup =>
+                                    _BreakoutStageMode.squeezeSetup =>
                                       scheme.surfaceVariant,
-                                    BreakoutMode.preEventPosition =>
+                                    _BreakoutStageMode.preEventPosition =>
                                       scheme.primaryContainer,
                                   };
                                   final selectedForeground = switch (mode) {
-                                    BreakoutMode.early =>
+                                    _BreakoutStageMode.early =>
                                       scheme.onErrorContainer,
-                                    BreakoutMode.confirmed =>
+                                    _BreakoutStageMode.confirmed =>
                                       scheme.onPrimaryContainer,
-                                    BreakoutMode.lowBaseTheme =>
+                                    _BreakoutStageMode.lowBaseTheme =>
                                       scheme.onTertiaryContainer,
-                                    BreakoutMode.pullbackRebreak =>
+                                    _BreakoutStageMode.pullbackRebreak =>
                                       scheme.onSecondaryContainer,
-                                    BreakoutMode.squeezeSetup =>
+                                    _BreakoutStageMode.squeezeSetup =>
                                       scheme.onSurfaceVariant,
-                                    BreakoutMode.preEventPosition =>
+                                    _BreakoutStageMode.preEventPosition =>
                                       scheme.onPrimaryContainer,
                                   };
 
@@ -11170,16 +11142,16 @@ void diagnoseStock(StockModel stock, int score) {
                                     label: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(BreakoutModeIcon(mode),
+                                        Icon(_breakoutStageModeIcon(mode),
                                             size: 16),
                                         const SizedBox(width: 4),
-                                        Text(BreakoutModeLabel(mode)),
+                                        Text(_breakoutStageModeLabel(mode)),
                                       ],
                                     ),
-                                    selected: BreakoutMode == mode,
+                                    selected: _breakoutStageMode == mode,
                                     selectedColor: selectedColor,
                                     labelStyle: TextStyle(
-                                      color: BreakoutMode == mode
+                                      color: _breakoutStageMode == mode
                                           ? selectedForeground
                                           : Theme.of(context)
                                               .colorScheme
@@ -11191,7 +11163,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         return;
                                       }
                                       setState(() {
-                                        BreakoutMode = mode;
+                                        _breakoutStageMode = mode;
                                         if (_showOnlyHoldings) {
                                           _showOnlyHoldings = false;
                                         }
@@ -11204,8 +11176,8 @@ void diagnoseStock(StockModel stock, int score) {
                               FilterChip(
                                 label: Text(
                                   _enableScoring
-                                      ? '?��?強勢?�場'
-                                      : '?��?強勢?�場（�??��??��??��?',
+                                      ? '只看強勢進場'
+                                      : '只看強勢進場（需先啟用打分）',
                                 ),
                                 selected: effectiveShowStrongOnly,
                                 onSelected: !_enableScoring
@@ -11222,17 +11194,17 @@ void diagnoseStock(StockModel stock, int score) {
                                 color: Colors.red,
                               ),
                               _CountChip(
-                                label: '觀�?,
+                                label: '觀察',
                                 count: tagCounts[_EntrySignalType.watch] ?? 0,
                                 color: Colors.blue,
                               ),
                               _CountChip(
-                                label: '等�?',
+                                label: '等待',
                                 count: tagCounts[_EntrySignalType.wait] ?? 0,
                                 color: Colors.teal,
                               ),
                               _CountChip(
-                                label: '?��?',
+                                label: '避免',
                                 count: tagCounts[_EntrySignalType.avoid] ?? 0,
                                 color: Colors.orange,
                               ),
@@ -11260,7 +11232,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         ),
                                         icon: const Icon(
                                             Icons.playlist_add_check),
-                                        label: const Text('?��??��??�選??),
+                                        label: const Text('收藏目前候選股'),
                                       ),
                                     ),
                                     SizedBox(height: stackedButtonGap),
@@ -11270,7 +11242,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         onPressed: () =>
                                             _exportFavoritesText(scoredStocks),
                                         icon: const Icon(Icons.copy_all),
-                                        label: const Text('?�出?��??��?'),
+                                        label: const Text('匯出收藏文字'),
                                       ),
                                     ),
                                   ],
@@ -11287,7 +11259,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         ),
                                         icon: const Icon(
                                             Icons.playlist_add_check),
-                                        label: const Text('?��??��??�選??),
+                                        label: const Text('收藏目前候選股'),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -11296,7 +11268,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         onPressed: () =>
                                             _exportFavoritesText(scoredStocks),
                                         icon: const Icon(Icons.copy_all),
-                                        label: const Text('?�出?��??��?'),
+                                        label: const Text('匯出收藏文字'),
                                       ),
                                     ),
                                   ],
@@ -11318,10 +11290,10 @@ void diagnoseStock(StockModel stock, int score) {
                         child: Center(
                           child: Text(
                             _showOnlyFavorites
-                                ? '?��??�單?��?沒�?符�?條件?�股�?
+                                ? '收藏名單目前沒有符合條件的股票'
                                 : (_showOnlyHoldings
-                                    ? '?�股清單?��?沒�?符�?條件?�股�?
-                                    : '?��?沒�?符�?條件?�股票�???),
+                                    ? '持股清單目前沒有符合條件的股票'
+                                    : '目前沒有符合條件的股票資料'),
                           ),
                         ),
                       ),
@@ -11365,7 +11337,7 @@ void diagnoseStock(StockModel stock, int score) {
                             scored.score,
                           );
                           final matchedBreakoutModeLabels = matchedBreakoutModes
-                              .map(BreakoutModeLabel)
+                              .map(_breakoutStageModeLabel)
                               .toList();
                           return _StockCard(
                             stock: scored.stock,
@@ -11536,36 +11508,36 @@ class _StockCard extends StatelessWidget {
     final aggressiveEstimatedLossAmount =
         (entryPlan.aggressiveEntry - aggressiveStopPrice) * estimateShares;
     final estimateScopeLabel = lots == null
-        ? '（�? 1 張估算�?'
-        : '（�??��?張數 ${estimateLots.toStringAsFixed(estimateLots % 1 == 0 ? 0 : 2)}�?;
+        ? '（每 1 張估算）'
+        : '（依目前張數 ${estimateLots.toStringAsFixed(estimateLots % 1 == 0 ? 0 : 2)}）';
     final riskTail = switch (premarketRisk.type) {
-      _PremarketRiskType.high => '（盤?�風?��?，嚴?�倉�?�?,
-      _PremarketRiskType.medium => '（盤?�風?�中，�??��?佳�?',
+      _PremarketRiskType.high => '（盤前風險高，嚴控倉位）',
+      _PremarketRiskType.medium => '（盤前風險中，分批較佳）',
       _PremarketRiskType.low => '',
     };
     final (decisionText, decisionBg, decisionFg) = switch (entrySignal.type) {
       _EntrySignalType.strong => (
-          '一?�話：可小倉試??riskTail',
+          '一句話：可小倉試單$riskTail',
           Colors.red,
           Colors.white
         ),
       _EntrySignalType.watch => (
-          '一?�話：�?觀察�?等�?強�???riskTail',
+          '一句話：先觀察，等續強再進$riskTail',
           scheme.secondaryContainer,
           scheme.onSecondaryContainer,
         ),
       _EntrySignalType.wait => (
-          '一?�話：�?等�??�確�?riskTail',
+          '一句話：先等訊號確認$riskTail',
           scheme.tertiaryContainer,
           scheme.onTertiaryContainer,
         ),
       _EntrySignalType.avoid => (
-          '一?�話：�??��?，�?追價$riskTail',
+          '一句話：先避開，不追價$riskTail',
           Colors.orange,
           Colors.white
         ),
       _EntrySignalType.neutral => (
-          '一?�話：�??�風?�設定�?決�?$riskTail',
+          '一句話：先看風險設定再決策$riskTail',
           scheme.surfaceContainerHighest,
           scheme.onSurfaceVariant,
         ),
@@ -11581,7 +11553,7 @@ class _StockCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
-            '$changePrefix${stock.change.toStringAsFixed(2)}\n??${_formatWithThousandsSeparator(stock.volume)}${score == null ? '' : '\n??$score'}',
+            '$changePrefix${stock.change.toStringAsFixed(2)}\n量 ${_formatWithThousandsSeparator(stock.volume)}${score == null ? '' : '\n分 $score'}',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: Colors.white,
@@ -11609,37 +11581,37 @@ class _StockCard extends StatelessWidget {
           runSpacing: 2,
           children: [
             buildActionButton(
-              tooltip: '一?�帶?��?�?,
+              tooltip: '一鍵帶入回測',
               onPressed: onOpenBacktest,
               icon: Icons.analytics,
             ),
             buildActionButton(
-              tooltip: '?��?計�?',
+              tooltip: '部位計算',
               onPressed: onOpenPositionSizing,
               icon: Icons.calculate,
             ),
             buildActionButton(
-              tooltip: '?��?K�?,
+              tooltip: '查看K線',
               onPressed: onOpenKLine,
               icon: Icons.candlestick_chart,
             ),
             buildActionButton(
-              tooltip: 'CMoney討�?',
+              tooltip: 'CMoney討論',
               onPressed: onOpenDiscussion,
               icon: Icons.forum_outlined,
             ),
             buildActionButton(
-              tooltip: '設�??�股',
+              tooltip: '設定持股',
               onPressed: onSetEntryPrice,
               icon: Icons.edit_note,
             ),
             buildActionButton(
-              tooltip: '記�?平�?,
+              tooltip: '記錄平倉',
               onPressed: onRecordTrade,
               icon: Icons.task_alt,
             ),
             buildActionButton(
-              tooltip: isFavorite ? '?��??��?' : '?�入?��?',
+              tooltip: isFavorite ? '取消收藏' : '加入收藏',
               onPressed: onFavoritePressed,
               icon: isFavorite ? Icons.star : Icons.star_border,
             ),
@@ -11706,7 +11678,7 @@ class _StockCard extends StatelessWidget {
                                     .map(
                                       (label) => Chip(
                                         visualDensity: VisualDensity.compact,
-                                        label: Text('?�中�?label'),
+                                        label: Text('命中：$label'),
                                       ),
                                     )
                                     .toList(),
@@ -11725,7 +11697,7 @@ class _StockCard extends StatelessWidget {
                               tilePadding: EdgeInsets.zero,
                               childrenPadding: EdgeInsets.zero,
                               title: Text(
-                                '?��?詳細說�??�進出規�?',
+                                '查看詳細說明與進出規劃',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                               children: [
@@ -11738,7 +11710,7 @@ class _StockCard extends StatelessWidget {
                                       tilePadding: EdgeInsets.zero,
                                       childrenPadding: EdgeInsets.zero,
                                       title: Text(
-                                        '依�??�風??,
+                                        '依據與風險',
                                         style:
                                             Theme.of(context).textTheme.bodySmall,
                                       ),
@@ -11750,8 +11722,8 @@ class _StockCard extends StatelessWidget {
                                             child: Text(
                                               entrySignal.type ==
                                                       _EntrySignalType.strong
-                                                  ? '強勢依�?�?{bullishRationales.join('�?)}'
-                                                  : '?�場依�?�?{bullishRationales.join('�?)}',
+                                                  ? '強勢依據：${bullishRationales.join('｜')}'
+                                                  : '進場依據：${bullishRationales.join('｜')}',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall,
@@ -11760,7 +11732,7 @@ class _StockCard extends StatelessWidget {
                                           Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
-                                              '?��?：此?��?件命中說?��??��?證�?漲�?請搭?��??�控管�?,
+                                              '提醒：此為條件命中說明，非保證上漲；請搭配停損控管。',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .labelSmall,
@@ -11772,7 +11744,7 @@ class _StockCard extends StatelessWidget {
                                           Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
-                                              '?�段?��?�?marketTimingStatusLabel�?9:30 後�?確�?�?,
+                                              '時段提醒：$marketTimingStatusLabel（09:30 後再確認）',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall,
@@ -11792,7 +11764,7 @@ class _StockCard extends StatelessWidget {
                                               _ExitSignalBadge(signal: exitSignal),
                                         ),
                                         const SizedBox(height: 6),
-                                        // 美�?後�?診斷?��?顯示（若??score�?
+                                        // 美化後的診斷報告顯示（若有 score）
                                         if (score != null) ...[
                                           Container(
                                             width: double.infinity,
@@ -11809,7 +11781,7 @@ class _StockCard extends StatelessWidget {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  '診斷?��?',
+                                                  '診斷報告',
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .labelSmall,
@@ -11833,19 +11805,19 @@ class _StockCard extends StatelessWidget {
                                                     final instChips = Row(
                                                       children: [
                                                         Chip(
-                                                          label: Text('外�? ${inst['foreign'] ?? 0}'),
+                                                          label: Text('外資 ${inst['foreign'] ?? 0}'),
                                                           backgroundColor: Colors.blue.shade50,
                                                           avatar: const Icon(Icons.trending_up, size: 16, color: Colors.blue),
                                                         ),
                                                         const SizedBox(width: 6),
                                                         Chip(
-                                                          label: Text('?�信 ${inst['trust'] ?? 0}'),
+                                                          label: Text('投信 ${inst['trust'] ?? 0}'),
                                                           backgroundColor: Colors.purple.shade50,
                                                           avatar: const Icon(Icons.account_balance, size: 16, color: Colors.purple),
                                                         ),
                                                         const SizedBox(width: 6),
                                                         Chip(
-                                                          label: Text('?��? ${inst['dealer'] ?? 0}'),
+                                                          label: Text('自營 ${inst['dealer'] ?? 0}'),
                                                           backgroundColor: Colors.amber.shade50,
                                                           avatar: const Icon(Icons.store, size: 16, color: Colors.amber),
                                                         ),
@@ -11927,7 +11899,7 @@ class _StockCard extends StatelessWidget {
                                       tilePadding: EdgeInsets.zero,
                                       childrenPadding: EdgeInsets.zero,
                                       title: Text(
-                                        '?�出規�?',
+                                        '進出規劃',
                                         style:
                                             Theme.of(context).textTheme.bodySmall,
                                       ),
@@ -11938,8 +11910,8 @@ class _StockCard extends StatelessWidget {
                                             entryPrice == null ||
                                                     pnlPercent == null ||
                                                     lots == null
-                                                ? '?�設定�??��??�本/張數�?
-                                                : '?�本 ${entryPrice!.toStringAsFixed(2)}  張數 ${lots!.toStringAsFixed(lots! % 1 == 0 ? 0 : 2)}  ?��? ${pnlPercent! >= 0 ? '+' : ''}${pnlPercent!.toStringAsFixed(2)}%${pnlAmount == null ? '' : ' (${pnlAmount! >= 0 ? '+' : ''}${_formatCurrency(pnlAmount!)})'}',
+                                                ? '未設定持股（成本/張數）'
+                                                : '成本 ${entryPrice!.toStringAsFixed(2)}  張數 ${lots!.toStringAsFixed(lots! % 1 == 0 ? 0 : 2)}  損益 ${pnlPercent! >= 0 ? '+' : ''}${pnlPercent!.toStringAsFixed(2)}%${pnlAmount == null ? '' : ' (${pnlAmount! >= 0 ? '+' : ''}${_formatCurrency(pnlAmount!)})'}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -11949,7 +11921,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '建議?�場 保�? ${entryPlan.conservativeEntry.toStringAsFixed(2)} / 積極 ${entryPlan.aggressiveEntry.toStringAsFixed(2)}',
+                                            '建議進場 保守 ${entryPlan.conservativeEntry.toStringAsFixed(2)} / 積極 ${entryPlan.aggressiveEntry.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -11958,7 +11930,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '?�追高�???> ${entryPlan.avoidAbovePrice.toStringAsFixed(2)}',
+                                            '防追高參考 > ${entryPlan.avoidAbovePrice.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -11967,7 +11939,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '?�場規�? ?��? ${entryPlan.stopLossPrice.toStringAsFixed(2)} / ?�利 ${entryPlan.takeProfitPrice.toStringAsFixed(2)}',
+                                            '出場規劃 停損 ${entryPlan.stopLossPrice.toStringAsFixed(2)} / 停利 ${entryPlan.takeProfitPrice.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -11976,7 +11948,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '保�?估�?$estimateScopeLabel ?��? ${conservativeTargetSpacePercent >= 0 ? '+' : ''}${conservativeTargetSpacePercent.toStringAsFixed(2)}%｜風??-${conservativeRiskSpacePercent.abs().toStringAsFixed(2)}%｜R ${conservativeR == null ? '-' : conservativeR.toStringAsFixed(2)}',
+                                            '保守估算$estimateScopeLabel 目標 ${conservativeTargetSpacePercent >= 0 ? '+' : ''}${conservativeTargetSpacePercent.toStringAsFixed(2)}%｜風險 -${conservativeRiskSpacePercent.abs().toStringAsFixed(2)}%｜R ${conservativeR == null ? '-' : conservativeR.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall
@@ -11989,7 +11961,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '保�??��? ?�利 ${conservativeEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(conservativeEstimatedProfitAmount)} / ?��? -${_formatCurrency(conservativeEstimatedLossAmount.abs())}',
+                                            '保守金額 停利 ${conservativeEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(conservativeEstimatedProfitAmount)} / 停損 -${_formatCurrency(conservativeEstimatedLossAmount.abs())}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall
@@ -12007,7 +11979,7 @@ class _StockCard extends StatelessWidget {
                                             tilePadding: EdgeInsets.zero,
                                             childrenPadding: EdgeInsets.zero,
                                             title: Text(
-                                              '?��?積極估�?',
+                                              '查看積極估算',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall
@@ -12020,7 +11992,7 @@ class _StockCard extends StatelessWidget {
                                               Align(
                                                 alignment: Alignment.centerLeft,
                                                 child: Text(
-                                                  '積極估�?$estimateScopeLabel ?��? ${aggressiveTargetSpacePercent >= 0 ? '+' : ''}${aggressiveTargetSpacePercent.toStringAsFixed(2)}%｜風??-${aggressiveRiskSpacePercent.abs().toStringAsFixed(2)}%｜R ${aggressiveR == null ? '-' : aggressiveR.toStringAsFixed(2)}',
+                                                  '積極估算$estimateScopeLabel 目標 ${aggressiveTargetSpacePercent >= 0 ? '+' : ''}${aggressiveTargetSpacePercent.toStringAsFixed(2)}%｜風險 -${aggressiveRiskSpacePercent.abs().toStringAsFixed(2)}%｜R ${aggressiveR == null ? '-' : aggressiveR.toStringAsFixed(2)}',
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodySmall
@@ -12034,7 +12006,7 @@ class _StockCard extends StatelessWidget {
                                               Align(
                                                 alignment: Alignment.centerLeft,
                                                 child: Text(
-                                                  '積極?��? ?�利 ${aggressiveEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(aggressiveEstimatedProfitAmount)} / ?��? -${_formatCurrency(aggressiveEstimatedLossAmount.abs())}',
+                                                  '積極金額 停利 ${aggressiveEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(aggressiveEstimatedProfitAmount)} / 停損 -${_formatCurrency(aggressiveEstimatedLossAmount.abs())}',
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodySmall
@@ -12049,7 +12021,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '?�交??${_formatCurrency(stock.tradeValue)}',
+                                            '成交值 ${_formatCurrency(stock.tradeValue)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -12062,7 +12034,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '依�??�風??,
+                                      '依據與風險',
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall,
@@ -12075,8 +12047,8 @@ class _StockCard extends StatelessWidget {
                                       child: Text(
                                         entrySignal.type ==
                                                 _EntrySignalType.strong
-                                            ? '強勢依�?�?{bullishRationales.join('�?)}'
-                                            : '?�場依�?�?{bullishRationales.join('�?)}',
+                                            ? '強勢依據：${bullishRationales.join('｜')}'
+                                            : '進場依據：${bullishRationales.join('｜')}',
                                         style:
                                             Theme.of(context).textTheme.bodySmall,
                                       ),
@@ -12084,7 +12056,7 @@ class _StockCard extends StatelessWidget {
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        '?��?：此?��?件命中說?��??��?證�?漲�?請搭?��??�控管�?,
+                                        '提醒：此為條件命中說明，非保證上漲；請搭配停損控管。',
                                         style:
                                             Theme.of(context).textTheme.labelSmall,
                                       ),
@@ -12095,7 +12067,7 @@ class _StockCard extends StatelessWidget {
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        '?�段?��?�?marketTimingStatusLabel�?9:30 後�?確�?�?,
+                                        '時段提醒：$marketTimingStatusLabel（09:30 後再確認）',
                                         style:
                                             Theme.of(context).textTheme.bodySmall,
                                       ),
@@ -12116,7 +12088,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '?�出規�?',
+                                      '進出規劃',
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall,
@@ -12128,8 +12100,8 @@ class _StockCard extends StatelessWidget {
                                       entryPrice == null ||
                                               pnlPercent == null ||
                                               lots == null
-                                          ? '?�設定�??��??�本/張數�?
-                                          : '?�本 ${entryPrice!.toStringAsFixed(2)}  張數 ${lots!.toStringAsFixed(lots! % 1 == 0 ? 0 : 2)}  ?��? ${pnlPercent! >= 0 ? '+' : ''}${pnlPercent!.toStringAsFixed(2)}%${pnlAmount == null ? '' : ' (${pnlAmount! >= 0 ? '+' : ''}${_formatCurrency(pnlAmount!)})'}',
+                                          ? '未設定持股（成本/張數）'
+                                          : '成本 ${entryPrice!.toStringAsFixed(2)}  張數 ${lots!.toStringAsFixed(lots! % 1 == 0 ? 0 : 2)}  損益 ${pnlPercent! >= 0 ? '+' : ''}${pnlPercent!.toStringAsFixed(2)}%${pnlAmount == null ? '' : ' (${pnlAmount! >= 0 ? '+' : ''}${_formatCurrency(pnlAmount!)})'}',
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ),
@@ -12137,28 +12109,28 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '建議?�場 保�? ${entryPlan.conservativeEntry.toStringAsFixed(2)} / 積極 ${entryPlan.aggressiveEntry.toStringAsFixed(2)}',
+                                      '建議進場 保守 ${entryPlan.conservativeEntry.toStringAsFixed(2)} / 積極 ${entryPlan.aggressiveEntry.toStringAsFixed(2)}',
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ),
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '?�追高�???> ${entryPlan.avoidAbovePrice.toStringAsFixed(2)}',
+                                      '防追高參考 > ${entryPlan.avoidAbovePrice.toStringAsFixed(2)}',
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ),
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '?�場規�? ?��? ${entryPlan.stopLossPrice.toStringAsFixed(2)} / ?�利 ${entryPlan.takeProfitPrice.toStringAsFixed(2)}',
+                                      '出場規劃 停損 ${entryPlan.stopLossPrice.toStringAsFixed(2)} / 停利 ${entryPlan.takeProfitPrice.toStringAsFixed(2)}',
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ),
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '保�?估�?$estimateScopeLabel ?��? ${conservativeTargetSpacePercent >= 0 ? '+' : ''}${conservativeTargetSpacePercent.toStringAsFixed(2)}%｜風??-${conservativeRiskSpacePercent.abs().toStringAsFixed(2)}%｜R ${conservativeR == null ? '-' : conservativeR.toStringAsFixed(2)}',
+                                      '保守估算$estimateScopeLabel 目標 ${conservativeTargetSpacePercent >= 0 ? '+' : ''}${conservativeTargetSpacePercent.toStringAsFixed(2)}%｜風險 -${conservativeRiskSpacePercent.abs().toStringAsFixed(2)}%｜R ${conservativeR == null ? '-' : conservativeR.toStringAsFixed(2)}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -12171,7 +12143,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '保�??��? ?�利 ${conservativeEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(conservativeEstimatedProfitAmount)} / ?��? -${_formatCurrency(conservativeEstimatedLossAmount.abs())}',
+                                      '保守金額 停利 ${conservativeEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(conservativeEstimatedProfitAmount)} / 停損 -${_formatCurrency(conservativeEstimatedLossAmount.abs())}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -12183,7 +12155,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '積極估�?$estimateScopeLabel ?��? ${aggressiveTargetSpacePercent >= 0 ? '+' : ''}${aggressiveTargetSpacePercent.toStringAsFixed(2)}%｜風??-${aggressiveRiskSpacePercent.abs().toStringAsFixed(2)}%｜R ${aggressiveR == null ? '-' : aggressiveR.toStringAsFixed(2)}',
+                                      '積極估算$estimateScopeLabel 目標 ${aggressiveTargetSpacePercent >= 0 ? '+' : ''}${aggressiveTargetSpacePercent.toStringAsFixed(2)}%｜風險 -${aggressiveRiskSpacePercent.abs().toStringAsFixed(2)}%｜R ${aggressiveR == null ? '-' : aggressiveR.toStringAsFixed(2)}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -12196,7 +12168,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '積極?��? ?�利 ${aggressiveEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(aggressiveEstimatedProfitAmount)} / ?��? -${_formatCurrency(aggressiveEstimatedLossAmount.abs())}',
+                                      '積極金額 停利 ${aggressiveEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(aggressiveEstimatedProfitAmount)} / 停損 -${_formatCurrency(aggressiveEstimatedLossAmount.abs())}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -12208,7 +12180,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '?�交??${_formatCurrency(stock.tradeValue)}',
+                                      '成交值 ${_formatCurrency(stock.tradeValue)}',
                                       style:
                                           Theme.of(context).textTheme.bodySmall,
                                     ),
@@ -12272,7 +12244,7 @@ class _EntrySignalBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '?�場�?{signal.label}',
+        '進場：${signal.label}',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: foreground,
               fontWeight: FontWeight.w600,
@@ -12305,7 +12277,7 @@ class _PremarketRiskBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '?��?風險�?{risk.label}',
+        '盤前風險：${risk.label}',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: foreground,
               fontWeight: FontWeight.w600,
@@ -12364,7 +12336,7 @@ class _MarketTimingBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '?��??�段�?{status.label}',
+                    '目前時段：${status.label}',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: foreground,
                         ),
@@ -12380,7 +12352,7 @@ class _MarketTimingBanner extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              autoRefreshEnabled ? '�?${autoRefreshMinutes} ?? : '?��??�新',
+              autoRefreshEnabled ? '每 ${autoRefreshMinutes} 分' : '手動更新',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: foreground,
                     fontWeight: FontWeight.w600,
@@ -12428,7 +12400,7 @@ class _MarketNewsCard extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               SizedBox(width: 10),
-              Expanded(child: Text('?��?風險?��??�新�?..')),
+              Expanded(child: Text('新聞風險分析更新中...')),
             ],
           ),
         ),
@@ -12444,7 +12416,7 @@ class _MarketNewsCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '?��?風險?��??��?不可??,
+                '新聞風險分析暫時不可用',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: 4),
@@ -12452,7 +12424,7 @@ class _MarketNewsCard extends StatelessWidget {
               const SizedBox(height: 8),
               FilledButton.tonal(
                 onPressed: onRetry,
-                child: const Text('?�試?��??�新'),
+                child: const Text('重試新聞更新'),
               ),
             ],
           ),
@@ -12466,9 +12438,9 @@ class _MarketNewsCard extends StatelessWidget {
     }
 
     final (background, foreground, label) = switch (data.level) {
-      NewsRiskLevel.high => (Colors.red, Colors.white, '?��?'),
-      NewsRiskLevel.medium => (Colors.orange, Colors.white, '中�?'),
-      NewsRiskLevel.low => (Colors.teal, Colors.white, '?��?'),
+      NewsRiskLevel.high => (Colors.red, Colors.white, '偏高'),
+      NewsRiskLevel.medium => (Colors.orange, Colors.white, '中等'),
+      NewsRiskLevel.low => (Colors.teal, Colors.white, '偏低'),
     };
 
     final topNews = data.items.take(3).toList();
@@ -12494,7 +12466,7 @@ class _MarketNewsCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    '?��?風險�?label (${data.riskScore})',
+                    '新聞風險：$label (${data.riskScore})',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: foreground,
                           fontWeight: FontWeight.w600,
@@ -12504,7 +12476,7 @@ class _MarketNewsCard extends StatelessWidget {
                 const Spacer(),
                 TextButton(
                   onPressed: onRetry,
-                  child: const Text('?�新?��?'),
+                  child: const Text('更新新聞'),
                 ),
               ],
             ),
@@ -12520,7 +12492,7 @@ class _MarketNewsCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '?�中?�鍵�?,
+                  '命中關鍵字',
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
               ),
@@ -12544,7 +12516,7 @@ class _MarketNewsCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '?��?議�?',
+                  '熱門議題',
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
               ),
@@ -12590,23 +12562,23 @@ class _MarketNewsCard extends StatelessWidget {
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: EdgeInsets.zero,
                 title: Text(
-                  '?��??��??�細${topNews.isEmpty ? '' : '�?{topNews.length} ?��?'}',
+                  '查看新聞明細${topNews.isEmpty ? '' : '（${topNews.length} 則）'}',
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 children: [
                   Text(
                     autoDefensiveOnHighNewsRisk
                         ? (isHighNewsRiskDefenseActive
-                            ? '?�大事件模�?：已?��?保�?策略'
-                            : '?�大事件模�?：已?�用（�?風險?�自?��?保�?�?)
-                        : '?�大事件模�?：已?��?',
+                            ? '重大事件模式：已啟動保守策略'
+                            : '重大事件模式：已啟用（高風險時自動切保守）')
+                        : '重大事件模式：已關閉',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 6),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '?�新?��?�?{_formatNewsTime(data.asOf)}',
+                      '更新時間：${_formatNewsTime(data.asOf)}',
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ),
@@ -12623,7 +12595,7 @@ class _MarketNewsCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                          '${news.source}�?{_formatNewsTime(news.publishedAt)}',
+                          '${news.source}｜${_formatNewsTime(news.publishedAt)}',
                         ),
                         onTap: () => onOpenNews(news.link),
                       ),
@@ -12647,13 +12619,13 @@ String _formatNewsTime(DateTime? time) {
   final now = DateTime.now();
   final diff = now.difference(time.toLocal());
   if (diff.inMinutes < 1) {
-    return '?��?';
+    return '剛剛';
   }
   if (diff.inMinutes < 60) {
-    return '${diff.inMinutes} ?��???;
+    return '${diff.inMinutes} 分鐘前';
   }
   if (diff.inHours < 24) {
-    return '${diff.inHours} 小�???;
+    return '${diff.inHours} 小時前';
   }
   return '${time.month.toString().padLeft(2, '0')}/${time.day.toString().padLeft(2, '0')} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 }
@@ -12670,7 +12642,7 @@ class _SignalLegend extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '訊�??��?',
+              '訊號圖例',
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
@@ -12678,14 +12650,14 @@ class _SignalLegend extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: const [
-                _LegendTag(text: '?�場：強?�進場', bgColor: Colors.red),
-                _LegendTag(text: '?�場：�?察進場', bgColor: Colors.blue),
-                _LegendTag(text: '?�場：�?待�???, bgColor: Colors.teal),
-                _LegendTag(text: '?�場：避?�追�?, bgColor: Colors.orange),
-                _LegendTag(text: '?�場：未?�用', bgColor: Colors.grey),
-                _LegendTag(text: '?�場：�??�警�?, bgColor: Colors.red),
-                _LegendTag(text: '?�場：�??��???, bgColor: Colors.indigo),
-                _LegendTag(text: '?�場：�??��?�?, bgColor: Colors.teal),
+                _LegendTag(text: '進場：強勢進場', bgColor: Colors.red),
+                _LegendTag(text: '進場：觀察進場', bgColor: Colors.blue),
+                _LegendTag(text: '進場：等待訊號', bgColor: Colors.teal),
+                _LegendTag(text: '進場：避免追高', bgColor: Colors.orange),
+                _LegendTag(text: '進場：未啟用', bgColor: Colors.grey),
+                _LegendTag(text: '出場：停損警示', bgColor: Colors.red),
+                _LegendTag(text: '出場：分批停利', bgColor: Colors.indigo),
+                _LegendTag(text: '出場：續抱觀察', bgColor: Colors.teal),
               ],
             ),
           ],
@@ -12777,7 +12749,7 @@ class _ExitSignalBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '?�場�?{signal.label}',
+        '出場：${signal.label}',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: foreground,
               fontWeight: FontWeight.w600,
@@ -12800,7 +12772,7 @@ class _HoldingBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '庫�?',
+        '庫存',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: colorScheme.onTertiaryContainer,
               fontWeight: FontWeight.w700,
@@ -12924,7 +12896,7 @@ class _FilterState {
     required this.volumeWeight,
     required this.changeWeight,
     required this.priceWeight,
-    // fund?�flow / margin options
+    // fund‑flow / margin options
     required this.enableForeignFlowFilter,
     required this.minForeignNet,
     required this.enableTrustFlowFilter,
@@ -13000,7 +12972,7 @@ class _FilterState {
   final bool enableOvernightGapRiskGuard;
   final bool enableSectorExposureCap;
   final int maxHoldingPerSector;
-  final BreakoutMode breakoutStageMode;
+  final _BreakoutStageMode breakoutStageMode;
   final bool enableWeeklyWalkForwardAutoTune;
   final int manualLossStreak;
   final int minScore;
@@ -13027,7 +12999,7 @@ class _EntrySignal {
 class _ModeRecommendation {
   const _ModeRecommendation({required this.mode, required this.reason});
 
-  final BreakoutMode mode;
+  final _BreakoutStageMode mode;
   final String reason;
 }
 
@@ -13765,6 +13737,15 @@ enum _MarketRegime {
   defensive,
 }
 
+enum _BreakoutStageMode {
+  early,
+  confirmed,
+  lowBaseTheme,
+  pullbackRebreak,
+  squeezeSetup,
+  preEventPosition,
+}
+
 enum _MobileUiDensity {
   comfortable,
   compact,
@@ -13833,7 +13814,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('交�??��?'),
+        title: const Text('交易日誌'),
       ),
       body: Column(
         children: [
@@ -13847,7 +13828,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
                   children: [
                     Row(
                       children: [
-                        const Text('顯示?��?),
+                        const Text('顯示最近'),
                         const SizedBox(width: 10),
                         DropdownButton<int>(
                           value: _maxRows,
@@ -13855,7 +13836,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
                               .map(
                                 (value) => DropdownMenuItem<int>(
                                   value: value,
-                                  child: Text('$value �?),
+                                  child: Text('$value 筆'),
                                 ),
                               )
                               .toList(),
@@ -13871,19 +13852,19 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('?��? ${winRate.toStringAsFixed(1)}%�?winCount/$total�?),
+                    Text('勝率 ${winRate.toStringAsFixed(1)}%（$winCount/$total）'),
                     Text(
-                        '平�??�酬 ${avgPnlPercent >= 0 ? '+' : ''}${avgPnlPercent.toStringAsFixed(2)}%'),
+                        '平均報酬 ${avgPnlPercent >= 0 ? '+' : ''}${avgPnlPercent.toStringAsFixed(2)}%'),
                     Text(
-                        '平�??��? ${avgPnlAmount >= 0 ? '+' : ''}${_formatCurrency(avgPnlAmount)}'),
+                        '平均損益 ${avgPnlAmount >= 0 ? '+' : ''}${_formatCurrency(avgPnlAmount)}'),
                     Text(
-                        '總�???${totalPnlAmount >= 0 ? '+' : ''}${_formatCurrency(totalPnlAmount)}'),
+                        '總損益 ${totalPnlAmount >= 0 ? '+' : ''}${_formatCurrency(totalPnlAmount)}'),
                     const SizedBox(height: 6),
                     Text(
-                      'A 策略�?{statsA.count} 筆�??��? ${statsA.winRate.toStringAsFixed(1)}%｜�??�酬 ${statsA.avgPnlPercent >= 0 ? '+' : ''}${statsA.avgPnlPercent.toStringAsFixed(2)}%',
+                      'A 策略：${statsA.count} 筆｜勝率 ${statsA.winRate.toStringAsFixed(1)}%｜均報酬 ${statsA.avgPnlPercent >= 0 ? '+' : ''}${statsA.avgPnlPercent.toStringAsFixed(2)}%',
                     ),
                     Text(
-                      'B 策略�?{statsB.count} 筆�??��? ${statsB.winRate.toStringAsFixed(1)}%｜�??�酬 ${statsB.avgPnlPercent >= 0 ? '+' : ''}${statsB.avgPnlPercent.toStringAsFixed(2)}%',
+                      'B 策略：${statsB.count} 筆｜勝率 ${statsB.winRate.toStringAsFixed(1)}%｜均報酬 ${statsB.avgPnlPercent >= 0 ? '+' : ''}${statsB.avgPnlPercent.toStringAsFixed(2)}%',
                     ),
                   ],
                 ),
@@ -13892,7 +13873,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
           ),
           Expanded(
             child: visible.isEmpty
-                ? const Center(child: Text('沒�??�顯示�?交�?紀??))
+                ? const Center(child: Text('沒有可顯示的交易紀錄'))
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     itemCount: visible.length,
@@ -13913,7 +13894,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
                         child: ListTile(
                           title: Text('${item.stockCode} ${item.stockName}'),
                           subtitle: Text(
-                              '$timeText｜�???{item.strategyTag}�?{item.reason}'),
+                              '$timeText｜策略${item.strategyTag}｜${item.reason}'),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -13984,3 +13965,4 @@ Map<String, Map<String, dynamic>> _compareFilterStates(
   // continue with other fields as needed
   return diffs;
 }
+
