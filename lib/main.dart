@@ -647,7 +647,9 @@ class _StockListPageState extends State<StockListPage> {
     _newsService = NewsService();
     _backtestService = BacktestService();
     _googleDriveBackupService = GoogleDriveBackupService();
-    _stocksFuture = _stockService.fetchAllStocks();
+    final today = DateTime.now();
+    final dateStr = '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    _stocksFuture = _stockService.fetchAllStocksWithFundFlow(dateStr);
     _refreshNews();
     _loadSavedPreferences();
     _refreshGoogleBackupAccount();
@@ -3447,7 +3449,9 @@ class _StockListPageState extends State<StockListPage> {
   }
 
   Future<void> _refreshStocks({bool showFeedback = true}) async {
-    final future = _stockService.fetchAllStocks();
+    final today = DateTime.now();
+    final dateStr = '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final future = _stockService.fetchAllStocksWithFundFlow(dateStr);
     setState(() {
       _stocksFuture = future;
       _isLoadingNews = true;
