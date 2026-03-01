@@ -13,6 +13,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'models/market_news.dart';
 import 'models/stock_model.dart';
 import 'pages/backtest_page.dart';
+import 'pages/portfolio_page.dart';
+import 'pages/strategy_comparison_page.dart';
 import 'services/backtest_service.dart';
 import 'services/breakout_filter_service.dart';
 import 'services/google_drive_backup_service.dart';
@@ -8791,6 +8793,22 @@ class _StockListPageState extends State<StockListPage> {
     );
   }
 
+  Future<void> _openPortfolioPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const PortfolioPage(),
+      ),
+    );
+  }
+
+  Future<void> _openStrategyComparisonPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const StrategyComparisonPage(),
+      ),
+    );
+  }
+
   Future<_BatchCostResult?> _openBatchCostCalculatorDialog({
     required double defaultPrice,
     required double defaultLots,
@@ -11454,6 +11472,10 @@ void diagnoseStock(StockModel stock, int score) {
                         _openTradeJournalPage();
                       case _CompactTopAction.testNotification:
                         _sendTestNotification();
+                      case _CompactTopAction.portfolio:
+                        _openPortfolioPage();
+                      case _CompactTopAction.strategyComparison:
+                        _openStrategyComparisonPage();
                     }
                   },
                   itemBuilder: (context) => const [
@@ -11482,6 +11504,22 @@ void diagnoseStock(StockModel stock, int score) {
                       ),
                     ),
                     PopupMenuItem<_CompactTopAction>(
+                      value: _CompactTopAction.portfolio,
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.card_giftcard),
+                        title: Text('我的持倉'),
+                      ),
+                    ),
+                    PopupMenuItem<_CompactTopAction>(
+                      value: _CompactTopAction.strategyComparison,
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.assessment),
+                        title: Text('策略對比'),
+                      ),
+                    ),
+                    PopupMenuItem<_CompactTopAction>(
                       value: _CompactTopAction.testNotification,
                       child: ListTile(
                         dense: true,
@@ -11507,6 +11545,16 @@ void diagnoseStock(StockModel stock, int score) {
                   tooltip: '交易日誌',
                   onPressed: _openTradeJournalPage,
                   icon: const Icon(Icons.menu_book),
+                ),
+                IconButton(
+                  tooltip: '我的持倉',
+                  onPressed: _openPortfolioPage,
+                  icon: const Icon(Icons.card_giftcard),
+                ),
+                IconButton(
+                  tooltip: '策略對比',
+                  onPressed: _openStrategyComparisonPage,
+                  icon: const Icon(Icons.assessment),
                 ),
                 IconButton(
                   tooltip: '測試提醒',
@@ -16531,6 +16579,8 @@ enum _CompactTopAction {
   morningScan,
   tradeJournal,
   testNotification,
+  portfolio,
+  strategyComparison,
 }
 
 class _TradeJournalPage extends StatefulWidget {
