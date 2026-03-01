@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, prefer_const_constructors, prefer_const_declarations, unnecessary_brace_in_string_interps, prefer_interpolation_to_compose_strings, deprecated_member_use
+﻿// ignore_for_file: use_build_context_synchronously, prefer_const_constructors, prefer_const_declarations, unnecessary_brace_in_string_interps, prefer_interpolation_to_compose_strings, deprecated_member_use
 
 import 'dart:convert';
 import 'dart:async';
@@ -13,6 +13,7 @@ import 'models/market_news.dart';
 import 'models/stock_model.dart';
 import 'pages/backtest_page.dart';
 import 'services/backtest_service.dart';
+import 'services/breakout_filter_service.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/news_service.dart';
 import 'services/notification_service.dart';
@@ -122,6 +123,10 @@ class _StockListPageState extends State<StockListPage> {
       'diagnostic.dailyContextArchive';
   static const String _dailyFilterStatsKey =
       'diagnostic.dailyFilterStats';
+    static const String _dailyAutoInsightArchiveKey =
+      'diagnostic.dailyAutoInsightArchive';
+    static const String _autoDailyInsightEnabledKey =
+      'diagnostic.autoDailyInsightEnabled';
     static const String _parameterChangeAuditHistoryKey =
       'diagnostic.parameterChangeAuditHistory';
   // 三大法人、融資篩選設定
@@ -353,7 +358,7 @@ class _StockListPageState extends State<StockListPage> {
     const _SectorRule(start: 11, end: 17, group: '食品/塑化'),
     const _SectorRule(start: 20, end: 24, group: '鋼鐵/電子'),
     const _SectorRule(start: 25, end: 29, group: '通訊/半導體'),
-    const _SectorRule(start: 58, end: 59, group: '金融'),
+    _SectorRule(start: 58, end: 59, group: '金融'),
   ];
   int _maxPriceThreshold = 50;
   int _surgeVolumeThreshold = 10000000;
@@ -424,6 +429,8 @@ class _StockListPageState extends State<StockListPage> {
   final List<_DailyCandidateSnapshot> _dailyCandidateArchive =
       <_DailyCandidateSnapshot>[];
   final List<_DailyFilterStats> _dailyFilterStats = <_DailyFilterStats>[];
+  final List<_DailyAutoInsightSnapshot> _dailyAutoInsightArchive =
+      <_DailyAutoInsightSnapshot>[];
     final List<_DailyPredictionSnapshot> _dailyPredictionArchive =
       <_DailyPredictionSnapshot>[];
     final List<_DailyContextSnapshot> _dailyContextArchive =
@@ -433,10 +440,20 @@ class _StockListPageState extends State<StockListPage> {
     Map<String, String> _lastCoreSelectionParamsSnapshot = <String, String>{};
     String? _nextPreferenceSaveSource;
   bool _diagnosticSnapshotPersistScheduled = false;
+  bool _autoDailyInsightEnabled = true;
   int _riskBudgetPerTrade = 3000;
   double _latestVolumeReference = 10000000;
   // keep last fetched stock list for weight optimization
   List<StockModel> _latestStocks = <StockModel>[];
+
+  // 建議購買清單參數配置
+  int _recommendedMinForeignNet = 10000000; // 外資淨買 >= 10M
+  int _recommendedMinTrustNet = 10000000;   // 投信淨買 >= 10M
+  int _recommendedMinScore = 60;            // 分數 >= 60
+  int _recommendedMinTradeValue = 3000000000; // 成交值 >= 30億
+  bool _recommendedEnableScoring = true;
+  bool _recommendedEnableForeignFilter = true;
+  bool _recommendedEnableTrustFilter = true;
 
   DateTime? _lockedMarketAverageVolumeDate;
   int? _lockedMarketAverageVolume;
@@ -665,8 +682,11 @@ class _StockListPageState extends State<StockListPage> {
         ..clear()
         ..addAll(prefs.getStringList(_favoritesKey) ?? const <String>[]);
       _tradeJournalEntries.clear();
-      _replaceSectorRulesFromText(
+      final normalizedSectorRulesText = _normalizeLegacySectorRulesText(
         prefs.getString(_sectorRulesTextKey) ?? _defaultSectorRulesText,
+      );
+      _replaceSectorRulesFromText(
+        normalizedSectorRulesText,
       );
       _breakoutStreakByCode.clear();
       final rawBreakoutStreak = prefs.getString(_breakoutStreakByCodeKey);
@@ -794,6 +814,30 @@ class _StockListPageState extends State<StockListPage> {
           );
         }
       }
+      _dailyAutoInsightArchive.clear();
+      final rawDailyAutoInsightArchive =
+          prefs.getString(_dailyAutoInsightArchiveKey);
+      if (rawDailyAutoInsightArchive != null &&
+          rawDailyAutoInsightArchive.isNotEmpty) {
+        final decoded = jsonDecode(rawDailyAutoInsightArchive);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final parsed = _DailyAutoInsightSnapshot.fromJson(
+                Map<String, dynamic>.from(item),
+              );
+              if (parsed != null) {
+                _dailyAutoInsightArchive.add(parsed);
+              }
+            }
+          }
+          _dailyAutoInsightArchive.sort(
+            (a, b) => b.dateKey.compareTo(a.dateKey),
+          );
+        }
+      }
+      _autoDailyInsightEnabled =
+          prefs.getBool(_autoDailyInsightEnabledKey) ?? _autoDailyInsightEnabled;
       _dailyPredictionArchive.clear();
       final rawDailyPredictionArchive =
           prefs.getString(_dailyPredictionArchiveKey);
@@ -1160,6 +1204,21 @@ class _StockListPageState extends State<StockListPage> {
         _lastCoreSelectionParamsSnapshot =
             _buildCoreSelectionParamsSnapshot();
       }
+      // 加載推薦參數配置
+      _recommendedMinForeignNet =
+          prefs.getInt('recommend.minForeignNet') ?? _recommendedMinForeignNet;
+      _recommendedMinTrustNet =
+          prefs.getInt('recommend.minTrustNet') ?? _recommendedMinTrustNet;
+      _recommendedMinScore =
+          prefs.getInt('recommend.minScore') ?? _recommendedMinScore;
+      _recommendedMinTradeValue =
+          prefs.getInt('recommend.minTradeValue') ?? _recommendedMinTradeValue;
+      _recommendedEnableScoring =
+          prefs.getBool('recommend.enableScoring') ?? _recommendedEnableScoring;
+      _recommendedEnableForeignFilter = prefs.getBool('recommend.enableForeignFilter') ??
+          _recommendedEnableForeignFilter;
+      _recommendedEnableTrustFilter =
+          prefs.getBool('recommend.enableTrustFilter') ?? _recommendedEnableTrustFilter;
     });
 
     _configureAutoRefreshTimer();
@@ -1453,6 +1512,11 @@ class _StockListPageState extends State<StockListPage> {
       jsonEncode(_dailyFilterStats.map((entry) => entry.toJson()).toList()),
     );
     await prefs.setString(
+      _dailyAutoInsightArchiveKey,
+      jsonEncode(
+          _dailyAutoInsightArchive.map((entry) => entry.toJson()).toList()),
+    );
+    await prefs.setString(
       _dailyPredictionArchiveKey,
       jsonEncode(_dailyPredictionArchive.map((entry) => entry.toJson()).toList()),
     );
@@ -1484,6 +1548,18 @@ class _StockListPageState extends State<StockListPage> {
       _lockSelectionParametersKey,
       _lockSelectionParameters,
     );
+    await prefs.setBool(
+      _autoDailyInsightEnabledKey,
+      _autoDailyInsightEnabled,
+    );
+    // 保存推薦參數配置
+    await prefs.setInt('recommend.minForeignNet', _recommendedMinForeignNet);
+    await prefs.setInt('recommend.minTrustNet', _recommendedMinTrustNet);
+    await prefs.setInt('recommend.minScore', _recommendedMinScore);
+    await prefs.setInt('recommend.minTradeValue', _recommendedMinTradeValue);
+    await prefs.setBool('recommend.enableScoring', _recommendedEnableScoring);
+    await prefs.setBool('recommend.enableForeignFilter', _recommendedEnableForeignFilter);
+    await prefs.setBool('recommend.enableTrustFilter', _recommendedEnableTrustFilter);
   }
 
   Future<void> _savePreferencesTagged(String source) async {
@@ -1680,12 +1756,42 @@ class _StockListPageState extends State<StockListPage> {
     required Set<String> coreCandidateCodes,
     required Set<String> limitedCodes,
     required Set<String> strongOnlyCodes,
+    required Map<String, List<String>> rejectedReasonsByCode,
   }) {
     final now = DateTime.now();
     final dateKey = _calendarDayKey(now);
     final core = coreCandidateCodes.toList()..sort();
     final limited = limitedCodes.toList()..sort();
     final strong = strongOnlyCodes.toList()..sort();
+    final normalizedRejectedReasons = <String, List<String>>{};
+    final rejectedKeys = rejectedReasonsByCode.keys.toList()..sort();
+    for (final code in rejectedKeys.take(120)) {
+      final reasons = (rejectedReasonsByCode[code] ?? const <String>[])
+          .map((value) => value.trim())
+          .where((value) => value.isNotEmpty)
+          .take(3)
+          .toList();
+      if (reasons.isNotEmpty) {
+        normalizedRejectedReasons[code] = reasons;
+      }
+    }
+
+    bool sameRejectedReasonMap(
+      Map<String, List<String>> a,
+      Map<String, List<String>> b,
+    ) {
+      if (a.length != b.length) {
+        return false;
+      }
+      for (final key in a.keys) {
+        final left = a[key];
+        final right = b[key];
+        if (left == null || right == null || !listEquals(left, right)) {
+          return false;
+        }
+      }
+      return true;
+    }
 
     final next = _DailyCandidateSnapshot(
       dateKey: dateKey,
@@ -1693,6 +1799,7 @@ class _StockListPageState extends State<StockListPage> {
       coreCandidateCodes: core,
       limitedCandidateCodes: limited,
       strongOnlyCodes: strong,
+      rejectedReasonsByCode: normalizedRejectedReasons,
     );
 
     final index = _dailyCandidateArchive.indexWhere((item) => item.dateKey == dateKey);
@@ -1700,7 +1807,11 @@ class _StockListPageState extends State<StockListPage> {
       final prev = _dailyCandidateArchive[index];
       if (listEquals(prev.coreCandidateCodes, next.coreCandidateCodes) &&
           listEquals(prev.limitedCandidateCodes, next.limitedCandidateCodes) &&
-          listEquals(prev.strongOnlyCodes, next.strongOnlyCodes)) {
+          listEquals(prev.strongOnlyCodes, next.strongOnlyCodes) &&
+          sameRejectedReasonMap(
+            prev.rejectedReasonsByCode,
+            next.rejectedReasonsByCode,
+          )) {
         return;
       }
       _dailyCandidateArchive[index] = next;
@@ -1867,6 +1978,127 @@ class _StockListPageState extends State<StockListPage> {
     _scheduleDiagnosticsSnapshotPersist();
   }
 
+  _DailyAutoInsightSnapshot _buildDailyAutoInsightSnapshot(DateTime now) {
+    final dateKey = _calendarDayKey(now);
+    final recent30 = now.subtract(const Duration(days: 30));
+    final recent7 = now.subtract(const Duration(days: 7));
+
+    List<double> valuesOf(
+      _EntrySignalType type,
+      double? Function(_SignalTrackEntry entry) getter,
+    ) {
+      return _signalTrackEntries
+          .where((entry) =>
+              entry.signalType == type && !entry.date.isBefore(recent30))
+          .map(getter)
+          .whereType<double>()
+          .toList();
+    }
+
+    double winRate(List<double> values) {
+      if (values.isEmpty) {
+        return 0;
+      }
+      final wins = values.where((value) => value > 0).length;
+      return (wins / values.length) * 100;
+    }
+
+    final strong1 = valuesOf(_EntrySignalType.strong, (entry) => entry.return1Day);
+    final watch1 = valuesOf(_EntrySignalType.watch, (entry) => entry.return1Day);
+    final strong3 = valuesOf(_EntrySignalType.strong, (entry) => entry.return3Day);
+    final watch3 = valuesOf(_EntrySignalType.watch, (entry) => entry.return3Day);
+
+    final recentPredictions = _dailyPredictionArchive
+        .where((entry) {
+          final date = DateTime.tryParse(entry.dateKey);
+          if (date == null) {
+            return false;
+          }
+          return !date.isBefore(recent7);
+        })
+        .toList();
+    final avgDailyCandidates = recentPredictions.isEmpty
+        ? 0.0
+        : recentPredictions
+                .map((entry) => entry.rows.length)
+                .fold<int>(0, (sum, value) => sum + value) /
+            recentPredictions.length;
+
+    final strong1Rate = winRate(strong1);
+    final watch1Rate = winRate(watch1);
+    final strong3Rate = winRate(strong3);
+    final watch3Rate = winRate(watch3);
+
+    String summary;
+    if (strong1.length < 12 && watch1.length < 12) {
+      summary = '樣本偏少，先持續累積訊號資料。';
+    } else if (strong1Rate >= 55 && watch1Rate >= 48 && avgDailyCandidates >= 6) {
+      summary = '近期命中穩健，可維持目前策略門檻。';
+    } else if (strong1Rate < 45 || watch1Rate < 38) {
+      summary = '命中率偏弱，建議提高分數門檻並收斂追高上限。';
+    } else if (avgDailyCandidates < 4) {
+      summary = '候選偏少，可微放寬分數或成交值門檻。';
+    } else {
+      summary = '表現中性，建議先維持並觀察下一週。';
+    }
+
+    return _DailyAutoInsightSnapshot(
+      dateKey: dateKey,
+      capturedAt: now,
+      strong1DayWinRate: strong1Rate,
+      watch1DayWinRate: watch1Rate,
+      strong3DayWinRate: strong3Rate,
+      watch3DayWinRate: watch3Rate,
+      averageDailyCandidates: avgDailyCandidates,
+      strong1DaySamples: strong1.length,
+      watch1DaySamples: watch1.length,
+      summary: summary,
+    );
+  }
+
+  void _upsertDailyAutoInsightSnapshot() {
+    if (!_autoDailyInsightEnabled) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final next = _buildDailyAutoInsightSnapshot(now);
+    final index = _dailyAutoInsightArchive
+        .indexWhere((entry) => entry.dateKey == next.dateKey);
+
+    bool same(_DailyAutoInsightSnapshot a, _DailyAutoInsightSnapshot b) {
+      return a.strong1DayWinRate.toStringAsFixed(2) ==
+              b.strong1DayWinRate.toStringAsFixed(2) &&
+          a.watch1DayWinRate.toStringAsFixed(2) ==
+              b.watch1DayWinRate.toStringAsFixed(2) &&
+          a.strong3DayWinRate.toStringAsFixed(2) ==
+              b.strong3DayWinRate.toStringAsFixed(2) &&
+          a.watch3DayWinRate.toStringAsFixed(2) ==
+              b.watch3DayWinRate.toStringAsFixed(2) &&
+          a.averageDailyCandidates.toStringAsFixed(2) ==
+              b.averageDailyCandidates.toStringAsFixed(2) &&
+          a.strong1DaySamples == b.strong1DaySamples &&
+          a.watch1DaySamples == b.watch1DaySamples &&
+          a.summary == b.summary;
+    }
+
+    if (index >= 0) {
+      final prev = _dailyAutoInsightArchive[index];
+      if (same(prev, next)) {
+        return;
+      }
+      _dailyAutoInsightArchive[index] = next;
+    } else {
+      _dailyAutoInsightArchive.insert(0, next);
+    }
+
+    _dailyAutoInsightArchive.sort((a, b) => b.dateKey.compareTo(a.dateKey));
+    if (_dailyAutoInsightArchive.length > 90) {
+      _dailyAutoInsightArchive.removeRange(90, _dailyAutoInsightArchive.length);
+    }
+    _scheduleDiagnosticsSnapshotPersist();
+  }
+
   String _csvCell(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
@@ -1962,6 +2194,59 @@ class _StockListPageState extends State<StockListPage> {
       ].join(','));
     }
     return lines.join('\n');
+  }
+
+  String _buildInsightsCsv({required int lookbackDays}) {
+    final now = DateTime.now();
+    final start = now.subtract(Duration(days: lookbackDays));
+    final rows = _dailyAutoInsightArchive
+        .where((entry) {
+          final date = DateTime.tryParse(entry.dateKey);
+          if (date == null) {
+            return false;
+          }
+          return !date.isBefore(start);
+        })
+        .toList()
+      ..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+
+    final lines = <String>[
+      'date,strong_1d_win_rate,watch_1d_win_rate,strong_3d_win_rate,watch_3d_win_rate,avg_daily_candidates,strong_1d_samples,watch_1d_samples,summary',
+    ];
+    for (final row in rows) {
+      lines.add([
+        _csvCell(row.dateKey),
+        row.strong1DayWinRate.toStringAsFixed(2),
+        row.watch1DayWinRate.toStringAsFixed(2),
+        row.strong3DayWinRate.toStringAsFixed(2),
+        row.watch3DayWinRate.toStringAsFixed(2),
+        row.averageDailyCandidates.toStringAsFixed(2),
+        row.strong1DaySamples.toString(),
+        row.watch1DaySamples.toString(),
+        _csvCell(row.summary),
+      ].join(','));
+    }
+    return lines.join('\n');
+  }
+
+  String _buildAllAnalyticsBundle({required int lookbackDays}) {
+    final predictions = _buildPredictionsCsv(lookbackDays: lookbackDays);
+    final outcomes = _buildOutcomesCsv(lookbackDays: lookbackDays);
+    final context = _buildContextCsv(lookbackDays: lookbackDays);
+    final insights = _buildInsightsCsv(lookbackDays: lookbackDays);
+    return [
+      '# predictions.csv',
+      predictions,
+      '',
+      '# outcomes.csv',
+      outcomes,
+      '',
+      '# context.csv',
+      context,
+      '',
+      '# insights.csv',
+      insights,
+    ].join('\n');
   }
 
   String _buildWeeklyHitRateSummaryText() {
@@ -2313,6 +2598,17 @@ class _StockListPageState extends State<StockListPage> {
                     onPressed: () => Navigator.of(dialogContext).pop(),
                     child: const Text('關閉'),
                   ),
+                  FilledButton(
+                    onPressed: () {
+                      copy(
+                        'analytics_bundle.txt',
+                        _buildAllAnalyticsBundle(
+                          lookbackDays: lookbackDays(),
+                        ),
+                      );
+                    },
+                    child: const Text('一鍵複製全部CSV'),
+                  ),
                   FilledButton.tonal(
                     onPressed: () {
                       copy('predictions.csv', _buildPredictionsCsv(lookbackDays: lookbackDays()));
@@ -2331,6 +2627,12 @@ class _StockListPageState extends State<StockListPage> {
                     },
                     child: const Text('複製 context.csv'),
                   ),
+                  FilledButton.tonal(
+                    onPressed: () {
+                      copy('insights.csv', _buildInsightsCsv(lookbackDays: lookbackDays()));
+                    },
+                    child: const Text('複製 insights.csv'),
+                  ),
                 ],
               );
             },
@@ -2343,7 +2645,7 @@ class _StockListPageState extends State<StockListPage> {
   }
 
   Future<void> _openBullRunReplayDialog() async {
-    final codeController = TextEditingController();
+    final codeController = TextEditingController(text: '2367, 6443, 3481');
     final daysController = TextEditingController(text: '7');
     try {
       await showDialog<void>(
@@ -2354,6 +2656,90 @@ class _StockListPageState extends State<StockListPage> {
               : '';
           return StatefulBuilder(
             builder: (context, setDialogState) {
+              _DailyCandidateSnapshot? previousTradingSnapshot() {
+                if (_dailyCandidateArchive.isEmpty) {
+                  return null;
+                }
+                final sorted = _dailyCandidateArchive.toList()
+                  ..sort((a, b) => b.dateKey.compareTo(a.dateKey));
+                final todayKey = _calendarDayKey(DateTime.now());
+                for (final entry in sorted) {
+                  if (entry.dateKey != todayKey) {
+                    return entry;
+                  }
+                }
+                return sorted.length >= 2 ? sorted[1] : sorted.first;
+              }
+
+              List<String> parseInputCodes() {
+                return codeController.text
+                    .split(RegExp(r'[\s,，;；]+'))
+                    .map((text) => text.trim().toUpperCase())
+                    .where((text) => text.isNotEmpty)
+                    .toSet()
+                    .toList()
+                  ..sort();
+              }
+
+              void runPreviousTradingDayReplay() {
+                if (_dailyCandidateArchive.isEmpty) {
+                  setDialogState(() {
+                    report = '尚無每日候選快照，請先至少更新 1 個交易日。';
+                  });
+                  return;
+                }
+
+                final rawCodes = parseInputCodes();
+                if (rawCodes.isEmpty) {
+                  setDialogState(() {
+                    report = '請輸入要回看的飆股代號（可多檔，以逗號分隔）';
+                  });
+                  return;
+                }
+
+                final previous = previousTradingSnapshot();
+                if (previous == null) {
+                  setDialogState(() {
+                    report = '找不到前一交易日快照。';
+                  });
+                  return;
+                }
+
+                final lines = <String>[
+                  '前一交易日快照：${previous.dateKey}',
+                  '檢查代號：${rawCodes.join('、')}',
+                ];
+
+                var coreHit = 0;
+                var strongHit = 0;
+                for (final code in rawCodes) {
+                  final inCore = previous.coreCandidateCodes.contains(code);
+                  final inTop = previous.limitedCandidateCodes.contains(code);
+                  final inStrong = previous.strongOnlyCodes.contains(code);
+                  if (inCore) {
+                    coreHit += 1;
+                  }
+                  if (inStrong) {
+                    strongHit += 1;
+                  }
+                  final reasons = previous.rejectedReasonsByCode[code] ??
+                      const <String>[];
+                  final reasonText = inCore
+                      ? '命中核心'
+                      : (reasons.isEmpty ? '未命中（舊快照無逐檔原因）' : '未命中：${reasons.join('、')}');
+                  lines.add(
+                    '$code｜核心:${inCore ? 'Y' : 'N'}｜前$_topCandidateLimit:${inTop ? 'Y' : 'N'}｜強勢:${inStrong ? 'Y' : 'N'}｜$reasonText',
+                  );
+                }
+
+                lines.add('命中統計：核心 $coreHit/${rawCodes.length}、強勢 $strongHit/${rawCodes.length}');
+                lines.add('註：此回放是「當日是否入選」驗證，不是未來保證。');
+
+                setDialogState(() {
+                  report = lines.join('\n');
+                });
+              }
+
               void runReplay() {
                 if (_dailyCandidateArchive.isEmpty) {
                   setDialogState(() {
@@ -2362,13 +2748,7 @@ class _StockListPageState extends State<StockListPage> {
                   return;
                 }
 
-                final rawCodes = codeController.text
-                    .split(RegExp(r'[\s,，;；]+'))
-                    .map((text) => text.trim().toUpperCase())
-                    .where((text) => text.isNotEmpty)
-                    .toSet()
-                    .toList()
-                  ..sort();
+                final rawCodes = parseInputCodes();
                 final days = int.tryParse(daysController.text.trim()) ?? 7;
                 final lookbackDays = days.clamp(3, 45);
 
@@ -2484,6 +2864,11 @@ class _StockListPageState extends State<StockListPage> {
                   ),
                 ),
                 actions: [
+                  FilledButton.tonalIcon(
+                    onPressed: runPreviousTradingDayReplay,
+                    icon: const Icon(Icons.flash_on_outlined),
+                    label: const Text('一鍵檢查前一交易日'),
+                  ),
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
                     child: const Text('關閉'),
@@ -2543,9 +2928,19 @@ class _StockListPageState extends State<StockListPage> {
     return parsed;
   }
 
+  String _normalizeLegacySectorRulesText(String raw) {
+    return raw
+        .replaceAll('Food/Plastic', '食品/塑化')
+        .replaceAll('Steel/Metal', '鋼鐵/電子')
+        .replaceAll('Electronics/Oil', '通訊/半導體')
+        .replaceAll('Energy', '金融');
+  }
+
   void _replaceSectorRulesFromText(String raw) {
     final trimmed = raw.trim();
-    final source = trimmed.isEmpty ? _defaultSectorRulesText : raw;
+    final source = _normalizeLegacySectorRulesText(
+      trimmed.isEmpty ? _defaultSectorRulesText : raw,
+    );
     final parsed = _parseSectorRulesText(source);
     _sectorRules
       ..clear()
@@ -3757,6 +4152,9 @@ class _StockListPageState extends State<StockListPage> {
         if (_minBreakoutStreakDays < 2) {
           warnings.add('連續突破天數偏低，建議至少 2 天。');
         }
+        break;
+      case _BreakoutStageMode.institutionalTrend:
+        warnings.add('目前為法人趨勢續攻模式，重點觀察法人是否持續站在買方。');
         break;
       case _BreakoutStageMode.lowBaseTheme:
         warnings.add('目前為低基期題材模式，請搭配事件風險與停損控管。');
@@ -5957,6 +6355,79 @@ class _StockListPageState extends State<StockListPage> {
     );
   }
 
+  /// 構建週期報告（統計過去N天的推薦清單命中率）
+  ({
+    int daysLookback,
+    double hitRate1D,
+    double hitRate3D,
+    int totalRecommended,
+    int winCount1D,
+    int winCount3D,
+    double avgGain1D,
+    double avgGain3D,
+    String recommendation,
+  })? _buildWeeklyRecommendationReport({int lookbackDays = 7}) {
+    // 從 _signalTrackEntries 統計過去 N 天的表現
+    final now = DateTime.now();
+    final cutoff = now.subtract(Duration(days: lookbackDays));
+    
+    final relevantEntries = _signalTrackEntries
+        .where((e) => e.date.isAfter(cutoff) && 
+                      e.signalType == _EntrySignalType.strong)
+        .toList();
+
+    if (relevantEntries.isEmpty) {
+      return null;
+    }
+
+    var winCount1D = 0;
+    var winCount3D = 0;
+    var totalGain1D = 0.0;
+    var totalGain3D = 0.0;
+
+    for (final entry in relevantEntries) {
+      final ret1D = entry.return1Day ?? 0.0;
+      final ret3D = entry.return3Day ?? 0.0;
+
+      if (ret1D >= 0) winCount1D++;
+      if (ret3D >= 0) winCount3D++;
+
+      totalGain1D += ret1D;
+      totalGain3D += ret3D;
+    }
+
+    final hitRate1D =
+        relevantEntries.isEmpty ? 0.0 : (winCount1D / relevantEntries.length);
+    final hitRate3D =
+        relevantEntries.isEmpty ? 0.0 : (winCount3D / relevantEntries.length);
+    final avgGain1D = totalGain1D / relevantEntries.length;
+    final avgGain3D = totalGain3D / relevantEntries.length;
+
+    // 生成建議
+    String recommendation;
+    if (hitRate1D >= 0.65 && avgGain1D >= 1.5) {
+      recommendation = '表現穩健，可維持當前參數。建議下週繼續追蹤此策略。';
+    } else if (hitRate1D >= 0.50 && avgGain1D >= 0.8) {
+      recommendation = '表現中等，可考慮微調提高分數門檻或法人淨買額度。';
+    } else if (hitRate1D < 0.45 || avgGain1D < 0.5) {
+      recommendation = '表現不理想，建議降低分數要求或擴大法人篩選寬度。';
+    } else {
+      recommendation = '樣本不足，無法評估。';
+    }
+
+    return (
+      daysLookback: lookbackDays,
+      hitRate1D: hitRate1D * 100,
+      hitRate3D: hitRate3D * 100,
+      totalRecommended: relevantEntries.length,
+      winCount1D: winCount1D,
+      winCount3D: winCount3D,
+      avgGain1D: avgGain1D,
+      avgGain3D: avgGain3D,
+      recommendation: recommendation,
+    );
+  }
+
   int _calculateStockScore(StockModel stock) {
     final volumeReference = _latestVolumeReference <= 0
         ? _surgeVolumeThreshold.toDouble()
@@ -5985,6 +6456,150 @@ class _StockListPageState extends State<StockListPage> {
       baseScore = (baseScore * strength).round();
     }
     return baseScore;
+  }
+
+  /// 計算建議購買排序分數（綜合評估法人、分數、成交量、訊號等）
+  double _calculateBuyRecommendationScore(
+    StockModel stock,
+    int score,
+    _EntrySignal signal,
+  ) {
+    double scoreVal = 0.0;
+
+    // 1. 基礎分數權重 (30%)
+    if (_recommendedEnableScoring) {
+      final scoreRatio = (score / 100.0).clamp(0.0, 1.0);
+      scoreVal += scoreRatio * 30.0;
+    } else {
+      scoreVal += 20.0; // 沒有打分時給基礎分
+    }
+
+    // 2. 法人淨買權重 (35%)
+    final totalInstitutional = stock.foreignNet + stock.trustNet;
+    if (totalInstitutional > 0) {
+      // 法人淨買 50M => 滿分，50M以上也是滿分
+      final instRatio = (totalInstitutional / 50000000.0).clamp(0.0, 1.0);
+      scoreVal += instRatio * 35.0;
+    } else {
+      // 法人淨賣時減分
+      scoreVal += 5.0;
+    }
+
+    // 3. 成交量/成交值權重 (20%)
+    final volumeRatio = _latestVolumeReference <= 0
+        ? 0.8
+        : (stock.volume / _latestVolumeReference).clamp(0.0, 2.0);
+    scoreVal += (volumeRatio / 2.0).clamp(0.0, 1.0) * 20.0;
+
+    // 4. 進場訊號權重 (15%)
+    final signalBonus = switch (signal.type) {
+      _EntrySignalType.strong => 15.0,
+      _EntrySignalType.watch => 8.0,
+      _EntrySignalType.wait => 4.0,
+      _EntrySignalType.avoid => 0.0,
+      _EntrySignalType.neutral => 2.0,
+    };
+    scoreVal += signalBonus;
+
+    return scoreVal;
+  }
+
+  /// 生成建議購買清單（前N檔最佳推薦）
+  List<({
+    String code,
+    String name,
+    int score,
+    int foreignNet,
+    int trustNet,
+    int totalInst,
+    double recommendScore,
+    String signal,
+  })> _buildBuyRecommendationList({
+    List<_ScoredStock>? stocks,
+    int topCount = 10,
+  }) {
+    final candidates = stocks ?? <_ScoredStock>[];
+    if (candidates.isEmpty) {
+      return <({
+        String code,
+        String name,
+        int score,
+        int foreignNet,
+        int trustNet,
+        int totalInst,
+        double recommendScore,
+        String signal,
+      })>[];
+    }
+
+    final recommendations = <({
+      String code,
+      String name,
+      int score,
+      int foreignNet,
+      int trustNet,
+      int totalInst,
+      double recommendScore,
+      String signal,
+    })>[];
+
+    for (final scoredStock in candidates) {
+      final stock = scoredStock.stock;
+      final score = scoredStock.score;
+
+      // 檢查是否符合推薦條件
+      if (_recommendedEnableForeignFilter &&
+          stock.foreignNet < _recommendedMinForeignNet) {
+        continue;
+      }
+      if (_recommendedEnableTrustFilter &&
+          stock.trustNet < _recommendedMinTrustNet) {
+        continue;
+      }
+      if (_recommendedEnableScoring && score < _recommendedMinScore) {
+        continue;
+      }
+      if (stock.tradeValue < _recommendedMinTradeValue) {
+        continue;
+      }
+
+      final signal = _evaluateEntrySignal(stock, score);
+      final recommendScore = _calculateBuyRecommendationScore(stock, score, signal);
+      final totalInst = stock.foreignNet + stock.trustNet;
+
+      recommendations.add((
+        code: stock.code,
+        name: stock.name,
+        score: score,
+        foreignNet: stock.foreignNet,
+        trustNet: stock.trustNet,
+        totalInst: totalInst,
+        recommendScore: recommendScore,
+        signal: signal.label,
+      ));
+    }
+
+    // 按推薦分數排序
+    recommendations.sort((a, b) => b.recommendScore.compareTo(a.recommendScore));
+
+    return recommendations.take(topCount).toList();
+  }
+
+  /// 一鍵復原推薦參數到預設值
+  void _resetRecommendedParamsToDefault() {
+    setState(() {
+      _recommendedMinForeignNet = 10000000;
+      _recommendedMinTrustNet = 10000000;
+      _recommendedMinScore = 60;
+      _recommendedMinTradeValue = 3000000000;
+      _recommendedEnableScoring = true;
+      _recommendedEnableForeignFilter = true;
+      _recommendedEnableTrustFilter = true;
+    });
+    _savePreferences();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已復原建議購買清單參數到預設值')),
+    );
   }
 
   int _calculateMarketAverageVolume(List<StockModel> stocks) {
@@ -7225,6 +7840,31 @@ class _StockListPageState extends State<StockListPage> {
       );
     }
 
+    if (!_isEntryFundFlowSafe(stock)) {
+      return _commitImmediateEntrySignal(
+        stock.code,
+        _EntrySignal(
+          label: stock.marginBalanceDiff > 10000000
+              ? '融資冒進（${(_formatWithThousandsSeparator(stock.marginBalanceDiff))}）'
+              : '法人淨流不利',
+          type: _EntrySignalType.wait,
+        ),
+      );
+    }
+
+    // Enhanced check: avoid chasing after big intraday gap (liquidity trap)
+    // If stock moved >2.5% today but has weak score = likely reversal
+    if (score < _effectiveMinScoreThreshold(stock) - 5 &&
+        stock.change >= 2.5) {
+      return _commitImmediateEntrySignal(
+        stock.code,
+        _EntrySignal(
+          label: '追高後質量弱（分數${score}）',
+          type: _EntrySignalType.wait,
+        ),
+      );
+    }
+
     if (!_passesEventRiskExclusion(stock)) {
       return _commitImmediateEntrySignal(
         stock.code,
@@ -7344,6 +7984,7 @@ class _StockListPageState extends State<StockListPage> {
   int _strongScoreBuffer() {
     var buffer = switch (_breakoutStageMode) {
       _BreakoutStageMode.confirmed => 12,
+      _BreakoutStageMode.institutionalTrend => 10,
       _BreakoutStageMode.early => 9,
       _BreakoutStageMode.pullbackRebreak => 9,
       _BreakoutStageMode.preEventPosition => 9,
@@ -7369,6 +8010,7 @@ class _StockListPageState extends State<StockListPage> {
   double _strongVolumeMultiplier() {
     var multiplier = switch (_breakoutStageMode) {
       _BreakoutStageMode.confirmed => 1.15,
+      _BreakoutStageMode.institutionalTrend => 1.08,
       _BreakoutStageMode.early => 1.05,
       _BreakoutStageMode.pullbackRebreak => 1.05,
       _BreakoutStageMode.preEventPosition => 1.0,
@@ -7388,6 +8030,7 @@ class _StockListPageState extends State<StockListPage> {
   double _strongMinChangePercent() {
     return switch (_breakoutStageMode) {
       _BreakoutStageMode.confirmed => 1.2,
+      _BreakoutStageMode.institutionalTrend => 0.7,
       _BreakoutStageMode.early => 0.8,
       _BreakoutStageMode.pullbackRebreak => 0.6,
       _BreakoutStageMode.preEventPosition => 0.5,
@@ -7965,6 +8608,7 @@ class _StockListPageState extends State<StockListPage> {
     return switch (mode) {
       _BreakoutStageMode.early => '剛突破',
       _BreakoutStageMode.confirmed => '確認突破',
+      _BreakoutStageMode.institutionalTrend => '法人趨勢續攻',
       _BreakoutStageMode.lowBaseTheme => '低基期題材',
       _BreakoutStageMode.pullbackRebreak => '回檔再攻',
       _BreakoutStageMode.squeezeSetup => '量縮待噴',
@@ -7976,6 +8620,7 @@ class _StockListPageState extends State<StockListPage> {
     return switch (mode) {
       _BreakoutStageMode.early => Icons.trending_up,
       _BreakoutStageMode.confirmed => Icons.verified,
+      _BreakoutStageMode.institutionalTrend => Icons.account_balance,
       _BreakoutStageMode.lowBaseTheme => Icons.lightbulb,
       _BreakoutStageMode.pullbackRebreak => Icons.replay,
       _BreakoutStageMode.squeezeSetup => Icons.compress,
@@ -7987,6 +8632,7 @@ class _StockListPageState extends State<StockListPage> {
     return switch (_breakoutStageMode) {
       _BreakoutStageMode.early => '尚未進入剛突破型態',
       _BreakoutStageMode.confirmed => '連續突破不足（< $_minBreakoutStreakDays 天）',
+      _BreakoutStageMode.institutionalTrend => '法人趨勢續攻條件不足',
       _BreakoutStageMode.lowBaseTheme => '未達低基期題材條件',
       _BreakoutStageMode.pullbackRebreak => '未達回檔再攻條件',
       _BreakoutStageMode.squeezeSetup => '未達量縮整理待噴條件',
@@ -7999,7 +8645,7 @@ class _StockListPageState extends State<StockListPage> {
     if (snapshot == null || snapshot.items.isEmpty) {
       return false;
     }
-    final keywords = <String>[
+    final positiveKeywords = <String>[
       '題材',
       '合作',
       '新品',
@@ -8009,17 +8655,48 @@ class _StockListPageState extends State<StockListPage> {
       '訂單',
       '轉單',
       '營收',
-      '法說'
+      '法說',
+      '擴產',
+      '增產',
+      '上修',
+      '成長',
     ];
+    final negativeKeywords = <String>[
+      '沒有',
+      '無',
+      '下修',
+      '轉弱',
+      '衰退',
+      '砍單',
+      '不如預期',
+      '低於預期',
+      '轉虧',
+      '虧損',
+      '衰退',
+    ];
+
+    var signalScore = 0;
     for (final item in snapshot.items.take(30)) {
       final title = item.title;
       final hitStock = title.contains(stock.code) || title.contains(stock.name);
-      final hitTheme = keywords.any((keyword) => title.contains(keyword));
-      if (hitStock && hitTheme) {
-        return true;
+      if (!hitStock) {
+        continue;
+      }
+
+      final hitPositive =
+          positiveKeywords.any((keyword) => title.contains(keyword));
+      final hitNegative =
+          negativeKeywords.any((keyword) => title.contains(keyword));
+
+      if (hitPositive) {
+        signalScore += 2;
+      }
+      if (hitNegative) {
+        signalScore -= 3;
       }
     }
-    return false;
+
+    return signalScore >= 2;
   }
 
   bool _hasEventCatalystNewsSupport(StockModel stock) {
@@ -8231,14 +8908,24 @@ class _StockListPageState extends State<StockListPage> {
               stock.tradeValue >= (_minTradeValueThreshold * 0.8))),
       _BreakoutStageMode.confirmed => _passesBreakoutQuality(stock, score) &&
           _passesMultiDayBreakout(stock, score: score),
+      _BreakoutStageMode.institutionalTrend =>
+      (stock.change >= 0.6 &&
+        stock.change <= 3.8 &&
+        volumeRatio >= 1.0 &&
+        score >= (effectiveMinScore - 2).clamp(0, 100) &&
+        stock.tradeValue >= (_minTradeValueThreshold * 0.85) &&
+        (stock.foreignNet + stock.trustNet) >=
+          (_minForeignNet + _minTrustNet).clamp(20000000, 150000000) &&
+        stock.dealerNet >= -15000000 &&
+        stock.marginBalanceDiff <= 25000000),
       _BreakoutStageMode.lowBaseTheme =>
         (stock.closePrice <= (_maxPriceThreshold * 0.65) &&
             stock.change >= -1.0 &&
             stock.change <= 4.5 &&
             volumeRatio >= 0.9 &&
             stock.tradeValue >= (_minTradeValueThreshold * 0.6) &&
-            (_hasThemeNewsSupport(stock) ||
-                score >= (effectiveMinScore - 10).clamp(0, 100))),
+            _hasThemeNewsSupport(stock) &&
+            score >= (effectiveMinScore - 8).clamp(0, 100)),
       _BreakoutStageMode.pullbackRebreak => (stock.change >= 0.5 &&
           stock.change <= 4.0 &&
           volumeRatio >= 1.05 &&
@@ -8303,14 +8990,61 @@ void diagnoseStock(StockModel stock, int score) {
       return false;
     }
 
+    // Use BreakoutFilterService for base detection
+    if (BreakoutFilterService.isLikelyFalseBreakout(
+      stock,
+      score,
+      maxChaseChangePercent: _maxChaseChangePercent,
+      minScoreThreshold: _minScoreThreshold,
+    )) {
+      return true;
+    }
+
+    // Enhanced trap detection: check fund flow consistency
+    final totalInstitutional = stock.foreignNet + stock.trustNet;
     final volumeRatio = _latestVolumeReference <= 0
         ? 0.0
         : stock.volume / _latestVolumeReference;
-    final veryHighChange = stock.change >= (_maxChaseChangePercent + 1);
-    final weakFollowThrough = stock.change >= 3.0 && volumeRatio < 1.1;
-    final weakScoreJump =
-        stock.change >= 2.5 && score < (_minScoreThreshold + 5);
-    return veryHighChange || weakFollowThrough || weakScoreJump;
+
+    // Trap 1: Big move but dealer heavily selling (bearish trap)
+    if (stock.dealerNet < -10000000 && stock.change >= 2.5 && volumeRatio >= 1.1) {
+      return true;
+    }
+
+    // Trap 2: High volume rise but weak institutional support
+    if (stock.change >= 3.0 && volumeRatio >= 1.2 &&
+        totalInstitutional.abs() < 20000000) {
+      return true; // Volume spike without real conviction
+    }
+
+    // Trap 3: Suspicious fund flow (foreign buying but dealer massive selling)
+    if (stock.foreignNet > 30000000 && stock.dealerNet < -20000000) {
+      return true; // Classic pump & dump pattern
+    }
+
+    return false;
+  }
+
+  /// Check if stock is entry-safe based on fund flow and technicals.
+  /// Returns false if stock shows trap/overheated signs.
+  bool _isEntryFundFlowSafe(StockModel stock) {
+    // Only reject severe anomalies; keep normal candidates in pool.
+    final totalInstitutional = stock.foreignNet + stock.trustNet;
+    if (totalInstitutional <= -20000000 && stock.change >= 2.5) {
+      return false;
+    }
+
+    if (stock.marginBalanceDiff > 30000000 && stock.change >= 2.5) {
+      return false;
+    }
+
+    final dealerAndMarginBothPositive =
+        stock.dealerNet > 20000000 && stock.marginBalanceDiff > 20000000;
+    if (dealerAndMarginBothPositive && stock.change >= 3.0) {
+      return false;
+    }
+
+    return true;
   }
 
   bool _passesEventRiskExclusion(StockModel stock) {
@@ -8390,6 +9124,15 @@ void diagnoseStock(StockModel stock, int score) {
       return _ModeRecommendation(
         mode: _BreakoutStageMode.early,
         reason: '盤勢偏多且寬度強（${breadth.toStringAsFixed(2)}），可用剛突破搶第一段。',
+      );
+    }
+
+    if (regime == _MarketRegime.bull &&
+        breadth >= 1.1 &&
+        newsLevel != NewsRiskLevel.high) {
+      return _ModeRecommendation(
+        mode: _BreakoutStageMode.institutionalTrend,
+        reason: '多頭延續且寬度穩健，優先篩法人趨勢續攻，降低追高後反轉機率。',
       );
     }
 
@@ -9138,6 +9881,7 @@ void diagnoseStock(StockModel stock, int score) {
       return switch (mode) {
         _BreakoutStageMode.early => '型態偏「剛突破」，重點看量價是否延續',
         _BreakoutStageMode.confirmed => '型態偏「確認突破」，重點看突破後是否站穩',
+        _BreakoutStageMode.institutionalTrend => '型態偏「法人趨勢續攻」，重點看外資/投信是否續買',
         _BreakoutStageMode.lowBaseTheme => '型態偏「低基期補漲」，通常屬題材輪動接棒',
         _BreakoutStageMode.pullbackRebreak => '型態偏「回檔再攻」，重點看回測後再放量',
         _BreakoutStageMode.squeezeSetup => '型態偏「量縮待噴」，重點看是否放量脫離盤整',
@@ -9828,6 +10572,10 @@ void diagnoseStock(StockModel stock, int score) {
                 markDrop(item.stock, '疑似假突破');
                 continue;
               }
+              if (!_isEntryFundFlowSafe(item.stock)) {
+                markDrop(item.stock, '法人流向不利/融資過多');
+                continue;
+              }
               if (!_passesEventRiskExclusion(item.stock)) {
                 markDrop(item.stock, '事件風險排除');
                 continue;
@@ -9909,6 +10657,7 @@ void diagnoseStock(StockModel stock, int score) {
               coreCandidateCodes: qualityCodes,
               limitedCodes: limitedCodes,
               strongOnlyCodes: strongOnlyCodes,
+              rejectedReasonsByCode: dropReasonsByCode,
             );
 
             _upsertDailyPredictionArchive(
@@ -9924,6 +10673,7 @@ void diagnoseStock(StockModel stock, int score) {
               marketRegime: marketRegime,
               filterContext: currentFilterContext,
             );
+            _upsertDailyAutoInsightSnapshot();
             final changedFilterContextLabels =
               _lastCandidateFilterContext.isEmpty
                 ? <String>[]
@@ -10331,6 +11081,423 @@ void diagnoseStock(StockModel stock, int score) {
                             child: Text(
                               scanSummary,
                               style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ),
+                        // 建議購買清單卡片
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                              horizontalInset, sectionGap, horizontalInset, 0),
+                          child: Card(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.trending_up),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '建議購買清單（1️⃣ 優先級排行）',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall,
+                                      ),
+                                      const Spacer(),
+                                      TextButton(
+                                        onPressed: _resetRecommendedParamsToDefault,
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                        ),
+                                        child: const Text('🔄 復原預設'),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  // 參數調整區
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 8,
+                                    children: [
+                                      if (_recommendedEnableScoring)
+                                        Chip(
+                                          backgroundColor: Colors.blue[50],
+                                          label: Text(
+                                            '分數 >= ${_recommendedMinScore}',
+                                            style: const TextStyle(
+                                                fontSize: 12),
+                                          ),
+                                          onDeleted: () {
+                                            final ctrl = TextEditingController(text: _recommendedMinScore.toString());
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) =>
+                                                  AlertDialog(
+                                                    title: const Text(
+                                                        '調整最低分數'),
+                                                    content:
+                                                        TextField(
+                                                          controller: ctrl,
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                          onChanged:
+                                                              (val) {
+                                                            final parsed =
+                                                                int.tryParse(
+                                                                    val) ??
+                                                                    60;
+                                                            setState(
+                                                              () {
+                                                                _recommendedMinScore =
+                                                                    parsed
+                                                                        .clamp(
+                                                                            30,
+                                                                            100);
+                                                              },
+                                                            );
+                                                            _savePreferences();
+                                                          },
+                                                        ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          ctrl.dispose();
+                                                          Navigator.pop(ctx);
+                                                        },
+                                                        child: const Text(
+                                                            '確定'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
+                                          },
+                                        ),
+                                      if (_recommendedEnableForeignFilter)
+                                        Chip(
+                                          backgroundColor: Colors.green[50],
+                                          label: Text(
+                                            '外資 >= ${(_recommendedMinForeignNet / 1000000).toStringAsFixed(0)}M',
+                                            style: const TextStyle(
+                                                fontSize: 12),
+                                          ),
+                                          onDeleted: () {
+                                            final ctrl = TextEditingController(text: (_recommendedMinForeignNet / 1000000).toStringAsFixed(0));
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) =>
+                                                  AlertDialog(
+                                                    title: const Text(
+                                                        '調整外資淨買（百萬元）'),
+                                                    content:
+                                                        TextField(
+                                                          controller: ctrl,
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                          onChanged:
+                                                              (val) {
+                                                            final parsed =
+                                                                (int.tryParse(
+                                                                        val) ??
+                                                                    10) *
+                                                                    1000000;
+                                                            setState(
+                                                              () {
+                                                                _recommendedMinForeignNet =
+                                                                    parsed
+                                                                        .clamp(
+                                                                            0,
+                                                                            500000000);
+                                                              },
+                                                            );
+                                                            _savePreferences();
+                                                          },
+                                                        ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          ctrl.dispose();
+                                                          Navigator.pop(ctx);
+                                                        },
+                                                        child: const Text(
+                                                            '確定'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
+                                          },
+                                        ),
+                                      if (_recommendedEnableTrustFilter)
+                                        Chip(
+                                          backgroundColor: Colors.orange[50],
+                                          label: Text(
+                                            '投信 >= ${(_recommendedMinTrustNet / 1000000).toStringAsFixed(0)}M',
+                                            style: const TextStyle(
+                                                fontSize: 12),
+                                          ),
+                                          onDeleted: () {
+                                            final ctrl = TextEditingController(text: (_recommendedMinTrustNet / 1000000).toStringAsFixed(0));
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) =>
+                                                  AlertDialog(
+                                                    title: const Text(
+                                                        '調整投信淨買（百萬元）'),
+                                                    content:
+                                                        TextField(
+                                                          controller: ctrl,
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                          onChanged:
+                                                              (val) {
+                                                            final parsed =
+                                                                (int.tryParse(
+                                                                        val) ??
+                                                                    10) *
+                                                                    1000000;
+                                                            setState(
+                                                              () {
+                                                                _recommendedMinTrustNet =
+                                                                    parsed
+                                                                        .clamp(
+                                                                            0,
+                                                                            500000000);
+                                                              },
+                                                            );
+                                                            _savePreferences();
+                                                          },
+                                                        ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          ctrl.dispose();
+                                                          Navigator.pop(ctx);
+                                                        },
+                                                        child: const Text(
+                                                            '確定'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  // 排行榜列表
+                                  Builder(
+                                    builder: (ctx) {
+                                      final recs =
+                                          _buildBuyRecommendationList(
+                                        stocks: limitedCandidateStocks,
+                                        topCount: 5,
+                                      );
+                                      
+                                      // 診斷為什麼為空
+                                      final isWeekend = DateTime.now().weekday >= 6;
+                                      final hasNoData = limitedCandidateStocks.isEmpty;
+                                      
+                                      if (recs.isEmpty) {
+                                        String diagnostic = '沒有符合推薦條件的股票';
+                                        if (hasNoData) {
+                                          diagnostic = isWeekend
+                                              ? '📅 周末市場關閉，無當日數據\n💡 建議：手動降低參數或等周一開盤'
+                                              : '📊 當日候選數為 0\n💡 建議：降低分數門檻或放寬法人條件';
+                                        } else {
+                                          diagnostic = '${limitedCandidateStocks.length} 檔候選中，無法滿足法人條件\n'
+                                              '💡 建議：降低外資/投信淨買額度（目前：${(_recommendedMinForeignNet/1000000).toStringAsFixed(0)}M/${(_recommendedMinTrustNet/1000000).toStringAsFixed(0)}M）';
+                                        }
+                                        
+                                        return SizedBox(
+                                          height: 120,
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                diagnostic,
+                                                textAlign: TextAlign.center,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall,
+                                              ),
+                                              const SizedBox(height: 10),
+                                              // 顯示週期報告
+                                              Builder(
+                                                builder: (reportCtx) {
+                                                  final report =
+                                                      _buildWeeklyRecommendationReport(
+                                                          lookbackDays: 7);
+                                                  if (report == null) {
+                                                    return const SizedBox
+                                                        .shrink();
+                                                  }
+                                                  return Card(
+                                                    color: Colors.amber[50],
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .all(8),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '📈 過去 7 天表現',
+                                                            style: Theme.of(
+                                                                    reportCtx)
+                                                                .textTheme
+                                                                .labelSmall,
+                                                          ),
+                                                          Text(
+                                                            '命中率：1D ${report.hitRate1D.toStringAsFixed(1)}% (${report.winCount1D}/${report.totalRecommended}) | 3D ${report.hitRate3D.toStringAsFixed(1)}%',
+                                                            style: Theme.of(
+                                                                    reportCtx)
+                                                                .textTheme
+                                                                .labelSmall,
+                                                          ),
+                                                          Text(
+                                                            '平均漲幅：1D ${report.avgGain1D.toStringAsFixed(2)}% | 3D ${report.avgGain3D.toStringAsFixed(2)}%',
+                                                            style: Theme.of(
+                                                                    reportCtx)
+                                                                .textTheme
+                                                                .labelSmall,
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 6),
+                                                          Text(
+                                                            report.recommendation,
+                                                            style: Theme.of(
+                                                                    reportCtx)
+                                                                .textTheme
+                                                                .labelSmall
+                                                                ?.copyWith(
+                                                                  color: Colors
+                                                                      .deepOrange,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: List.generate(
+                                          recs.length,
+                                          (idx) {
+                                            final rec = recs[idx];
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 6),
+                                              child: Row(
+                                                children: [
+                                                  // 排名
+                                                  SizedBox(
+                                                    width: 20,
+                                                    child: Text(
+                                                      '#${idx + 1}',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.red,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  // 代號+名稱
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          '${rec.code}｜${rec.name}',
+                                                          style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '分 ${rec.score}｜外${(rec.foreignNet / 1000000).toStringAsFixed(1)}M｜投${(rec.trustNet / 1000000).toStringAsFixed(1)}M',
+                                                          style: Theme.of(ctx)
+                                                              .textTheme
+                                                              .labelSmall,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  // 訊號 & 推薦度
+                                                  Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.end,
+                                                    children: [
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                              horizontal: 6,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: rec.signal ==
+                                                                  '強勢進場'
+                                                              ? Colors.red
+                                                              : Colors
+                                                                  .yellow[700],
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(4),
+                                                        ),
+                                                        child: Text(
+                                                          rec.signal,
+                                                          style: const TextStyle(
+                                                            color: Colors
+                                                                .white,
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '${rec.recommendScore.toStringAsFixed(1)} 分',
+                                                        style: Theme.of(ctx)
+                                                            .textTheme
+                                                            .labelSmall,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -10861,6 +12028,70 @@ void diagnoseStock(StockModel stock, int score) {
                         Padding(
                           padding: EdgeInsets.fromLTRB(
                               horizontalInset, 4, horizontalInset, 0),
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              child: Builder(
+                                builder: (context) {
+                                  final latest = _dailyAutoInsightArchive.isEmpty
+                                      ? null
+                                      : _dailyAutoInsightArchive.first;
+                                  if (latest == null) {
+                                    return const Text('命中率儀表板：尚無每日分析快照。');
+                                  }
+                                  final strongRate =
+                                      latest.strong1DayWinRate.clamp(0, 100);
+                                  final watchRate =
+                                      latest.watch1DayWinRate.clamp(0, 100);
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '命中率儀表板（${latest.dateKey}）',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '強勢 1D 勝率 ${strongRate.toStringAsFixed(1)}%（樣本 ${latest.strong1DaySamples}）',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      LinearProgressIndicator(
+                                        value: strongRate / 100,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '觀察 1D 勝率 ${watchRate.toStringAsFixed(1)}%（樣本 ${latest.watch1DaySamples}）',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      LinearProgressIndicator(
+                                        value: watchRate / 100,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '平均每日候選 ${latest.averageDailyCandidates.toStringAsFixed(1)} 檔｜${latest.summary}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall,
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                              horizontalInset, 4, horizontalInset, 0),
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: TextButton.icon(
@@ -11114,6 +12345,8 @@ void diagnoseStock(StockModel stock, int score) {
                                       scheme.errorContainer,
                                     _BreakoutStageMode.confirmed =>
                                       scheme.primaryContainer,
+                                    _BreakoutStageMode.institutionalTrend =>
+                                      scheme.secondaryContainer,
                                     _BreakoutStageMode.lowBaseTheme =>
                                       scheme.tertiaryContainer,
                                     _BreakoutStageMode.pullbackRebreak =>
@@ -11128,6 +12361,8 @@ void diagnoseStock(StockModel stock, int score) {
                                       scheme.onErrorContainer,
                                     _BreakoutStageMode.confirmed =>
                                       scheme.onPrimaryContainer,
+                                    _BreakoutStageMode.institutionalTrend =>
+                                      scheme.onSecondaryContainer,
                                     _BreakoutStageMode.lowBaseTheme =>
                                       scheme.onTertiaryContainer,
                                     _BreakoutStageMode.pullbackRebreak =>
@@ -13129,6 +14364,7 @@ class _DailyCandidateSnapshot {
     required this.coreCandidateCodes,
     required this.limitedCandidateCodes,
     required this.strongOnlyCodes,
+    required this.rejectedReasonsByCode,
   });
 
   final String dateKey;
@@ -13136,6 +14372,7 @@ class _DailyCandidateSnapshot {
   final List<String> coreCandidateCodes;
   final List<String> limitedCandidateCodes;
   final List<String> strongOnlyCodes;
+  final Map<String, List<String>> rejectedReasonsByCode;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -13144,6 +14381,7 @@ class _DailyCandidateSnapshot {
       'coreCandidateCodes': coreCandidateCodes,
       'limitedCandidateCodes': limitedCandidateCodes,
       'strongOnlyCodes': strongOnlyCodes,
+      'rejectedReasonsByCode': rejectedReasonsByCode,
     };
   }
 
@@ -13165,6 +14403,32 @@ class _DailyCandidateSnapshot {
       return output;
     }
 
+    Map<String, List<String>> parseReasonMap(dynamic raw) {
+      final output = <String, List<String>>{};
+      if (raw is! Map) {
+        return output;
+      }
+      raw.forEach((key, value) {
+        final code = key.toString().trim();
+        if (code.isEmpty) {
+          return;
+        }
+        final reasons = <String>[];
+        if (value is List) {
+          for (final item in value) {
+            final text = item.toString().trim();
+            if (text.isNotEmpty) {
+              reasons.add(text);
+            }
+          }
+        }
+        if (reasons.isNotEmpty) {
+          output[code] = reasons;
+        }
+      });
+      return output;
+    }
+
     if (dateKey.isEmpty || capturedAt == null) {
       return null;
     }
@@ -13175,6 +14439,7 @@ class _DailyCandidateSnapshot {
       coreCandidateCodes: parseList(json['coreCandidateCodes']),
       limitedCandidateCodes: parseList(json['limitedCandidateCodes']),
       strongOnlyCodes: parseList(json['strongOnlyCodes']),
+      rejectedReasonsByCode: parseReasonMap(json['rejectedReasonsByCode']),
     );
   }
 }
@@ -13339,6 +14604,85 @@ class _DailyContextSnapshot {
       breakoutMode: breakoutMode,
       marketRegime: marketRegime,
       keyParamsHash: keyParamsHash,
+    );
+  }
+}
+
+class _DailyAutoInsightSnapshot {
+  const _DailyAutoInsightSnapshot({
+    required this.dateKey,
+    required this.capturedAt,
+    required this.strong1DayWinRate,
+    required this.watch1DayWinRate,
+    required this.strong3DayWinRate,
+    required this.watch3DayWinRate,
+    required this.averageDailyCandidates,
+    required this.strong1DaySamples,
+    required this.watch1DaySamples,
+    required this.summary,
+  });
+
+  final String dateKey;
+  final DateTime capturedAt;
+  final double strong1DayWinRate;
+  final double watch1DayWinRate;
+  final double strong3DayWinRate;
+  final double watch3DayWinRate;
+  final double averageDailyCandidates;
+  final int strong1DaySamples;
+  final int watch1DaySamples;
+  final String summary;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'dateKey': dateKey,
+      'capturedAt': capturedAt.toIso8601String(),
+      'strong1DayWinRate': strong1DayWinRate,
+      'watch1DayWinRate': watch1DayWinRate,
+      'strong3DayWinRate': strong3DayWinRate,
+      'watch3DayWinRate': watch3DayWinRate,
+      'averageDailyCandidates': averageDailyCandidates,
+      'strong1DaySamples': strong1DaySamples,
+      'watch1DaySamples': watch1DaySamples,
+      'summary': summary,
+    };
+  }
+
+  static _DailyAutoInsightSnapshot? fromJson(Map<String, dynamic> json) {
+    final dateKey = (json['dateKey'] ?? '').toString().trim();
+    final capturedAt = DateTime.tryParse((json['capturedAt'] ?? '').toString());
+    final strong1 =
+        double.tryParse((json['strong1DayWinRate'] ?? '').toString()) ?? 0;
+    final watch1 =
+        double.tryParse((json['watch1DayWinRate'] ?? '').toString()) ?? 0;
+    final strong3 =
+        double.tryParse((json['strong3DayWinRate'] ?? '').toString()) ?? 0;
+    final watch3 =
+        double.tryParse((json['watch3DayWinRate'] ?? '').toString()) ?? 0;
+    final avgCandidates =
+        double.tryParse((json['averageDailyCandidates'] ?? '').toString()) ??
+            0;
+    final strongSamples =
+        int.tryParse((json['strong1DaySamples'] ?? '').toString()) ?? 0;
+    final watchSamples =
+        int.tryParse((json['watch1DaySamples'] ?? '').toString()) ?? 0;
+    final summary = (json['summary'] ?? '').toString();
+
+    if (dateKey.isEmpty || capturedAt == null) {
+      return null;
+    }
+
+    return _DailyAutoInsightSnapshot(
+      dateKey: dateKey,
+      capturedAt: capturedAt,
+      strong1DayWinRate: strong1,
+      watch1DayWinRate: watch1,
+      strong3DayWinRate: strong3,
+      watch3DayWinRate: watch3,
+      averageDailyCandidates: avgCandidates,
+      strong1DaySamples: strongSamples,
+      watch1DaySamples: watchSamples,
+      summary: summary,
     );
   }
 }
@@ -13740,6 +15084,7 @@ enum _MarketRegime {
 enum _BreakoutStageMode {
   early,
   confirmed,
+  institutionalTrend,
   lowBaseTheme,
   pullbackRebreak,
   squeezeSetup,
@@ -13965,3 +15310,4 @@ Map<String, Map<String, dynamic>> _compareFilterStates(
   // continue with other fields as needed
   return diffs;
 }
+

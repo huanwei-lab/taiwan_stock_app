@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:stock_checker/models/stock_model.dart';
 import 'package:stock_checker/services/fund_flow_cache.dart';
+import 'package:stock_checker/services/breakout_filter_service.dart';
 // Replicated defaults from main.dart for offline diagnostics.
 const double _latestVolumeReference = 10000000.0;
 const int _minTradeValueThreshold = 1000000000;
@@ -48,57 +49,36 @@ void diagnoseStockPublic(
   final volumeRatio = latestVolumeReference <= 0 ? 0.0 : stock.volume / latestVolumeReference;
   debugPrint('volumeReference=$latestVolumeReference volumeRatio=${volumeRatio.toStringAsFixed(3)}');
 
-  // early
-  final early = (!enableBreakoutQuality) ? true : (
-    stock.change >= 0.8 &&
-    stock.change <= (_maxChaseChangePercent + 0.5) &&
-    volumeRatio >= 1.0 &&
-    score >= (effectiveMinScore - 8).clamp(0, 100) &&
-    stock.tradeValue >= (minTradeValueThreshold * 0.8)
+  // Use BreakoutFilterService to evaluate all modes
+  final results = BreakoutFilterService.evaluateAllModes(
+    stock,
+    score,
+    latestVolumeReference: latestVolumeReference,
+    minTradeValueThreshold: minTradeValueThreshold,
+    minScoreThreshold: _minScoreThreshold,
+    maxChaseChangePercent: _maxChaseChangePercent,
+    minPriceThreshold: _minPriceThresholdDefault(),
+    enableBreakoutQuality: enableBreakoutQuality,
+    enableMultiDayBreakout: enableMultiDayBreakout,
+    breakoutStreakByCode: breakoutStreakByCode,
+    minBreakoutStreakDays: minBreakoutStreakDays,
   );
 
-  debugPrint('mode=early => ${early ? 'PASS' : 'FAIL'}');
+  // Output results for each mode
+  for (final mode in BreakoutMode.values) {
+    final passed = results[mode] ?? false;
+    debugPrint('mode=${mode.name} => ${passed ? 'PASS' : 'FAIL'}');
+  }
 
-  // squeezeSetup
-    final squeeze = (stock.change.abs() <= 1.2 &&
-      volumeRatio >= 0.75 &&
-      volumeRatio <= 1.1 &&
-      score >= (effectiveMinScore - 12).clamp(0, 100) &&
-      stock.tradeValue >= (minTradeValueThreshold * 0.65));
-  debugPrint('mode=squeezeSetup => ${squeeze ? 'PASS' : 'FAIL'}');
+  // False breakout detection
+  final likelyFalse = BreakoutFilterService.isLikelyFalseBreakout(
+    stock,
+    score,
+    maxChaseChangePercent: _maxChaseChangePercent,
+    minScoreThreshold: _minScoreThreshold,
+  );
+  debugPrint('likelyFalseBreakout=$likelyFalse');
 
-  // pullbackRebreak
-  final pullback = (stock.change >= 0.5 &&
-    stock.change <= 4.0 &&
-    volumeRatio >= 1.05 &&
-    score >= (effectiveMinScore - 5).clamp(0, 100) &&
-    stock.tradeValue >= (minTradeValueThreshold * 0.75));
-  debugPrint('mode=pullbackRebreak => ${pullback ? 'PASS' : 'FAIL'}');
-
-  // lowBaseTheme
-    final lowBase = (stock.closePrice <= (_minPriceThresholdDefault() * 0.65) &&
-      stock.change >= -1.0 &&
-      stock.change <= 4.5 &&
-      volumeRatio >= 0.9 &&
-      stock.tradeValue >= (minTradeValueThreshold * 0.6));
-  debugPrint('mode=lowBaseTheme => ${lowBase ? 'PASS' : 'FAIL'}');
-
-  // preEventPosition (we can't check news here) - check numeric gates
-    final preEvent = (stock.change.abs() <= 3.2 &&
-      volumeRatio >= 0.9 &&
-      score >= (effectiveMinScore - 6).clamp(0, 100) &&
-      stock.tradeValue >= (minTradeValueThreshold * 0.75));
-  debugPrint('mode=preEventPosition => ${preEvent ? 'PASS' : 'FAIL'}');
-
-  // confirmed requires multi-day breakout and breakout quality; we skip complex checks
-  debugPrint('mode=confirmed => SKIPPED (requires multi-day breakout checks)');
-
-  // basic false-breakout heuristics
-  final veryHighChange = stock.change >= (_maxChaseChangePercent + 1);
-  final weakFollowThrough = stock.change >= 3.0 && volumeRatio < 1.1;
-  final weakScoreJump = stock.change >= 2.5 && score < (_minScoreThreshold + 5);
-  final likelyFalse = veryHighChange || weakFollowThrough || weakScoreJump;
-  debugPrint('likelyFalseBreakout=$likelyFalse (veryHighChange=$veryHighChange weakFollowThrough=$weakFollowThrough weakScoreJump=$weakScoreJump)');
   // Confirmed-mode multi-day streak check (if enabled)
   if (enableMultiDayBreakout) {
     final codeStr = stock.code.toString();
@@ -148,48 +128,37 @@ List<String> getDiagnosisReport(
   final volumeRatio = latestVolumeReference <= 0 ? 0.0 : stock.volume / latestVolumeReference;
   lines.add('volumeRatio=${volumeRatio.toStringAsFixed(3)} (ref=$latestVolumeReference)');
 
-  final early = (!enableBreakoutQuality) ? true : (
-    stock.change >= 0.8 &&
-    stock.change <= (_maxChaseChangePercent + 0.5) &&
-    volumeRatio >= 1.0 &&
-    score >= (effectiveMinScore - 8).clamp(0, 100) &&
-    stock.tradeValue >= (minTradeValueThreshold * 0.8)
+  // Use BreakoutFilterService to evaluate all modes
+  final results = BreakoutFilterService.evaluateAllModes(
+    stock,
+    score,
+    latestVolumeReference: latestVolumeReference,
+    minTradeValueThreshold: minTradeValueThreshold,
+    minScoreThreshold: _minScoreThreshold,
+    maxChaseChangePercent: _maxChaseChangePercent,
+    minPriceThreshold: _minPriceThresholdDefault(),
+    enableBreakoutQuality: enableBreakoutQuality,
+    enableMultiDayBreakout: enableMultiDayBreakout,
+    breakoutStreakByCode: breakoutStreakByCode,
+    minBreakoutStreakDays: minBreakoutStreakDays,
   );
-  lines.add('early => ${early ? 'PASS' : 'FAIL'}');
 
-  final squeeze = (stock.change.abs() <= 1.2 &&
-    volumeRatio >= 0.75 &&
-    volumeRatio <= 1.1 &&
-    score >= (effectiveMinScore - 12).clamp(0, 100) &&
-    stock.tradeValue >= (minTradeValueThreshold * 0.65));
-  lines.add('squeezeSetup => ${squeeze ? 'PASS' : 'FAIL'}');
+  // Output results for each mode
+  for (final mode in BreakoutMode.values) {
+    final passed = results[mode] ?? false;
+    lines.add('${mode.name} => ${passed ? 'PASS' : 'FAIL'}');
+  }
 
-  final pullback = (stock.change >= 0.5 &&
-    stock.change <= 4.0 &&
-    volumeRatio >= 1.05 &&
-    score >= (effectiveMinScore - 5).clamp(0, 100) &&
-    stock.tradeValue >= (minTradeValueThreshold * 0.75));
-  lines.add('pullbackRebreak => ${pullback ? 'PASS' : 'FAIL'}');
+  // False breakout detection
+  final likelyFalse = BreakoutFilterService.isLikelyFalseBreakout(
+    stock,
+    score,
+    maxChaseChangePercent: _maxChaseChangePercent,
+    minScoreThreshold: _minScoreThreshold,
+  );
+  lines.add('likelyFalseBreakout=$likelyFalse');
 
-  final lowBase = (stock.closePrice <= (_minPriceThresholdDefault() * 0.65) &&
-    stock.change >= -1.0 &&
-    stock.change <= 4.5 &&
-    volumeRatio >= 0.9 &&
-    stock.tradeValue >= (minTradeValueThreshold * 0.6));
-  lines.add('lowBaseTheme => ${lowBase ? 'PASS' : 'FAIL'}');
-
-  final preEvent = (stock.change.abs() <= 3.2 &&
-    volumeRatio >= 0.9 &&
-    score >= (effectiveMinScore - 6).clamp(0, 100) &&
-    stock.tradeValue >= (minTradeValueThreshold * 0.75));
-  lines.add('preEventPosition => ${preEvent ? 'PASS' : 'FAIL'}');
-
-  final veryHighChange = stock.change >= (_maxChaseChangePercent + 1);
-  final weakFollowThrough = stock.change >= 3.0 && volumeRatio < 1.1;
-  final weakScoreJump = stock.change >= 2.5 && score < (_minScoreThreshold + 5);
-  final likelyFalse = veryHighChange || weakFollowThrough || weakScoreJump;
-  lines.add('likelyFalseBreakout=$likelyFalse (veryHigh=$veryHighChange weakFollow=$weakFollowThrough weakScoreJump=$weakScoreJump)');
-
+  // Confirmed-mode multi-day streak check
   if (enableMultiDayBreakout) {
     final codeStr = stock.code.toString();
     final streak = breakoutStreakByCode != null ? (breakoutStreakByCode[codeStr] ?? 0) : 0;
@@ -197,6 +166,7 @@ List<String> getDiagnosisReport(
     lines.add('confirmedMode: streak=$streak required=$minBreakoutStreakDays confirmed=$confirmed');
   }
 
+  // News/title event matching
   if (newsTitles != null && newsTitles.isNotEmpty) {
     final lowered = newsTitles.map((s) => s.toLowerCase()).toList();
     const keywords = ['merger', 'acquisition', 'supply', 'order', 'contract', 'profit', 'earnings', 'ipo', 'rights', 'subscription'];
