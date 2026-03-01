@@ -11753,35 +11753,75 @@ void diagnoseStock(StockModel stock, int score) {
                                                     crossAxisAlignment:
                                                         CrossAxisAlignment.end,
                                                     children: [
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                              horizontal: 6,
-                                                              vertical: 2,
+                                                      Row(
+                                                        children: [
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                  horizontal: 6,
+                                                                  vertical: 2,
+                                                                ),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: rec.signal ==
+                                                                      '強勢進場'
+                                                                  ? Colors.red
+                                                                  : Colors
+                                                                      .yellow[700],
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(4),
                                                             ),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: rec.signal ==
-                                                                  '強勢進場'
-                                                              ? Colors.red
-                                                              : Colors
-                                                                  .yellow[700],
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(4),
-                                                        ),
-                                                        child: Text(
-                                                          rec.signal,
-                                                          style: const TextStyle(
-                                                            color: Colors
-                                                                .white,
-                                                            fontSize: 10,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .bold,
+                                                            child: Text(
+                                                              rec.signal,
+                                                              style: const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 10,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            ),
                                                           ),
-                                                        ),
+                                                          const SizedBox(width: 6),
+                                                          // 快速查詢推薦績效
+                                                          GestureDetector(
+                                                            onTap: () {
+                                                              final recHistory = _recommendationTrackEntries
+                                                                  .where((e) => e.stockCode == rec.code)
+                                                                  .toList();
+                                                              if (recHistory.isEmpty) {
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: Text('${rec.code} 無推薦記錄'),
+                                                                    duration: const Duration(seconds: 2),
+                                                                  ),
+                                                                );
+                                                              } else {
+                                                                final winCount = recHistory
+                                                                    .where((e) => (e.nextDayReturn ?? 0) >= 0)
+                                                                    .length;
+                                                                final winRate = (winCount / recHistory.length * 100).toStringAsFixed(1);
+                                                                final avgReturn = (recHistory.fold<double>(0, (sum, e) => sum + (e.nextDayReturn ?? 0)) / recHistory.length).toStringAsFixed(2);
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: Text(
+                                                                      '${rec.code} 推薦 ${recHistory.length} 次｜勝率 $winRate%｜平均 ${avgReturn}%',
+                                                                    ),
+                                                                    duration: const Duration(seconds: 3),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            },
+                                                            child: Icon(
+                                                              Icons.info_outline,
+                                                              size: 16,
+                                                              color: Colors.blue[600],
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
                                                       Text(
                                                         '${rec.recommendScore.toStringAsFixed(1)} 分',
