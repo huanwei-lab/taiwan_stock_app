@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'intraday_service.dart';
 import 'notification_service.dart';
+import 'fund_flow_cache.dart';
 import 'dart:developer' as developer;
 
 /// Controller that manages the intraday poller and a persistent on/off flag.
@@ -36,6 +37,13 @@ class IntradayController {
       return c;
     }
 
+    // Ensure fund-flow DB initialized so we can query streaks for confirmed alerts.
+    try {
+      await FundFlowCache.getInstance();
+    } catch (_) {
+      // ignore DB init errors; streak queries will be skipped if DB not ready
+    }
+
     final svc = IntradayService(
       onSnapshot: (snapshot) async {
         if (debug) {
@@ -60,6 +68,23 @@ class IntradayController {
               title: '法人變動: $code',
               body: '外資變動 ${deltaForeign >= 0 ? '+' : ''}$deltaForeign',
             );
+            // confirmed-breakout candidate: if foreign has consecutive buy days
+            try {
+              final minBreakoutDays = prefs.getInt('filter.multiDayBreakout.minDays') ?? 2;
+              if (deltaForeign > 0) {
+                final d = DateTime.now();
+                final dateInt = int.parse('${d.year.toString().padLeft(4, '0')}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}');
+                final foreignStreak = await FundFlowCache.countConsecutiveInstitutionBuyDays(code, dateInt, institution: 'foreign');
+                if (foreignStreak >= minBreakoutDays) {
+                  await NotificationService.showAlert(
+                    title: 'Confirmed Breakout 候選: $code',
+                    body: '外資連日買超 $foreignStreak 天 (delta ${deltaForeign >= 0 ? '+' : ''}$deltaForeign)'
+                  );
+                }
+              }
+            } catch (_) {
+              // ignore DB lookup errors in intraday path
+            }
           }
           if (enableNotifications && deltaMargin.abs() >= (foreignDeltaThreshold)) {
             await NotificationService.showAlert(

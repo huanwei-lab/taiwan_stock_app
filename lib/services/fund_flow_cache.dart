@@ -76,4 +76,43 @@ class FundFlowCache {
     if (v is int) return v;
     return int.tryParse(v.toString());
   }
+
+  /// Count consecutive previous days (including [dateInt]) where any institution
+  /// net buy condition is met. [institution] can be 'foreign','trust','dealer' or 'any'.
+  /// This is a static helper that uses the internal DB. Use when a real DB is
+  /// initialized (i.e., not in test fake caches).
+  static Future<int> countConsecutiveInstitutionBuyDays(
+      String code, int dateInt,
+      {String institution = 'any'}) async {
+    final db = _db!;
+    final rows = await db.query(
+      'eod_rows',
+      columns: ['date', 'foreign_net', 'trust_net', 'dealer_net'],
+      where: 'code = ? AND date <= ?',
+      whereArgs: [code, dateInt],
+      orderBy: 'date DESC',
+    );
+
+    int streak = 0;
+    for (final r in rows) {
+      final f = r['foreign_net'] is int ? r['foreign_net'] as int : int.tryParse(r['foreign_net'].toString()) ?? 0;
+      final t = r['trust_net'] is int ? r['trust_net'] as int : int.tryParse(r['trust_net'].toString()) ?? 0;
+      final d = r['dealer_net'] is int ? r['dealer_net'] as int : int.tryParse(r['dealer_net'].toString()) ?? 0;
+      final any = (f + t + d) > 0;
+      final cond = institution == 'foreign'
+          ? f > 0
+          : institution == 'trust'
+              ? t > 0
+              : institution == 'dealer'
+                  ? d > 0
+                  : any;
+      if (cond) {
+        streak += 1;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }
 }
