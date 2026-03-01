@@ -7239,6 +7239,19 @@ class _StockListPageState extends State<StockListPage> {
       );
     }
 
+    // Enhanced check: avoid chasing after big intraday gap (liquidity trap)
+    // If stock moved >2.5% today but has weak score = likely reversal
+    if (score < _effectiveMinScoreThreshold(stock) - 5 &&
+        stock.change >= 2.5) {
+      return _commitImmediateEntrySignal(
+        stock.code,
+        _EntrySignal(
+          label: '追高後質量弱（分數${score}）',
+          type: _EntrySignalType.wait,
+        ),
+      );
+    }
+
     if (!_passesEventRiskExclusion(stock)) {
       return _commitImmediateEntrySignal(
         stock.code,
