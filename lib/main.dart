@@ -162,6 +162,7 @@ class _StockListPageState extends State<StockListPage> {
       'risk.autoAdjustment.strength';
   static const String _riskScoreHistoryKey = 'risk.autoAdjustment.history';
   static const String _signalTrackEntriesKey = 'signal.track.entries';
+  static const String _recommendationTrackEntriesKey = 'recommendation.track.entries';
   static const String _googleBackupEnabledKey = 'backup.google.enabled';
   static const String _googleBackupLastAtKey = 'backup.google.lastAt';
   static const String _googleBackupEmailKey = 'backup.google.email';
@@ -404,6 +405,7 @@ class _StockListPageState extends State<StockListPage> {
   final List<_TradeJournalEntry> _tradeJournalEntries = <_TradeJournalEntry>[];
   final List<_RiskScorePoint> _riskScoreHistory = <_RiskScorePoint>[];
   final List<_SignalTrackEntry> _signalTrackEntries = <_SignalTrackEntry>[];
+  final List<_RecommendationTrackEntry> _recommendationTrackEntries = <_RecommendationTrackEntry>[];
   final Map<String, double> _entryPriceByCode = <String, double>{};
   final Map<String, double> _positionLotsByCode = <String, double>{};
   final Map<String, _EntrySignalType> _entrySignalTypeByCode =
@@ -759,6 +761,33 @@ class _StockListPageState extends State<StockListPage> {
           }
         }
       }
+
+      // Load recommendation track entries
+      _recommendationTrackEntries.clear();
+      final rawRecTrack = prefs.getString(_recommendationTrackEntriesKey);
+      if ((rawRecTrack ?? '').isNotEmpty) {
+        try {
+          final decoded = jsonDecode(rawRecTrack!);
+          if (decoded is List) {
+            for (final item in decoded) {
+              if (item is Map) {
+                final parsed = _RecommendationTrackEntry.fromJson(
+                  Map<String, dynamic>.from(item),
+                );
+                if (parsed != null) {
+                  _recommendationTrackEntries.add(parsed);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Failed to load recommendation track entries: $e');
+        }
+      }
+      // Clean up old entries (keep last 60 days)
+      final cutoffDate = DateTime.now().subtract(const Duration(days: 60));
+      _recommendationTrackEntries.removeWhere((e) => e.recommendedDate.isBefore(cutoffDate));
+
       _candidateDriftHistory.clear();
       final rawCandidateDriftHistory =
           prefs.getString(_candidateDriftHistoryKey);
@@ -1502,6 +1531,10 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setString(
       _signalTrackEntriesKey,
       jsonEncode(_signalTrackEntries.map((entry) => entry.toJson()).toList()),
+    );
+    await prefs.setString(
+      _recommendationTrackEntriesKey,
+      jsonEncode(_recommendationTrackEntries.map((entry) => entry.toJson()).toList()),
     );
     await prefs.setString(
       _candidateDriftHistoryKey,
@@ -2823,6 +2856,14 @@ class _StockListPageState extends State<StockListPage> {
                     '${latestCoreDate == null ? '' : '｜最近核心命中 $latestCoreDate'}'
                     '${latestStrongDate == null ? '' : '｜最近強勢命中 $latestStrongDate'}',
                   );
+
+                  // 檢查推薦清單中的信息
+                  final recCheck = _checkSurgeStockInRecommendations(code);
+                  if (recCheck.recommendationHits > 0) {
+                    lines.add(
+                      '  📊 推薦清單：${recCheck.summary}',
+                    );
+                  }
                 }
 
                 lines.add(
@@ -3492,6 +3533,8 @@ class _StockListPageState extends State<StockListPage> {
       await _notifyHoldingExitSignals(stocks);
       await _notifyHoldingModeTagChanges(stocks);
       await _notifyMasterTrap(stocks);
+      await _recordRecommendationTrackings(stocks);
+      await _updateRecommendationPerformance(stocks);
       await _maybeAutoBackupToGoogle(showFeedback: false);
       await _maybeAutoApplyRecommendedMode(stocks, showFeedback: showFeedback);
       await _maybeRunWeeklyAutoTune(stocks);
@@ -3960,6 +4003,14 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setString(
       _signalTrackEntriesKey,
       jsonEncode(_signalTrackEntries.map((entry) => entry.toJson()).toList()),
+    );
+  }
+
+  Future<void> _saveRecommendationTrackEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _recommendationTrackEntriesKey,
+      jsonEncode(_recommendationTrackEntries.map((entry) => entry.toJson()).toList()),
     );
   }
 
@@ -6777,6 +6828,197 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setString(
       _riskScoreHistoryKey,
       jsonEncode(_riskScoreHistory.map((point) => point.toJson()).toList()),
+    );
+  }
+
+  /// 記錄今日推薦清單中的股票
+  Future<void> _recordRecommendationTrackings(List<StockModel> stocks) async {
+    if (stocks.isEmpty) {
+      return;
+    }
+
+    final today = DateTime.now();
+
+    // 檢查今天是否已經記錄過推薦清單
+    final todayTrackings = _recommendationTrackEntries
+        .where((e) => _isSameCalendarDay(e.recommendedDate, today))
+        .toList();
+
+    if (todayTrackings.isNotEmpty) {
+      // 已經記錄過今天的推薦清單，不再重複記錄
+      return;
+    }
+
+    // 評分所有股票並生成推薦清單
+    final scoredStocks = <_ScoredStock>[];
+
+    for (final stock in stocks) {
+      final score = _calculateStockScore(stock);
+      scoredStocks.add(_ScoredStock(stock: stock, score: score));
+    }
+
+    final recommendations = _buildBuyRecommendationList(
+      stocks: scoredStocks,
+      topCount: 10,
+    );
+
+    if (recommendations.isEmpty) {
+      return;
+    }
+
+    // 記錄新的推薦清單
+    for (int i = 0; i < recommendations.length; i++) {
+      final rec = recommendations[i];
+
+      final entry = _RecommendationTrackEntry(
+        recommendedDate: today,
+        stockCode: rec.code,
+        stockName: rec.name,
+        recommendationScore: rec.recommendScore,
+        rankInRecommendation: i + 1,
+        foreignNet: rec.foreignNet,
+        trustNet: rec.trustNet,
+      );
+
+      _recommendationTrackEntries.add(entry);
+    }
+
+    // 保存到本地存儲
+    await _saveRecommendationTrackEntries();
+  }
+
+  /// 更新推薦清單中股票的隔日表現
+  Future<void> _updateRecommendationPerformance(List<StockModel> stocks) async {
+    if (stocks.isEmpty || _recommendationTrackEntries.isEmpty) {
+      return;
+    }
+
+    final today = DateTime.now();
+    bool hasUpdates = false;
+
+    // 查找昨天的推薦清單
+    final yesterday = today.subtract(const Duration(days: 1));
+    final yesterdayRecommendations = _recommendationTrackEntries
+        .where((e) => _isSameCalendarDay(e.recommendedDate, yesterday))
+        .toList();
+
+    for (final rec in yesterdayRecommendations) {
+      if (rec.nextDayReturn != null) {
+        // 已經更新過，skip
+        continue;
+      }
+
+      StockModel? stock;
+      try {
+        stock = stocks.firstWhere((s) => s.code == rec.stockCode);
+      } catch (e) {
+        // Stock not found
+        continue;
+      }
+
+      // 計算隔日報酬
+      // 假設推薦清單生成時使用的是 closePrice
+      // 隔日報酬 = (今日收盤價 - 推薦時收盤價) / 推薦時收盤價 * 100
+      // 由於我們沒有推薦時的精確價格，這裡使用一個簡化的計算
+      rec.nextDayReturn = stock.change; // 使用當日漲幅作為隔日報酬
+      hasUpdates = true;
+    }
+
+    if (hasUpdates) {
+      await _saveRecommendationTrackEntries();
+    }
+  }
+
+  /// 計算推薦清單的準確率
+  ({
+    int totalRecommendations,
+    int gainCount,
+    double gainRate,
+    double avgGain,
+    int lossCount,
+    double avgLoss,
+  }) _calculateRecommendationAccuracy({int lookbackDays = 7}) {
+    final cutoff = DateTime.now().subtract(Duration(days: lookbackDays));
+    final relevantTrackings = _recommendationTrackEntries
+        .where((e) => e.recommendedDate.isAfter(cutoff) && e.nextDayReturn != null)
+        .toList();
+
+    if (relevantTrackings.isEmpty) {
+      return (
+        totalRecommendations: 0,
+        gainCount: 0,
+        gainRate: 0,
+        avgGain: 0,
+        lossCount: 0,
+        avgLoss: 0,
+      );
+    }
+
+    var gainCount = 0;
+    var lossCount = 0;
+    var totalGain = 0.0;
+    var totalLoss = 0.0;
+
+    for (final tracking in relevantTrackings) {
+      final ret = tracking.nextDayReturn ?? 0;
+      if (ret >= 0) {
+        gainCount++;
+        totalGain += ret;
+      } else {
+        lossCount++;
+        totalLoss += ret.abs();
+      }
+    }
+
+    final gainRate = relevantTrackings.isEmpty ? 0.0 : (gainCount / relevantTrackings.length) * 100;
+    final avgGain = gainCount == 0 ? 0.0 : totalGain / gainCount;
+    final avgLoss = lossCount == 0 ? 0.0 : totalLoss / lossCount;
+
+    return (
+      totalRecommendations: relevantTrackings.length,
+      gainCount: gainCount,
+      gainRate: gainRate,
+      avgGain: avgGain,
+      lossCount: lossCount,
+      avgLoss: avgLoss,
+    );
+  }
+
+  /// 檢查飆股股票是否曾在推薦清單中出現
+  ({
+    int recommendationHits,
+    int maxRank,
+    double maxRecommendationScore,
+    String summary,
+  }) _checkSurgeStockInRecommendations(
+    String stockCode,
+  ) {
+    final trackingsByCode = _recommendationTrackEntries
+        .where((e) => e.stockCode == stockCode)
+        .toList();
+
+    if (trackingsByCode.isEmpty) {
+      return (
+        recommendationHits: 0,
+        maxRank: -1,
+        maxRecommendationScore: 0,
+        summary: '此股票未曾在推薦清單中',
+      );
+    }
+
+    final maxScore = trackingsByCode
+        .fold<double>(0, (max, e) => e.recommendationScore > max ? e.recommendationScore : max);
+    final minRank = trackingsByCode
+        .fold<int>(999, (min, e) => e.rankInRecommendation < min ? e.rankInRecommendation : min);
+    
+    final summary = '此股票曾在推薦清單中出現 ${trackingsByCode.length} 次，'
+        '最佳排名 #$minRank，最高分數 ${maxScore.toStringAsFixed(1)}';
+
+    return (
+      recommendationHits: trackingsByCode.length,
+      maxRank: minRank,
+      maxRecommendationScore: maxScore,
+      summary: summary,
     );
   }
 
@@ -14875,6 +15117,87 @@ class _SignalTrackEntry {
       return1Day: double.tryParse((json['return1Day'] ?? '').toString()),
       return3Day: double.tryParse((json['return3Day'] ?? '').toString()),
       return5Day: double.tryParse((json['return5Day'] ?? '').toString()),
+    );
+  }
+}
+
+/// 追蹤推薦清單中的股票隔日表現
+class _RecommendationTrackEntry {
+  _RecommendationTrackEntry({
+    required this.recommendedDate,
+    required this.stockCode,
+    required this.stockName,
+    required this.recommendationScore,
+    required this.rankInRecommendation,
+    required this.foreignNet,
+    required this.trustNet,
+    this.nextDayReturn,
+    this.nextDayClosePrice,
+    this.nextDayHighPrice,
+    this.nextDayLowPrice,
+    this.thirdDayReturn,
+    this.fifthDayReturn,
+  });
+
+  final DateTime recommendedDate;      // 推薦日期
+  final String stockCode;               // 股票代碼
+  final String stockName;               // 股票名稱
+  final double recommendationScore;     // 推薦分數
+  final int rankInRecommendation;       // 在推薦清單中的排名
+  final int foreignNet;                 // 外資淨買
+  final int trustNet;                   // 投信淨買
+  double? nextDayReturn;                // 隔日報酬 %
+  double? nextDayClosePrice;            // 隔日收盤價
+  double? nextDayHighPrice;             // 隔日最高價
+  double? nextDayLowPrice;              // 隔日最低價
+  double? thirdDayReturn;               // 第3日報酬 %
+  double? fifthDayReturn;               // 第5日報酬 %
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'recommendedDate': recommendedDate.toIso8601String(),
+      'stockCode': stockCode,
+      'stockName': stockName,
+      'recommendationScore': recommendationScore,
+      'rankInRecommendation': rankInRecommendation,
+      'foreignNet': foreignNet,
+      'trustNet': trustNet,
+      'nextDayReturn': nextDayReturn,
+      'nextDayClosePrice': nextDayClosePrice,
+      'nextDayHighPrice': nextDayHighPrice,
+      'nextDayLowPrice': nextDayLowPrice,
+      'thirdDayReturn': thirdDayReturn,
+      'fifthDayReturn': fifthDayReturn,
+    };
+  }
+
+  static _RecommendationTrackEntry? fromJson(Map<String, dynamic> json) {
+    final recommendedDate = DateTime.tryParse((json['recommendedDate'] ?? '').toString());
+    final stockCode = (json['stockCode'] ?? '').toString();
+    final stockName = (json['stockName'] ?? '').toString();
+    final score = double.tryParse((json['recommendationScore'] ?? '').toString()) ?? 0;
+    final rank = int.tryParse((json['rankInRecommendation'] ?? '').toString()) ?? 0;
+    final foreignNet = int.tryParse((json['foreignNet'] ?? '').toString()) ?? 0;
+    final trustNet = int.tryParse((json['trustNet'] ?? '').toString()) ?? 0;
+
+    if (recommendedDate == null || stockCode.isEmpty || stockName.isEmpty || rank <= 0) {
+      return null;
+    }
+
+    return _RecommendationTrackEntry(
+      recommendedDate: recommendedDate,
+      stockCode: stockCode,
+      stockName: stockName,
+      recommendationScore: score,
+      rankInRecommendation: rank,
+      foreignNet: foreignNet,
+      trustNet: trustNet,
+      nextDayReturn: double.tryParse((json['nextDayReturn'] ?? '').toString()),
+      nextDayClosePrice: double.tryParse((json['nextDayClosePrice'] ?? '').toString()),
+      nextDayHighPrice: double.tryParse((json['nextDayHighPrice'] ?? '').toString()),
+      nextDayLowPrice: double.tryParse((json['nextDayLowPrice'] ?? '').toString()),
+      thirdDayReturn: double.tryParse((json['thirdDayReturn'] ?? '').toString()),
+      fifthDayReturn: double.tryParse((json['fifthDayReturn'] ?? '').toString()),
     );
   }
 }
