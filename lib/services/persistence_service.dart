@@ -6,10 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Automatically batches multiple writes together and flushes on a timer.
 /// Prevents UI jank caused by synchronous SharedPreferences operations.
 abstract class PersistenceService {
-  static final _instance = _PersistenceServiceImpl._();
+  static final PersistenceService _instance = _PersistenceServiceImpl._();
 
   /// Get or initialize the persistence service singleton.
-  static _PersistenceServiceImpl get instance => _instance;
+  static PersistenceService get instance => _instance;
 
   /// Queue a write operation (key-value pair). Will be debounced and batched.
   void queueWrite(String key, dynamic value);

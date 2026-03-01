@@ -118,7 +118,7 @@ class TrapPreventionService {
   static bool isValidMultiDayBreakout({
     required StockModel stock,
     required int breakoutStreak,
-    required int minBreakoutDays = 2,
+    int minBreakoutDays = 2,
     required double? yesterdayClose,
     required double? dayBeforeClose,
   }) {
@@ -214,7 +214,9 @@ class TrapPreventionService {
       change: stock.change,
       volume: stock.volume,
       volumeRef: volumeRef,
-    )) score += 1; // Good fund flow
+    )) {
+      score += 1; // Good fund flow
+    }
 
     // Negative factors
     if (isLikelyOverheated(
@@ -222,13 +224,19 @@ class TrapPreventionService {
       weekHighPrice: monthHighPrice,
       monthHighPrice: monthHighPrice,
       threeMonthHighPrice: monthHighPrice,
-    )) score -= 2; // Too close to recent high
-    if (dealerNet < -10000000) score -= 1; // Heavy dealer selling
+    )) {
+      score -= 2; // Too close to recent high
+    }
+    if (dealerNet < -10000000) {
+      score -= 1; // Heavy dealer selling
+    }
     if (evaluateExhaustionRisk(
       stock: stock,
       last5DaysChanges: last5DaysChanges,
       last5DaysVolume: [], // Simplified without volume data
-    ) >= 4) score -= 2; // High exhaustion risk
+    ) >= 4) {
+      score -= 2; // High exhaustion risk
+    }
 
     return score.clamp(1, 10);
   }
