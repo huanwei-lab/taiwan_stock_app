@@ -6355,6 +6355,79 @@ class _StockListPageState extends State<StockListPage> {
     );
   }
 
+  /// 構建週期報告（統計過去N天的推薦清單命中率）
+  ({
+    int daysLookback,
+    double hitRate1D,
+    double hitRate3D,
+    int totalRecommended,
+    int winCount1D,
+    int winCount3D,
+    double avgGain1D,
+    double avgGain3D,
+    String recommendation,
+  })? _buildWeeklyRecommendationReport({int lookbackDays = 7}) {
+    // 從 _signalTrackEntries 統計過去 N 天的表現
+    final now = DateTime.now();
+    final cutoff = now.subtract(Duration(days: lookbackDays));
+    
+    final relevantEntries = _signalTrackEntries
+        .where((e) => e.date.isAfter(cutoff) && 
+                      e.signalType == _EntrySignalType.strong)
+        .toList();
+
+    if (relevantEntries.isEmpty) {
+      return null;
+    }
+
+    var winCount1D = 0;
+    var winCount3D = 0;
+    var totalGain1D = 0.0;
+    var totalGain3D = 0.0;
+
+    for (final entry in relevantEntries) {
+      final ret1D = entry.return1Day ?? 0.0;
+      final ret3D = entry.return3Day ?? 0.0;
+
+      if (ret1D >= 0) winCount1D++;
+      if (ret3D >= 0) winCount3D++;
+
+      totalGain1D += ret1D;
+      totalGain3D += ret3D;
+    }
+
+    final hitRate1D =
+        relevantEntries.isEmpty ? 0.0 : (winCount1D / relevantEntries.length);
+    final hitRate3D =
+        relevantEntries.isEmpty ? 0.0 : (winCount3D / relevantEntries.length);
+    final avgGain1D = totalGain1D / relevantEntries.length;
+    final avgGain3D = totalGain3D / relevantEntries.length;
+
+    // 生成建議
+    String recommendation;
+    if (hitRate1D >= 0.65 && avgGain1D >= 1.5) {
+      recommendation = '表現穩健，可維持當前參數。建議下週繼續追蹤此策略。';
+    } else if (hitRate1D >= 0.50 && avgGain1D >= 0.8) {
+      recommendation = '表現中等，可考慮微調提高分數門檻或法人淨買額度。';
+    } else if (hitRate1D < 0.45 || avgGain1D < 0.5) {
+      recommendation = '表現不理想，建議降低分數要求或擴大法人篩選寬度。';
+    } else {
+      recommendation = '樣本不足，無法評估。';
+    }
+
+    return (
+      daysLookback: lookbackDays,
+      hitRate1D: hitRate1D * 100,
+      hitRate3D: hitRate3D * 100,
+      totalRecommended: relevantEntries.length,
+      winCount1D: winCount1D,
+      winCount3D: winCount3D,
+      avgGain1D: avgGain1D,
+      avgGain3D: avgGain3D,
+      recommendation: recommendation,
+    );
+  }
+
   int _calculateStockScore(StockModel stock) {
     final volumeReference = _latestVolumeReference <= 0
         ? _surgeVolumeThreshold.toDouble()
@@ -11224,16 +11297,101 @@ void diagnoseStock(StockModel stock, int score) {
                                         stocks: limitedCandidateStocks,
                                         topCount: 5,
                                       );
+                                      
+                                      // 診斷為什麼為空
+                                      final isWeekend = DateTime.now().weekday >= 6;
+                                      final hasNoData = limitedCandidateStocks.isEmpty;
+                                      
                                       if (recs.isEmpty) {
+                                        String diagnostic = '沒有符合推薦條件的股票';
+                                        if (hasNoData) {
+                                          diagnostic = isWeekend
+                                              ? '📅 周末市場關閉，無當日數據\n💡 建議：手動降低參數或等周一開盤'
+                                              : '📊 當日候選數為 0\n💡 建議：降低分數門檻或放寬法人條件';
+                                        } else {
+                                          diagnostic = '${limitedCandidateStocks.length} 檔候選中，無法滿足法人條件\n'
+                                              '💡 建議：降低外資/投信淨買額度（目前：${(_recommendedMinForeignNet/1000000).toStringAsFixed(0)}M/${(_recommendedMinTrustNet/1000000).toStringAsFixed(0)}M）';
+                                        }
+                                        
                                         return SizedBox(
-                                          height: 80,
-                                          child: Center(
-                                            child: Text(
-                                              '沒有符合推薦條件的股票',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall,
-                                            ),
+                                          height: 120,
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                diagnostic,
+                                                textAlign: TextAlign.center,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall,
+                                              ),
+                                              const SizedBox(height: 10),
+                                              // 顯示週期報告
+                                              Builder(
+                                                builder: (reportCtx) {
+                                                  final report =
+                                                      _buildWeeklyRecommendationReport(
+                                                          lookbackDays: 7);
+                                                  if (report == null) {
+                                                    return const SizedBox
+                                                        .shrink();
+                                                  }
+                                                  return Card(
+                                                    color: Colors.amber[50],
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .all(8),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            '📈 過去 7 天表現',
+                                                            style: Theme.of(
+                                                                    reportCtx)
+                                                                .textTheme
+                                                                .labelSmall,
+                                                          ),
+                                                          Text(
+                                                            '命中率：1D ${report.hitRate1D.toStringAsFixed(1)}% (${report.winCount1D}/${report.totalRecommended}) | 3D ${report.hitRate3D.toStringAsFixed(1)}%',
+                                                            style: Theme.of(
+                                                                    reportCtx)
+                                                                .textTheme
+                                                                .labelSmall,
+                                                          ),
+                                                          Text(
+                                                            '平均漲幅：1D ${report.avgGain1D.toStringAsFixed(2)}% | 3D ${report.avgGain3D.toStringAsFixed(2)}%',
+                                                            style: Theme.of(
+                                                                    reportCtx)
+                                                                .textTheme
+                                                                .labelSmall,
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 6),
+                                                          Text(
+                                                            report.recommendation,
+                                                            style: Theme.of(
+                                                                    reportCtx)
+                                                                .textTheme
+                                                                .labelSmall
+                                                                ?.copyWith(
+                                                                  color: Colors
+                                                                      .deepOrange,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ],
                                           ),
                                         );
                                       }
