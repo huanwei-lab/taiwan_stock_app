@@ -17,7 +17,6 @@ import 'services/breakout_filter_service.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/news_service.dart';
 import 'services/notification_service.dart';
-import 'services/persistence_service.dart';
 import 'services/stock_alert_scheduler.dart';
 import 'services/stock_service.dart';
 import 'strategy_utils.dart';
@@ -352,10 +351,10 @@ class _StockListPageState extends State<StockListPage> {
   final Map<String, double> _sectorStrengthByGroup = <String, double>{};
   String _sectorRulesText = _defaultSectorRulesText;
   final List<_SectorRule> _sectorRules = <_SectorRule>[
-    const _SectorRule(start: 11, end: 17, group: 'Food/Plastic'),
-    const _SectorRule(start: 20, end: 24, group: 'Steel/Metal'),
-    const _SectorRule(start: 25, end: 29, group: 'Electronics/Oil'),
-    _SectorRule(start: 58, end: 59, group: 'Energy'),
+    const _SectorRule(start: 11, end: 17, group: '食品/塑化'),
+    const _SectorRule(start: 20, end: 24, group: '鋼鐵/電子'),
+    const _SectorRule(start: 25, end: 29, group: '通訊/半導體'),
+    _SectorRule(start: 58, end: 59, group: '金融'),
   ];
   int _maxPriceThreshold = 50;
   int _surgeVolumeThreshold = 10000000;
@@ -2554,10 +2553,10 @@ class _StockListPageState extends State<StockListPage> {
       ..addAll(
         parsed.isEmpty
             ? const <_SectorRule>[
-                _SectorRule(start: 11, end: 17, group: 'Food/Plastic'),
-                _SectorRule(start: 20, end: 24, group: 'Steel/Metal'),
-                _SectorRule(start: 25, end: 29, group: 'Electronics/Oil'),
-                _SectorRule(start: 58, end: 59, group: 'Energy'),
+                _SectorRule(start: 11, end: 17, group: '食品/塑化'),
+                _SectorRule(start: 20, end: 24, group: '鋼鐵/電子'),
+                _SectorRule(start: 25, end: 29, group: '通訊/半導體'),
+                _SectorRule(start: 58, end: 59, group: '金融'),
               ]
             : parsed,
       );
@@ -8026,7 +8025,7 @@ class _StockListPageState extends State<StockListPage> {
     if (snapshot == null || snapshot.items.isEmpty) {
       return false;
     }
-    final keywords = <String>[
+    final positiveKeywords = <String>[
       '題材',
       '合作',
       '新品',
@@ -8036,17 +8035,48 @@ class _StockListPageState extends State<StockListPage> {
       '訂單',
       '轉單',
       '營收',
-      '法說'
+      '法說',
+      '擴產',
+      '增產',
+      '上修',
+      '成長',
     ];
+    final negativeKeywords = <String>[
+      '沒有',
+      '無',
+      '下修',
+      '轉弱',
+      '衰退',
+      '砍單',
+      '不如預期',
+      '低於預期',
+      '轉虧',
+      '虧損',
+      '衰退',
+    ];
+
+    var signalScore = 0;
     for (final item in snapshot.items.take(30)) {
       final title = item.title;
       final hitStock = title.contains(stock.code) || title.contains(stock.name);
-      final hitTheme = keywords.any((keyword) => title.contains(keyword));
-      if (hitStock && hitTheme) {
-        return true;
+      if (!hitStock) {
+        continue;
+      }
+
+      final hitPositive =
+          positiveKeywords.any((keyword) => title.contains(keyword));
+      final hitNegative =
+          negativeKeywords.any((keyword) => title.contains(keyword));
+
+      if (hitPositive) {
+        signalScore += 2;
+      }
+      if (hitNegative) {
+        signalScore -= 3;
       }
     }
-    return false;
+
+    return signalScore >= 2;
   }
 
   bool _hasEventCatalystNewsSupport(StockModel stock) {
@@ -8264,8 +8294,8 @@ class _StockListPageState extends State<StockListPage> {
             stock.change <= 4.5 &&
             volumeRatio >= 0.9 &&
             stock.tradeValue >= (_minTradeValueThreshold * 0.6) &&
-            (_hasThemeNewsSupport(stock) ||
-                score >= (effectiveMinScore - 10).clamp(0, 100))),
+            _hasThemeNewsSupport(stock) &&
+            score >= (effectiveMinScore - 8).clamp(0, 100)),
       _BreakoutStageMode.pullbackRebreak => (stock.change >= 0.5 &&
           stock.change <= 4.0 &&
           volumeRatio >= 1.05 &&
@@ -8368,26 +8398,20 @@ void diagnoseStock(StockModel stock, int score) {
   /// Check if stock is entry-safe based on fund flow and technicals.
   /// Returns false if stock shows trap/overheated signs.
   bool _isEntryFundFlowSafe(StockModel stock) {
-    // Conservative: Require either strong foreign or trust buying
+    // Only reject severe anomalies; keep normal candidates in pool.
     final totalInstitutional = stock.foreignNet + stock.trustNet;
-    if (totalInstitutional <= 10000000) {
-      // Institutional support too weak - riskier entry
-      if (stock.change >= 2.5) {
-        return false; // Weak support but big move = trap risk
-      }
+    if (totalInstitutional <= -20000000 && stock.change >= 2.5) {
+      return false;
     }
 
-    // Margin balance increase while stock rises = possible trap trigger
-    if (stock.marginBalanceDiff > 10000000 && stock.change >= 1.5) {
-      return false; // Margin rush-in is risky
+    if (stock.marginBalanceDiff > 30000000 && stock.change >= 2.5) {
+      return false;
     }
 
-    // Dealer net + margin balance both negative = retail capitulation (okay to buy)
-    // Dealer net + margin balance both positive = dealer + retail rushing in (caution)
     final dealerAndMarginBothPositive =
-        stock.dealerNet > 5000000 && stock.marginBalanceDiff > 5000000;
-    if (dealerAndMarginBothPositive && stock.change >= 2.0) {
-      return false; // Dealer and margin both pushing up = exhaustion likely
+        stock.dealerNet > 20000000 && stock.marginBalanceDiff > 20000000;
+    if (dealerAndMarginBothPositive && stock.change >= 3.0) {
+      return false;
     }
 
     return true;

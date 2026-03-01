@@ -278,14 +278,14 @@ class BreakoutFilterService {
     
     if (!basicCheck) return false;
 
-    // If no callback, use score-based fallback
+    // If callback not provided, keep a stricter score gate fallback.
     if (hasThemeNewsSupport == null) {
-      return score >= (effectiveMinScore - 10).clamp(0, 100);
+      return score >= (effectiveMinScore - 8).clamp(0, 100);
     }
 
-    // Use callback to check for theme news OR score-based fallback
-    return hasThemeNewsSupport(stock) ||
-        score >= (effectiveMinScore - 10).clamp(0, 100);
+    // Low-base theme must have actual theme-news support.
+    return hasThemeNewsSupport(stock) &&
+        score >= (effectiveMinScore - 8).clamp(0, 100);
   }
 
   static bool _passesPullback(
