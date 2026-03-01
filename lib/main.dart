@@ -17,6 +17,7 @@ import 'services/breakout_filter_service.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/news_service.dart';
 import 'services/notification_service.dart';
+import 'services/persistence_service.dart';
 import 'services/stock_alert_scheduler.dart';
 import 'services/stock_service.dart';
 import 'strategy_utils.dart';
@@ -35,7 +36,7 @@ class StockCheckerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '?°è‚¡é£†è‚¡?†æ?',
+      title: '?ï¿½è‚¡é£†è‚¡?ï¿½ï¿½?',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -125,7 +126,7 @@ class _StockListPageState extends State<StockListPage> {
       'diagnostic.dailyFilterStats';
     static const String _parameterChangeAuditHistoryKey =
       'diagnostic.parameterChangeAuditHistory';
-  // ä¸‰å¤§æ³•äºº?è?è³‡ç¯©?¸è¨­å®?
+  // ä¸‰å¤§æ³•äºº?ï¿½ï¿½?è³‡ç¯©?ï¿½è¨­ï¿½?
   static const String _enableForeignFlowFilterKey =
       'filter.foreign.enabled';
   static const String _minForeignNetKey =
@@ -251,10 +252,10 @@ class _StockListPageState extends State<StockListPage> {
   static const String _enableSectorRotationBoostKey =
       'regime.enableSectorRotationBoost';
   static const String _sectorRulesTextKey = 'regime.sectorRulesText';
-  static const String _defaultSectorRulesText = '11-17=é£Ÿå?/å¡‘å?\n'
-      '20-24=?¼éµ/?»å?\n'
-      '25-29=?šè?/?Šå?é«”\n'
-      '58-59=?‘è?';
+  static const String _defaultSectorRulesText = '11-17=é£Ÿï¿½?/å¡‘ï¿½?\n'
+      '20-24=?ï¿½éµ/?ï¿½ï¿½?\n'
+      '25-29=?ï¿½ï¿½?/?ï¿½ï¿½?é«”\n'
+      '58-59=?ï¿½ï¿½?';
 
   static const int _minPrice = 5;
   static const int _maxPrice = 100;
@@ -351,10 +352,10 @@ class _StockListPageState extends State<StockListPage> {
   final Map<String, double> _sectorStrengthByGroup = <String, double>{};
   String _sectorRulesText = _defaultSectorRulesText;
   final List<_SectorRule> _sectorRules = <_SectorRule>[
-    const _SectorRule(start: 11, end: 17, group: 'é£Ÿå?/å¡‘å?'),
-    const _SectorRule(start: 20, end: 24, group: '?¼éµ/?»å?'),
-    const _SectorRule(start: 25, end: 29, group: '?šè?/?Šå?é«?),
-    const _SectorRule(start: 58, end: 59, group: '?‘è?'),
+    const _SectorRule(start: 11, end: 17, group: 'é£Ÿï¿½?/å¡‘ï¿½?'),
+    const _SectorRule(start: 20, end: 24, group: '?ï¿½éµ/?ï¿½ï¿½?'),
+    const _SectorRule(start: 25, end: 29, group: '?ï¿½ï¿½?/?ï¿½ï¿½?ï¿½?),
+    const _SectorRule(start: 58, end: 59, group: '?ï¿½ï¿½?'),
   ];
   int _maxPriceThreshold = 50;
   int _surgeVolumeThreshold = 10000000;
@@ -447,8 +448,8 @@ class _StockListPageState extends State<StockListPage> {
 
   static const _StrategyPreset _conservativePreset = _StrategyPreset(
     id: 'conservative',
-    label: 'ä¿å?',
-    description: 'é«˜é??½ï?é«˜å??€æª»ï?è¨Šè?è¼ƒå?ä½†ç›¸å°ç©©?¥ã€?,
+    label: 'ä¿ï¿½?',
+    description: 'é«˜ï¿½??ï¿½ï¿½?é«˜ï¿½??ï¿½æª»ï¿½?è¨Šï¿½?è¼ƒï¿½?ä½†ç›¸å°ç©©?ï¿½ï¿½?,
     onlyRising: true,
     maxPrice: 45,
     minVolume: 20000000,
@@ -463,7 +464,7 @@ class _StockListPageState extends State<StockListPage> {
   static const _StrategyPreset _balancedPreset = _StrategyPreset(
     id: 'balanced',
     label: 'å¹³è¡¡',
-    description: '?èƒ½?‡æ¼²å¹…å…¼é¡§ï??©å?å¤§å??¸æ—¥å¸¸æ??ã€?,
+    description: '?ï¿½èƒ½?ï¿½æ¼²å¹…å…¼é¡§ï¿½??ï¿½ï¿½?å¤§ï¿½??ï¿½æ—¥å¸¸ï¿½??ï¿½ï¿½?,
     onlyRising: true,
     maxPrice: 50,
     minVolume: 10000000,
@@ -478,7 +479,7 @@ class _StockListPageState extends State<StockListPage> {
   static const _StrategyPreset _aggressivePreset = _StrategyPreset(
     id: 'aggressive',
     label: 'ç©æ¥µ',
-    description: '?¾å¯¬æ¢ä»¶?æ—©?¡ä?ï¼Œä?æ³¢å?é¢¨éšªè¼ƒé???,
+    description: '?ï¿½å¯¬æ¢ä»¶?ï¿½æ—©?ï¿½ï¿½?ï¼Œï¿½?æ³¢ï¿½?é¢¨éšªè¼ƒï¿½???,
     onlyRising: false,
     maxPrice: 60,
     minVolume: 5000000,
@@ -500,8 +501,8 @@ class _StockListPageState extends State<StockListPage> {
       <_NewsEventTemplate>[
     _NewsEventTemplate(
       id: 'war_conflict',
-      label: '?°çˆ­/?°ç·£è¡ç?æ¨¡å?',
-      adjustmentSummary: '?¾å¯¬?¸è‚¡ä½†é?ä½å–®ç­†é¢¨?ªï??¿å??¨é¢ç©ºç?',
+      label: '?ï¿½çˆ­/?ï¿½ç·£è¡ï¿½?æ¨¡ï¿½?',
+      adjustmentSummary: '?ï¿½å¯¬?ï¿½è‚¡ä½†ï¿½?ä½å–®ç­†é¢¨?ï¿½ï¿½??ï¿½ï¿½??ï¿½é¢ç©ºï¿½?',
       minScore: 50,
       minTradeValue: 700000000,
       maxChase: 9,
@@ -509,22 +510,22 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 12,
       riskBudget: 2500,
       triggerKeywords: <String>[
-        '?°çˆ­',
-        'è¡ç?',
+        '?ï¿½çˆ­',
+        'è¡ï¿½?',
         'ç©ºè¥²',
-        '?‹æˆ°',
-        'é£›å?',
-        'å°é?',
-        '?°ç·£',
+        '?ï¿½æˆ°',
+        'é£›ï¿½?',
+        'å°ï¿½?',
+        '?ï¿½ç·£',
         'ä»¥è‰²??,
-        'ä¼Šæ?',
+        'ä¼Šï¿½?',
         'ä¸­æ±',
       ],
     ),
     _NewsEventTemplate(
       id: 'pandemic',
-      label: '?«æ??‡æº«æ¨¡å?',
-      adjustmentSummary: '?é??è³ª?€æª»ï?ç¸®å?è¿½åƒ¹?‡å??ç©º??,
+      label: '?ï¿½ï¿½??ï¿½æº«æ¨¡ï¿½?',
+      adjustmentSummary: '?ï¿½ï¿½??ï¿½è³ª?ï¿½æª»ï¿½?ç¸®ï¿½?è¿½åƒ¹?ï¿½ï¿½??ï¿½ç©º??,
       minScore: 72,
       minTradeValue: 1600000000,
       maxChase: 4,
@@ -532,20 +533,20 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 8,
       riskBudget: 2200,
       triggerKeywords: <String>[
-        '?«æ?',
+        '?ï¿½ï¿½?',
         'ç¢ºè¨º',
-        '?³æ?',
-        '?…æ?',
-        'å°å?',
-        'æµæ?',
-        '?´ç?',
+        '?ï¿½ï¿½?',
+        '?ï¿½ï¿½?',
+        'å°ï¿½?',
+        'æµï¿½?',
+        '?ï¿½ï¿½?',
         'COVID',
       ],
     ),
     _NewsEventTemplate(
       id: 'drug_approval',
-      label: '?°è—¥?¸å¯æ¨¡å?',
-      adjustmentSummary: '?è¨±é¡Œæ??¡æ³¢?•ï??‰å¤§?œåˆ©ä¸¦ä??™é¢¨??,
+      label: '?ï¿½è—¥?ï¿½å¯æ¨¡ï¿½?',
+      adjustmentSummary: '?ï¿½è¨±é¡Œï¿½??ï¿½æ³¢?ï¿½ï¿½??ï¿½å¤§?ï¿½åˆ©ä¸¦ï¿½??ï¿½é¢¨??,
       minScore: 55,
       minTradeValue: 600000000,
       maxChase: 10,
@@ -553,20 +554,20 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 15,
       riskBudget: 2800,
       triggerKeywords: <String>[
-        '?°è—¥',
-        '?¸å¯',
-        '?¥è?',
-        '?šé?',
-        'ä¸‰æ?',
-        '?¨å?',
+        '?ï¿½è—¥',
+        '?ï¿½å¯',
+        '?ï¿½ï¿½?',
+        '?ï¿½ï¿½?',
+        'ä¸‰ï¿½?',
+        '?ï¿½ï¿½?',
         'FDA',
         'EUA',
       ],
     ),
     _NewsEventTemplate(
       id: 'policy_stimulus',
-      label: '?¿ç??©å?æ¨¡å?',
-      adjustmentSummary: '?©åº¦?é?è¿½åƒ¹å®¹å?ï¼Œè??¦é??¹å…±?¯æ?ç¾?,
+      label: '?ï¿½ï¿½??ï¿½ï¿½?æ¨¡ï¿½?',
+      adjustmentSummary: '?ï¿½åº¦?ï¿½ï¿½?è¿½åƒ¹å®¹ï¿½?ï¼Œï¿½??ï¿½ï¿½??ï¿½å…±?ï¿½ï¿½?ï¿½?,
       minScore: 52,
       minTradeValue: 800000000,
       maxChase: 9,
@@ -575,18 +576,18 @@ class _StockListPageState extends State<StockListPage> {
       riskBudget: 3000,
       triggerKeywords: <String>[
         'è£œåŠ©',
-        '?¿ç?',
-        '?æ¯',
-        'å¯¬é?',
-        '?ºæ?',
-        '?ºå»º',
-        '?©å?',
+        '?ï¿½ï¿½?',
+        '?ï¿½æ¯',
+        'å¯¬ï¿½?',
+        '?ï¿½ï¿½?',
+        '?ï¿½å»º',
+        '?ï¿½ï¿½?',
       ],
     ),
     _NewsEventTemplate(
       id: 'rate_hike_inflation',
-      label: '?‡æ¯/?šè†¨å£“å?æ¨¡å?',
-      adjustmentSummary: 'è½‰ç‚º?²å?ï¼ŒæŠ¬é«˜å??¸è??äº¤?¼é?æª?,
+      label: '?ï¿½æ¯/?ï¿½è†¨å£“ï¿½?æ¨¡ï¿½?',
+      adjustmentSummary: 'è½‰ç‚º?ï¿½ï¿½?ï¼ŒæŠ¬é«˜ï¿½??ï¿½ï¿½??ï¿½äº¤?ï¿½ï¿½?ï¿½?,
       minScore: 68,
       minTradeValue: 1400000000,
       maxChase: 5,
@@ -594,18 +595,18 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 9,
       riskBudget: 2400,
       triggerKeywords: <String>[
-        '?‡æ¯',
-        '?šè†¨',
+        '?ï¿½æ¯',
+        '?ï¿½è†¨',
         'CPI',
-        '?©ç?',
+        '?ï¿½ï¿½?',
         'ç·Šç¸®',
         'æ®–åˆ©??,
       ],
     ),
     _NewsEventTemplate(
       id: 'supply_chain_shock',
-      label: 'ä¾›æ??ˆä¸­?·æ¨¡å¼?,
-      adjustmentSummary: '?©åº¦?²å?ï¼Œå„ª?ˆå¤§?‹é?æµå??§æ???,
+      label: 'ä¾›ï¿½??ï¿½ä¸­?ï¿½æ¨¡ï¿½?,
+      adjustmentSummary: '?ï¿½åº¦?ï¿½ï¿½?ï¼Œå„ª?ï¿½å¤§?ï¿½ï¿½?æµï¿½??ï¿½ï¿½???,
       minScore: 64,
       minTradeValue: 1200000000,
       maxChase: 6,
@@ -613,13 +614,13 @@ class _StockListPageState extends State<StockListPage> {
       takeProfit: 10,
       riskBudget: 2500,
       triggerKeywords: <String>[
-        '?·é?',
+        '?ï¿½ï¿½?',
         'ç¼ºè²¨',
-        '?œå·¥',
+        '?ï¿½å·¥',
         'ç½·å·¥',
-        '?ªé?',
+        '?ï¿½ï¿½?',
         'å¡æ¸¯',
-        '?œå?',
+        '?ï¿½ï¿½?',
       ],
     ),
   ];
@@ -656,6 +657,9 @@ class _StockListPageState extends State<StockListPage> {
 
   Future<void> _loadSavedPreferences() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // Initialize PersistenceService for background writes
+    await PersistenceService.instance.init(prefs);
 
     if (!mounted) {
       return;
@@ -938,7 +942,7 @@ class _StockListPageState extends State<StockListPage> {
       _takeProfitPercent =
           prefs.getInt(_takeProfitPercentKey) ?? _takeProfitPercent;
 
-      // fund?‘flow / margin filters
+      // fund?ï¿½flow / margin filters
       _enableForeignFlowFilter =
           prefs.getBool(_enableForeignFlowFilterKey) ?? _enableForeignFlowFilter;
       _minForeignNet = prefs.getInt(_minForeignNetKey) ?? _minForeignNet;
@@ -1202,7 +1206,7 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setBool(_enableExitSignalKey, _enableExitSignal);
     await prefs.setInt(_stopLossPercentKey, _stopLossPercent);
     await prefs.setInt(_takeProfitPercentKey, _takeProfitPercent);
-    // fund?‘flow / margin filters
+    // fund?ï¿½flow / margin filters
     await prefs.setBool(_enableForeignFlowFilterKey, _enableForeignFlowFilter);
     await prefs.setInt(_minForeignNetKey, _minForeignNet);
     await prefs.setBool(_enableTrustFlowFilterKey, _enableTrustFlowFilter);
@@ -1547,40 +1551,40 @@ class _StockListPageState extends State<StockListPage> {
 
   String? _coreSelectionParamLabel(String key) {
     return switch (key) {
-      'strategy' => '?Ÿç”¨ç­–ç•¥ç¯©é¸',
-      'onlyRising' => '?ªç?ä¸Šæ¼²',
-      'maxPrice' => '?¡åƒ¹ä¸Šé?',
-      'minVolume' => '?èƒ½?€æª?,
-      'minTradeValue' => '?äº¤?¼é?æª?,
-      'enableScoring' => '?Ÿç”¨?“å?',
-      'minScore' => '?€ä½å???,
-      'excludeOverheated' => '?’é™¤è¿½é?é¢¨éšª',
-      'maxChase' => 'è¿½é?æ¼²å?ä¸Šé?',
-      'breakoutMode' => 'é£†è‚¡æ¨¡å?',
-      'eventWindowEnabled' => 'äº‹ä»¶çª—é?æ¿?,
+      'strategy' => '?ï¿½ç”¨ç­–ç•¥ç¯©é¸',
+      'onlyRising' => '?ï¿½ï¿½?ä¸Šæ¼²',
+      'maxPrice' => '?ï¿½åƒ¹ä¸Šï¿½?',
+      'minVolume' => '?ï¿½èƒ½?ï¿½ï¿½?,
+      'minTradeValue' => '?ï¿½äº¤?ï¿½ï¿½?ï¿½?,
+      'enableScoring' => '?ï¿½ç”¨?ï¿½ï¿½?',
+      'minScore' => '?ï¿½ä½ï¿½???,
+      'excludeOverheated' => '?ï¿½é™¤è¿½ï¿½?é¢¨éšª',
+      'maxChase' => 'è¿½ï¿½?æ¼²ï¿½?ä¸Šï¿½?',
+      'breakoutMode' => 'é£†è‚¡æ¨¡ï¿½?',
+      'eventWindowEnabled' => 'äº‹ä»¶çª—ï¿½?ï¿½?,
       'eventWindowDays' => 'äº‹ä»¶çª—å¤©??,
-      'revenueEnabled' => '?Ÿæ”¶?•èƒ½?æ¿¾',
-      'revenueMin' => '?Ÿæ”¶?•èƒ½?€æª?,
-      'earningsEnabled' => 'è²¡å ±é©šå??æ¿¾',
-      'earningsMin' => 'è²¡å ±é©šå??€æª?,
-      'riskRewardEnabled' => 'é¢¨éšª?±é…¬?æ¿¾',
-      'riskRewardMin' => 'é¢¨éšª?±é…¬æ¯”é?æª?,
-      'breadthEnabled' => 'å¸‚å ´å¯¬åº¦?æ¿¾',
-      'breadthMin' => 'å¸‚å ´å¯¬åº¦?€æª?,
-      'sectorCapEnabled' => '?¢æ¥­?†ä¸­åº¦ä???,
-      'sectorCap' => '?®ä??¢æ¥­ä¸Šé?',
-      'stopLoss' => '?œæ?(%)',
-      'takeProfit' => '?œåˆ©(%)',
-      'riskBudget' => '?®ç?é¢¨éšªé¡åº¦',
-      'cooldownDays' => '?œæ??·å»å¤©æ•¸',
-      'foreignEnabled' => 'å¤–è?æ·¨è²·è¶?,
-      'foreignMin' => 'å¤–è??€æª?,
-      'trustEnabled' => '?•ä¿¡æ·¨è²·è¶?,
-      'trustMin' => '?•ä¿¡?€æª?,
-      'dealerEnabled' => '?ªç??†æ·¨è²·è?',
-      'dealerMin' => '?ªç??†é?æª?,
-      'marginDiffEnabled' => '?è?é¤˜é?è®Šå?',
-      'marginMin' => '?è??€æª?,
+      'revenueEnabled' => '?ï¿½æ”¶?ï¿½èƒ½?ï¿½æ¿¾',
+      'revenueMin' => '?ï¿½æ”¶?ï¿½èƒ½?ï¿½ï¿½?,
+      'earningsEnabled' => 'è²¡å ±é©šï¿½??ï¿½æ¿¾',
+      'earningsMin' => 'è²¡å ±é©šï¿½??ï¿½ï¿½?,
+      'riskRewardEnabled' => 'é¢¨éšª?ï¿½é…¬?ï¿½æ¿¾',
+      'riskRewardMin' => 'é¢¨éšª?ï¿½é…¬æ¯”ï¿½?ï¿½?,
+      'breadthEnabled' => 'å¸‚å ´å¯¬åº¦?ï¿½æ¿¾',
+      'breadthMin' => 'å¸‚å ´å¯¬åº¦?ï¿½ï¿½?,
+      'sectorCapEnabled' => '?ï¿½æ¥­?ï¿½ä¸­åº¦ï¿½???,
+      'sectorCap' => '?ï¿½ï¿½??ï¿½æ¥­ä¸Šï¿½?',
+      'stopLoss' => '?ï¿½ï¿½?(%)',
+      'takeProfit' => '?ï¿½åˆ©(%)',
+      'riskBudget' => '?ï¿½ï¿½?é¢¨éšªé¡åº¦',
+      'cooldownDays' => '?ï¿½ï¿½??ï¿½å»å¤©æ•¸',
+      'foreignEnabled' => 'å¤–ï¿½?æ·¨è²·ï¿½?,
+      'foreignMin' => 'å¤–ï¿½??ï¿½ï¿½?,
+      'trustEnabled' => '?ï¿½ä¿¡æ·¨è²·ï¿½?,
+      'trustMin' => '?ï¿½ä¿¡?ï¿½ï¿½?,
+      'dealerEnabled' => '?ï¿½ï¿½??ï¿½æ·¨è²·ï¿½?',
+      'dealerMin' => '?ï¿½ï¿½??ï¿½ï¿½?ï¿½?,
+      'marginDiffEnabled' => '?ï¿½ï¿½?é¤˜ï¿½?è®Šï¿½?',
+      'marginMin' => '?ï¿½ï¿½??ï¿½ï¿½?,
       _ => null,
     };
   }
@@ -1657,12 +1661,12 @@ class _StockListPageState extends State<StockListPage> {
 
   String _parameterAuditSourceLabel(String source) {
     return switch (source) {
-      'filter_sheet_apply' => '?‹å?å¥—ç”¨ç­–ç•¥',
-      'morning_scan' => '?¨ç›¤?ƒæ?',
+      'filter_sheet_apply' => '?ï¿½ï¿½?å¥—ç”¨ç­–ç•¥',
+      'morning_scan' => '?ï¿½ç›¤?ï¿½ï¿½?',
       'news_template_apply' => 'äº‹ä»¶æ¨¡æ¿å¥—ç”¨',
-      'news_template_restore' => 'äº‹ä»¶æ¨¡æ¿?„å?',
-      'auto_mode_rotation' => '?ªå?æ¨¡å??‡æ?',
-      'auto_tune_suggestion_apply' => '?½ä¸­?‡è‡ª?•èª¿??,
+      'news_template_restore' => 'äº‹ä»¶æ¨¡æ¿?ï¿½ï¿½?',
+      'auto_mode_rotation' => '?ï¿½ï¿½?æ¨¡ï¿½??ï¿½ï¿½?',
+      'auto_tune_suggestion_apply' => '?ï¿½ä¸­?ï¿½è‡ª?ï¿½èª¿??,
       _ => source,
     };
   }
@@ -1670,7 +1674,7 @@ class _StockListPageState extends State<StockListPage> {
   String _parameterAuditHistoryLabel(_ParameterChangeAuditEntry entry) {
     final changesPreview = entry.changes.take(2).join('??);
     final more = entry.changes.length > 2 ? ' +${entry.changes.length - 2}' : '';
-    return '${_formatTimeHHmm(entry.timestamp)} ${_parameterAuditSourceLabel(entry.source)}ï½?changesPreview$more';
+    return '${_formatTimeHHmm(entry.timestamp)} ${_parameterAuditSourceLabel(entry.source)}ï¿½?changesPreview$more';
   }
 
   String _calendarDayKey(DateTime date) {
@@ -1728,7 +1732,7 @@ class _StockListPageState extends State<StockListPage> {
     return checksum.toRadixString(16).padLeft(8, '0');
   }
 
-  /// Record or update today?™s filter?‘drop statistics.  We replace the entry
+  /// Record or update today?ï¿½s filter?ï¿½drop statistics.  We replace the entry
   /// for the current date if it already exists and only persist when it
   /// actually changes (to avoid thrashing the prefs file).
   void _upsertDailyFilterStats(Map<String, int> counts) {
@@ -2015,9 +2019,9 @@ class _StockListPageState extends State<StockListPage> {
       return (win * 100 / total).toStringAsFixed(1) + '%';
     }
 
-    return '?€è¿?å¤©å‘½ä¸­æ?è¦ï?å¼·å‹¢è¨Šè? ${countBy(_EntrySignalType.strong)} ç­†ï?1D ?ç? ${winRateText(strong1.win, strong1.total)} / å¹³å? ${strong1.avg.toStringAsFixed(2)}%ï¼?
-        'ï½œè?å¯Ÿè???${countBy(_EntrySignalType.watch)} ç­†ï?1D ?ç? ${winRateText(watch1.win, watch1.total)} / å¹³å? ${watch1.avg.toStringAsFixed(2)}%ï¼?
-        'ï½œå¹³?‡æ??¥å€™é¸ ${avgPredPerDay.toStringAsFixed(1)} æª?;
+    return '?ï¿½ï¿½?å¤©å‘½ä¸­ï¿½?è¦ï¿½?å¼·å‹¢è¨Šï¿½? ${countBy(_EntrySignalType.strong)} ç­†ï¿½?1D ?ï¿½ï¿½? ${winRateText(strong1.win, strong1.total)} / å¹³ï¿½? ${strong1.avg.toStringAsFixed(2)}%ï¿½?
+        'ï½œï¿½?å¯Ÿï¿½???${countBy(_EntrySignalType.watch)} ç­†ï¿½?1D ?ï¿½ï¿½? ${winRateText(watch1.win, watch1.total)} / å¹³ï¿½? ${watch1.avg.toStringAsFixed(2)}%ï¿½?
+        'ï½œå¹³?ï¿½ï¿½??ï¿½å€™é¸ ${avgPredPerDay.toStringAsFixed(1)} ï¿½?;
   }
 
   List<_AutoTuneSuggestion> _buildAutoTuneSuggestions({
@@ -2091,9 +2095,9 @@ class _StockListPageState extends State<StockListPage> {
       addSuggestion(
         _AutoTuneSuggestion(
           id: 'conservative_bootstrap',
-          title: 'æ¨?œ¬ä¸è¶³ï¼šå??¨ä?å®ˆå¾®èª?,
+          title: 'ï¿½?ï¿½ï¿½ä¸è¶³ï¼šï¿½??ï¿½ï¿½?å®ˆå¾®ï¿½?,
           summary:
-              'è¿?0å¤©æ¨£?¬ä??å?ï¼Œå??é??†æ•¸?‡æ?äº¤å€¼ï??¿å??æ—©?¾å¯¬å°è‡´?œè?å¢å???,
+              'ï¿½?0å¤©æ¨£?ï¿½ï¿½??ï¿½ï¿½?ï¼Œï¿½??ï¿½ï¿½??ï¿½æ•¸?ï¿½ï¿½?äº¤å€¼ï¿½??ï¿½ï¿½??ï¿½æ—©?ï¿½å¯¬å°è‡´?ï¿½ï¿½?å¢ï¿½???,
           minScore: (_minScoreThreshold + 2).clamp(40, 90),
           maxChaseChangePercent: (_maxChaseChangePercent - 1).clamp(3, 12),
           minTradeValue:
@@ -2103,8 +2107,8 @@ class _StockListPageState extends State<StockListPage> {
       addSuggestion(
         _AutoTuneSuggestion(
           id: 'balanced_bootstrap',
-          title: 'æ¨?œ¬ä¸è¶³ï¼šç¶­?å¹³è¡?,
-          summary: 'ç¶­æ??¾è??€æª»ï??ˆç´¯ç©æ›´å¤?outcomes ?å??²ä?æ­¥è‡ª?•èª¿?ƒã€?,
+          title: 'ï¿½?ï¿½ï¿½ä¸è¶³ï¼šç¶­?ï¿½å¹³ï¿½?,
+          summary: 'ç¶­ï¿½??ï¿½ï¿½??ï¿½æª»ï¿½??ï¿½ç´¯ç©æ›´ï¿½?outcomes ?ï¿½ï¿½??ï¿½ï¿½?æ­¥è‡ª?ï¿½èª¿?ï¿½ï¿½?,
           minScore: _minScoreThreshold,
           maxChaseChangePercent: _maxChaseChangePercent,
           minTradeValue: _minTradeValueThreshold,
@@ -2119,9 +2123,9 @@ class _StockListPageState extends State<StockListPage> {
       addSuggestion(
         _AutoTuneSuggestion(
           id: 'tighten_noise',
-          title: '?é?è¨Šï??ä?å®ˆï?',
+          title: '?ï¿½ï¿½?è¨Šï¿½??ï¿½ï¿½?å®ˆï¿½?',
           summary:
-              '?™é¸?¸å?å¤šæ? 1D ?ç??ä?ï¼Œå»ºè­°æ?é«˜å????äº¤?¼ä¸¦?ä?è¿½é?ä¸Šé???,
+              '?ï¿½é¸?ï¿½ï¿½?å¤šï¿½? 1D ?ï¿½ï¿½??ï¿½ï¿½?ï¼Œå»ºè­°ï¿½?é«˜ï¿½????ï¿½äº¤?ï¿½ä¸¦?ï¿½ï¿½?è¿½ï¿½?ä¸Šï¿½???,
           minScore: (_minScoreThreshold + 3).clamp(40, 90),
           maxChaseChangePercent: (_maxChaseChangePercent - 1).clamp(3, 12),
           minTradeValue:
@@ -2136,9 +2140,9 @@ class _StockListPageState extends State<StockListPage> {
       addSuggestion(
         _AutoTuneSuggestion(
           id: 'capture_more',
-          title: '?è??‹ï??ç?æ¥µï?',
+          title: '?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?æ¥µï¿½?',
           summary:
-              '?™é¸?¸å?å°‘ä?å¼·å‹¢è¡¨ç¾ç©©å?ï¼Œå¯å¾®æ”¾å¯¬é?æª»æ??‡ã€Œå?ä¸€å¤©æ??°ã€è??‹ç???,
+              '?ï¿½é¸?ï¿½ï¿½?å°‘ï¿½?å¼·å‹¢è¡¨ç¾ç©©ï¿½?ï¼Œå¯å¾®æ”¾å¯¬ï¿½?æª»ï¿½??ï¿½ã€Œï¿½?ä¸€å¤©ï¿½??ï¿½ã€ï¿½??ï¿½ï¿½???,
           minScore: (_minScoreThreshold - 2).clamp(35, 90),
           maxChaseChangePercent: (_maxChaseChangePercent + 1).clamp(3, 12),
           minTradeValue:
@@ -2150,9 +2154,9 @@ class _StockListPageState extends State<StockListPage> {
     addSuggestion(
       _AutoTuneSuggestion(
         id: 'balanced_default',
-        title: 'å¹³è¡¡å¾®èª¿ï¼ˆé?è¨­ï?',
+        title: 'å¹³è¡¡å¾®èª¿ï¼ˆï¿½?è¨­ï¿½?',
         summary:
-            '?¨è??‹ç??‡å??‡é??˜è¡·ï¼Œé©?ˆå??šä??±è?å¯Ÿå?æ±ºå??¯å¦?¹ç‚º?´ä?å®?ç©æ¥µ??,
+            '?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½è¡·ï¼Œé©?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?å¯Ÿï¿½?æ±ºï¿½??ï¿½å¦?ï¿½ç‚º?ï¿½ï¿½?ï¿½?ç©æ¥µ??,
         minScore: (_minScoreThreshold + (needTighten ? 2 : 0) - (canLoosen ? 1 : 0))
             .clamp(35, 90),
         maxChaseChangePercent:
@@ -2170,7 +2174,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_lockSelectionParameters) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('å·²é?å®šé¸?¡å??¸ï??¡æ?å¥—ç”¨?ªå?èª¿å?å»ºè­°')),
+          const SnackBar(content: Text('å·²ï¿½?å®šé¸?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?å¥—ç”¨?ï¿½ï¿½?èª¿ï¿½?å»ºè­°')),
         );
       }
       return;
@@ -2199,7 +2203,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'å·²å??¨ã€?{suggestion.title}?ï??†æ•¸ $prevMinScore??_minScoreThreshold?è¿½é«?$prevMaxChase%??_maxChaseChangePercent%?æ?äº¤å€?${_formatWithThousandsSeparator(prevMinTradeValue)}??{_formatWithThousandsSeparator(_minTradeValueThreshold)}',
+          'å·²ï¿½??ï¿½ï¿½?{suggestion.title}?ï¿½ï¿½??ï¿½æ•¸ $prevMinScore??_minScoreThreshold?ï¿½è¿½ï¿½?$prevMaxChase%??_maxChaseChangePercent%?ï¿½ï¿½?äº¤ï¿½?${_formatWithThousandsSeparator(prevMinTradeValue)}??{_formatWithThousandsSeparator(_minTradeValueThreshold)}',
         ),
       ),
     );
@@ -2211,7 +2215,7 @@ class _StockListPageState extends State<StockListPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('?½ä¸­?‡è‡ª?•èª¿?ƒå»ºè­°ï??€è¿?30 å¤©ï?'),
+          title: const Text('?ï¿½ä¸­?ï¿½è‡ª?ï¿½èª¿?ï¿½å»ºè­°ï¿½??ï¿½ï¿½?30 å¤©ï¿½?'),
           content: SizedBox(
             width: 560,
             child: Column(
@@ -2229,7 +2233,7 @@ class _StockListPageState extends State<StockListPage> {
                     child: ListTile(
                       title: Text(item.title),
                       subtitle: Text(
-                        '${item.summary}\n?†æ•¸ >= ${item.minScore}ï½œè¿½é«?<= ${item.maxChaseChangePercent}%ï½œæ?äº¤å€?>= ${_formatWithThousandsSeparator(item.minTradeValue)}',
+                        '${item.summary}\n?ï¿½æ•¸ >= ${item.minScore}ï½œè¿½ï¿½?<= ${item.maxChaseChangePercent}%ï½œï¿½?äº¤ï¿½?>= ${_formatWithThousandsSeparator(item.minTradeValue)}',
                       ),
                       isThreeLine: true,
                       trailing: FilledButton.tonal(
@@ -2250,7 +2254,7 @@ class _StockListPageState extends State<StockListPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('?œé?'),
+              child: const Text('?ï¿½ï¿½?'),
             ),
           ],
         );
@@ -2273,7 +2277,7 @@ class _StockListPageState extends State<StockListPage> {
                   return;
                 }
                 setDialogState(() {
-                  status = 'å·²è?è£?$nameï¼?{content.split('\n').length - 1} ç­†ï?';
+                  status = 'å·²ï¿½?ï¿½?$nameï¿½?{content.split('\n').length - 1} ç­†ï¿½?';
                 });
               }
 
@@ -2283,7 +2287,7 @@ class _StockListPageState extends State<StockListPage> {
               }
 
               return AlertDialog(
-                title: const Text('?¯å‡º?½ä¸­?‡è??™ï?CSVï¼?),
+                title: const Text('?ï¿½å‡º?ï¿½ä¸­?ï¿½ï¿½??ï¿½ï¿½?CSVï¿½?),
                 content: SizedBox(
                   width: 520,
                   child: Column(
@@ -2294,7 +2298,7 @@ class _StockListPageState extends State<StockListPage> {
                         controller: lookbackController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: '?¯å‡ºå¤©æ•¸ï¼?~120ï¼?,
+                          labelText: '?ï¿½å‡ºå¤©æ•¸ï¿½?~120ï¿½?,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -2312,7 +2316,7 @@ class _StockListPageState extends State<StockListPage> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('?œé?'),
+                    child: const Text('?ï¿½ï¿½?'),
                   ),
                   FilledButton.tonal(
                     onPressed: () {
@@ -2351,20 +2355,20 @@ class _StockListPageState extends State<StockListPage> {
         context: context,
         builder: (dialogContext) {
           String report = _dailyCandidateArchive.isEmpty
-              ? 'å°šç„¡æ¯æ—¥?™é¸å¿«ç…§ï¼Œè??ˆè‡³å°‘æ›´??1 ?‹äº¤?“æ—¥??
+              ? 'å°šç„¡æ¯æ—¥?ï¿½é¸å¿«ç…§ï¼Œï¿½??ï¿½è‡³å°‘æ›´??1 ?ï¿½äº¤?ï¿½æ—¥??
               : '';
           return StatefulBuilder(
             builder: (context, setDialogState) {
               void runReplay() {
                 if (_dailyCandidateArchive.isEmpty) {
                   setDialogState(() {
-                    report = 'å°šç„¡æ¯æ—¥?™é¸å¿«ç…§ï¼Œè??ˆè‡³å°‘æ›´??1 ?‹äº¤?“æ—¥??;
+                    report = 'å°šç„¡æ¯æ—¥?ï¿½é¸å¿«ç…§ï¼Œï¿½??ï¿½è‡³å°‘æ›´??1 ?ï¿½äº¤?ï¿½æ—¥??;
                   });
                   return;
                 }
 
                 final rawCodes = codeController.text
-                    .split(RegExp(r'[\s,ï¼?ï¼›]+'))
+                    .split(RegExp(r'[\s,ï¿½?ï¼›]+'))
                     .map((text) => text.trim().toUpperCase())
                     .where((text) => text.isNotEmpty)
                     .toSet()
@@ -2375,7 +2379,7 @@ class _StockListPageState extends State<StockListPage> {
 
                 if (rawCodes.isEmpty) {
                   setDialogState(() {
-                    report = 'è«‹è¼¸?¥è??ç??„é??¡ä»£?Ÿï??¯å?æª”ï?ä»¥é€—è??†é?ï¼?;
+                    report = 'è«‹è¼¸?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ä»£?ï¿½ï¿½??ï¿½ï¿½?æª”ï¿½?ä»¥é€—ï¿½??ï¿½ï¿½?ï¿½?;
                   });
                   return;
                 }
@@ -2395,14 +2399,14 @@ class _StockListPageState extends State<StockListPage> {
 
                 if (selectedSnapshots.isEmpty) {
                   setDialogState(() {
-                    report = '?€è¿?$lookbackDays å¤©æ??‰å¯?¨å¿«?§ã€?;
+                    report = '?ï¿½ï¿½?$lookbackDays å¤©ï¿½??ï¿½å¯?ï¿½å¿«?ï¿½ï¿½?;
                   });
                   return;
                 }
 
                 final lines = <String>[
-                  '?ç??€?“ï??€è¿?$lookbackDays å¤©ï?${selectedSnapshots.length} ç­†å¿«?§ï?',
-                  'è¼¸å…¥ä»??ï¼?{rawCodes.join('??)}',
+                  '?ï¿½ï¿½??ï¿½?ï¿½ï¿½??ï¿½ï¿½?$lookbackDays å¤©ï¿½?${selectedSnapshots.length} ç­†å¿«?ï¿½ï¿½?',
+                  'è¼¸å…¥ï¿½??ï¿½?{rawCodes.join('??)}',
                 ];
 
                 var hitAnyCore = 0;
@@ -2436,16 +2440,16 @@ class _StockListPageState extends State<StockListPage> {
                   }
 
                   lines.add(
-                    '$codeï¼šæ ¸å¿?$coreHits/${selectedSnapshots.length} å¤©ã€å?$_topCandidateLimit $limitedHits å¤©ã€å¼·??$strongHits å¤?
-                    '${latestCoreDate == null ? '' : 'ï½œæ?è¿‘æ ¸å¿ƒå‘½ä¸?$latestCoreDate'}'
-                    '${latestStrongDate == null ? '' : 'ï½œæ?è¿‘å¼·?¢å‘½ä¸?$latestStrongDate'}',
+                    '$codeï¼šæ ¸ï¿½?$coreHits/${selectedSnapshots.length} å¤©ã€ï¿½?$_topCandidateLimit $limitedHits å¤©ã€å¼·??$strongHits ï¿½?
+                    '${latestCoreDate == null ? '' : 'ï½œï¿½?è¿‘æ ¸å¿ƒå‘½ï¿½?$latestCoreDate'}'
+                    '${latestStrongDate == null ? '' : 'ï½œï¿½?è¿‘å¼·?ï¿½å‘½ï¿½?$latestStrongDate'}',
                   );
                 }
 
                 lines.add(
-                  '?´é?è¦†è?ï¼šæ ¸å¿ƒå‘½ä¸?$hitAnyCore/${rawCodes.length} æª”ã€å¼·?¢å‘½ä¸?$hitAnyStrong/${rawCodes.length} æª?,
+                  '?ï¿½ï¿½?è¦†ï¿½?ï¼šæ ¸å¿ƒå‘½ï¿½?$hitAnyCore/${rawCodes.length} æª”ã€å¼·?ï¿½å‘½ï¿½?$hitAnyStrong/${rawCodes.length} ï¿½?,
                 );
-                lines.add('è¨»ï?æ­¤å??‹æª¢?¥ã€Œæ˜¯?¦æ›¾?¥é¸?ï?ä¸ä»£è¡¨é??¥å?æ¼²ã€?);
+                lines.add('è¨»ï¿½?æ­¤ï¿½??ï¿½æª¢?ï¿½ã€Œæ˜¯?ï¿½æ›¾?ï¿½é¸?ï¿½ï¿½?ä¸ä»£è¡¨ï¿½??ï¿½ï¿½?æ¼²ï¿½?);
 
                 setDialogState(() {
                   report = lines.join('\n');
@@ -2453,7 +2457,7 @@ class _StockListPageState extends State<StockListPage> {
               }
 
               return AlertDialog(
-                title: const Text('ä¸Šé€±é??¡å??‹ï??ä??¥æ˜¯?¦æ??°ï?'),
+                title: const Text('ä¸Šé€±ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½æ˜¯?ï¿½ï¿½??ï¿½ï¿½?'),
                 content: SizedBox(
                   width: 520,
                   child: Column(
@@ -2463,8 +2467,8 @@ class _StockListPageState extends State<StockListPage> {
                       TextField(
                         controller: codeController,
                         decoration: const InputDecoration(
-                          labelText: 'é£†è‚¡ä»??ï¼ˆé€—è??†é?ï¼?,
-                          hintText: 'ä¾‹å? 3017, 2382, 3450',
+                          labelText: 'é£†è‚¡ï¿½??ï¼ˆé€—ï¿½??ï¿½ï¿½?ï¿½?,
+                          hintText: 'ä¾‹ï¿½? 3017, 2382, 3450',
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -2472,7 +2476,7 @@ class _StockListPageState extends State<StockListPage> {
                         controller: daysController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: '?ç?å¤©æ•¸ï¼?~45ï¼?,
+                          labelText: '?ï¿½ï¿½?å¤©æ•¸ï¿½?~45ï¿½?,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -2487,11 +2491,11 @@ class _StockListPageState extends State<StockListPage> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('?œé?'),
+                    child: const Text('?ï¿½ï¿½?'),
                   ),
                   FilledButton(
                     onPressed: runReplay,
-                    child: const Text('?ç?'),
+                    child: const Text('?ï¿½ï¿½?'),
                   ),
                 ],
               );
@@ -2553,10 +2557,10 @@ class _StockListPageState extends State<StockListPage> {
       ..addAll(
         parsed.isEmpty
             ? const <_SectorRule>[
-                _SectorRule(start: 11, end: 17, group: 'é£Ÿå?/å¡‘å?'),
-                _SectorRule(start: 20, end: 24, group: '?¼éµ/?»å?'),
-                _SectorRule(start: 25, end: 29, group: '?šè?/?Šå?é«?),
-                _SectorRule(start: 58, end: 59, group: '?‘è?'),
+                _SectorRule(start: 11, end: 17, group: 'é£Ÿï¿½?/å¡‘ï¿½?'),
+                _SectorRule(start: 20, end: 24, group: '?ï¿½éµ/?ï¿½ï¿½?'),
+                _SectorRule(start: 25, end: 29, group: '?ï¿½ï¿½?/?ï¿½ï¿½?ï¿½?),
+                _SectorRule(start: 58, end: 59, group: '?ï¿½ï¿½?'),
               ]
             : parsed,
       );
@@ -2588,7 +2592,7 @@ class _StockListPageState extends State<StockListPage> {
 
       if (showFeedback) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('?°è??˜è?å·²æ›´??)),
+          const SnackBar(content: Text('?ï¿½ï¿½??ï¿½ï¿½?å·²æ›´??)),
         );
       }
     } catch (error) {
@@ -2597,7 +2601,7 @@ class _StockListPageState extends State<StockListPage> {
       }
       setState(() {
         _isLoadingNews = false;
-        _newsError = '?°è?è¼‰å…¥å¤±æ?ï¼?error';
+        _newsError = '?ï¿½ï¿½?è¼‰å…¥å¤±ï¿½?ï¿½?error';
       });
     }
   }
@@ -2664,7 +2668,7 @@ class _StockListPageState extends State<StockListPage> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('?å¤§äº‹ä»¶æ¨¡å?ï¼šæ–°?é¢¨?ªå?é«˜ï?å·²è‡ª?•å??›ä?å®ˆç???),
+          content: Text('?ï¿½å¤§äº‹ä»¶æ¨¡ï¿½?ï¼šæ–°?ï¿½é¢¨?ï¿½ï¿½?é«˜ï¿½?å·²è‡ª?ï¿½ï¿½??ï¿½ï¿½?å®ˆï¿½???),
         ),
       );
     }
@@ -2735,14 +2739,14 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     final rules = <String, List<String>>{
-      'AI': <String>['AI', 'äººå·¥?ºæ…§', 'ä¼ºæ???, '?¶ç?', 'ç®—å?'],
-      'ä½è?è¡›æ?': <String>['ä½è?', 'è¡›æ?', 'å¤ªç©º', 'Starlink'],
-      '?«æ?': <String>['?«æ??‡æº«', '?«æ?', 'ç¢ºè¨º', '?³æ?', 'å°å?', 'æµæ?'],
-      '?°è—¥?Ÿæ?': <String>['?°è—¥?¸å¯', '?°è—¥', '?¥è?', 'FDA', 'EUA', '?¨å?'],
-      'è»å·¥?°ç·£': <String>['è»ä?è¡ç?', '?°çˆ­', 'è¡ç?', 'é£›å?', '?°ç·£'],
-      '?½æ??Ÿç‰©??: <String>['æ²¹åƒ¹', 'å¤©ç„¶æ°?, '?Ÿæ²¹', '??, '?Ÿç‰©??],
-      'ä¾›æ???: <String>['ä¾›æ??ˆä¸­??, '?·é?', 'å¡æ¸¯', 'ç¼ºè²¨', '?œå·¥'],
-      '?¿ç??©ç?': <String>['?¿ç?å¯¬é?', '?©ç?ç·Šç¸®', '?‡æ¯', '?æ¯', '?šè†¨å£“å?'],
+      'AI': <String>['AI', 'äººå·¥?ï¿½æ…§', 'ä¼ºï¿½???, '?ï¿½ï¿½?', 'ç®—ï¿½?'],
+      'ä½ï¿½?è¡›ï¿½?': <String>['ä½ï¿½?', 'è¡›ï¿½?', 'å¤ªç©º', 'Starlink'],
+      '?ï¿½ï¿½?': <String>['?ï¿½ï¿½??ï¿½æº«', '?ï¿½ï¿½?', 'ç¢ºè¨º', '?ï¿½ï¿½?', 'å°ï¿½?', 'æµï¿½?'],
+      '?ï¿½è—¥?ï¿½ï¿½?': <String>['?ï¿½è—¥?ï¿½å¯', '?ï¿½è—¥', '?ï¿½ï¿½?', 'FDA', 'EUA', '?ï¿½ï¿½?'],
+      'è»å·¥?ï¿½ç·£': <String>['è»ï¿½?è¡ï¿½?', '?ï¿½çˆ­', 'è¡ï¿½?', 'é£›ï¿½?', '?ï¿½ç·£'],
+      '?ï¿½ï¿½??ï¿½ç‰©??: <String>['æ²¹åƒ¹', 'å¤©ç„¶ï¿½?, '?ï¿½æ²¹', '??, '?ï¿½ç‰©??],
+      'ä¾›ï¿½???: <String>['ä¾›ï¿½??ï¿½ä¸­??, '?ï¿½ï¿½?', 'å¡æ¸¯', 'ç¼ºè²¨', '?ï¿½å·¥'],
+      '?ï¿½ï¿½??ï¿½ï¿½?': <String>['?ï¿½ï¿½?å¯¬ï¿½?', '?ï¿½ï¿½?ç·Šç¸®', '?ï¿½æ¯', '?ï¿½æ¯', '?ï¿½è†¨å£“ï¿½?'],
     };
 
     final scoreByTag = <String, int>{};
@@ -2773,21 +2777,21 @@ class _StockListPageState extends State<StockListPage> {
   List<String> _topicBeneficiaryHints(
       List<({String tag, int score})> strengths) {
     final map = <String, String>{
-      'AI': '?¯å„ª?ˆé?æ³¨ï?ä¼ºæ??¨ã€æ•£?±ã€é›»æºã€é??Ÿå‚³è¼?PCB',
-      'ä½è?è¡›æ?': '?¯å„ª?ˆé?æ³¨ï?è¡›æ??šè??å¤©ç·šã€ç¶²?šè¨­?™ã€åœ°?¢ç?ä¾›æ???,
-      '?«æ?': '?¯å„ª?ˆé?æ³¨ï??²ç–«?—æ??æª¢æ¸¬ã€ç??€è£½è—¥?é†«?‚é€šè·¯',
-      '?°è—¥?Ÿæ?': '?¯å„ª?ˆé?æ³¨ï??°è—¥?ˆæ??CDMO?è‡¨åºŠå?è¨—æ???,
-      'è»å·¥?°ç·£': '?¯å„ª?ˆé?æ³¨ï?è»å·¥?¶ç?ä»¶ã€å??§ã€è?å®‰ã€èƒ½æºæ›¿ä»?,
-      '?½æ??Ÿç‰©??: '?¯å„ª?ˆé?æ³¨ï?æ²¹æ°£/?»å?è¨­å??å??©æ?ä¸Šæ¸¸?ç???,
-      'ä¾›æ???: '?¯å„ª?ˆé?æ³¨ï??¿ä»£ä¾›æ??ˆã€åœ¨?°å??Ÿç”¢?ç‰©æµèˆª??,
-      '?¿ç??©ç?': '?¯å„ª?ˆé?æ³¨ï??—æ??¿ç?è£œåŠ©?ç¾¤?ä?è² å‚µ?é•·?¡ã€é???,
+      'AI': '?ï¿½å„ª?ï¿½ï¿½?æ³¨ï¿½?ä¼ºï¿½??ï¿½ã€æ•£?ï¿½ã€é›»æºã€ï¿½??ï¿½å‚³ï¿½?PCB',
+      'ä½ï¿½?è¡›ï¿½?': '?ï¿½å„ª?ï¿½ï¿½?æ³¨ï¿½?è¡›ï¿½??ï¿½ï¿½??ï¿½å¤©ç·šã€ç¶²?ï¿½è¨­?ï¿½ã€åœ°?ï¿½ï¿½?ä¾›ï¿½???,
+      '?ï¿½ï¿½?': '?ï¿½å„ª?ï¿½ï¿½?æ³¨ï¿½??ï¿½ç–«?ï¿½ï¿½??ï¿½æª¢æ¸¬ã€ï¿½??ï¿½è£½è—¥?ï¿½é†«?ï¿½é€šè·¯',
+      '?ï¿½è—¥?ï¿½ï¿½?': '?ï¿½å„ª?ï¿½ï¿½?æ³¨ï¿½??ï¿½è—¥?ï¿½ï¿½??ï¿½CDMO?ï¿½è‡¨åºŠï¿½?è¨—ï¿½???,
+      'è»å·¥?ï¿½ç·£': '?ï¿½å„ª?ï¿½ï¿½?æ³¨ï¿½?è»å·¥?ï¿½ï¿½?ä»¶ã€ï¿½??ï¿½ã€ï¿½?å®‰ã€èƒ½æºæ›¿ï¿½?,
+      '?ï¿½ï¿½??ï¿½ç‰©??: '?ï¿½å„ª?ï¿½ï¿½?æ³¨ï¿½?æ²¹æ°£/?ï¿½ï¿½?è¨­ï¿½??ï¿½ï¿½??ï¿½ï¿½?ä¸Šæ¸¸?ï¿½ï¿½???,
+      'ä¾›ï¿½???: '?ï¿½å„ª?ï¿½ï¿½?æ³¨ï¿½??ï¿½ä»£ä¾›ï¿½??ï¿½ã€åœ¨?ï¿½ï¿½??ï¿½ç”¢?ï¿½ç‰©æµèˆª??,
+      '?ï¿½ï¿½??ï¿½ï¿½?': '?ï¿½å„ª?ï¿½ï¿½?æ³¨ï¿½??ï¿½ï¿½??ï¿½ï¿½?è£œåŠ©?ï¿½ç¾¤?ï¿½ï¿½?è² å‚µ?ï¿½é•·?ï¿½ã€ï¿½???,
     };
 
     return strengths
         .where((item) => item.score >= 30)
         .take(3)
         .map((item) =>
-            '${item.tag}ï¼?{item.score}ï¼‰ï?${map[item.tag] ?? '?™æ??åƒ¹?‡ç?ç¢¼å?æ­?}')
+            '${item.tag}ï¿½?{item.score}ï¼‰ï¿½?${map[item.tag] ?? '?ï¿½ï¿½??ï¿½åƒ¹?ï¿½ï¿½?ç¢¼ï¿½?ï¿½?}')
         .toList();
   }
 
@@ -2819,8 +2823,8 @@ class _StockListPageState extends State<StockListPage> {
         !alreadyNotifiedToday) {
       await NotificationService.showAlert(
         id: 4801,
-        title: 'è­°é?è¼ªå??é?',
-        body: 'å¸‚å ´ä¸»é???$previousTag ?‡æ???${top.tag}ï¼ˆå¼·åº?${top.score}ï¼?,
+        title: 'è­°ï¿½?è¼ªï¿½??ï¿½ï¿½?',
+        body: 'å¸‚å ´ä¸»ï¿½???$previousTag ?ï¿½ï¿½???${top.tag}ï¼ˆå¼·ï¿½?${top.score}ï¿½?,
       );
       _lastTopNewsTopicNotifyDay = dayKey;
       changed = true;
@@ -2841,25 +2845,25 @@ class _StockListPageState extends State<StockListPage> {
 
   String? _autoRiskAdjustmentSuppressedReason() {
     if (_isEventTemplateLayerActive()) {
-      return 'äº‹ä»¶æ¨¡æ¿?¥ç®¡ä¸­ï??ªå??¼æ–°?ä?å®ˆè??ªå?å¾®èª¿ï¼?;
+      return 'äº‹ä»¶æ¨¡æ¿?ï¿½ç®¡ä¸­ï¿½??ï¿½ï¿½??ï¿½æ–°?ï¿½ï¿½?å®ˆï¿½??ï¿½ï¿½?å¾®èª¿ï¿½?;
     }
     if (_isHighNewsRiskDefenseActive) {
-      return '?°è?é«˜é¢¨?ªä?å®ˆæ¨¡å¼æ¥ç®¡ä¸­ï¼ˆå„ª?ˆæ–¼?ªå?å¾®èª¿ï¼?;
+      return '?ï¿½ï¿½?é«˜é¢¨?ï¿½ï¿½?å®ˆæ¨¡å¼æ¥ç®¡ä¸­ï¼ˆå„ª?ï¿½æ–¼?ï¿½ï¿½?å¾®èª¿ï¿½?;
     }
     return null;
   }
 
   String _currentControlLayerLabel() {
     if (_isEventTemplateLayerActive()) {
-      return '?§åˆ¶å±¤ï?äº‹ä»¶æ¨¡æ¿';
+      return '?ï¿½åˆ¶å±¤ï¿½?äº‹ä»¶æ¨¡æ¿';
     }
     if (_isHighNewsRiskDefenseActive) {
-      return '?§åˆ¶å±¤ï??°è?ä¿å?';
+      return '?ï¿½åˆ¶å±¤ï¿½??ï¿½ï¿½?ä¿ï¿½?';
     }
     if (_enableAutoRiskAdjustment) {
-      return '?§åˆ¶å±¤ï??ªå?å¾®èª¿';
+      return '?ï¿½åˆ¶å±¤ï¿½??ï¿½ï¿½?å¾®èª¿';
     }
-    return '?§åˆ¶å±¤ï??ºå??ƒæ•¸';
+    return '?ï¿½åˆ¶å±¤ï¿½??ï¿½ï¿½??ï¿½æ•¸';
   }
 
   IconData _currentControlLayerIcon() {
@@ -2937,10 +2941,10 @@ class _StockListPageState extends State<StockListPage> {
       final pnlPercent = _calculatePnlPercent(stock, entryPrice);
       final pnlText = pnlPercent == null
           ? ''
-          : 'ï½œæ???${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%';
+          : 'ï½œï¿½???${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%';
       await NotificationService.showAlert(
         id: 3000 + code.hashCode.abs() % 900,
-        title: '?è‚¡?ºå ´?é? ${stock.code} ${stock.name}',
+        title: '?ï¿½è‚¡?ï¿½å ´?ï¿½ï¿½? ${stock.code} ${stock.name}',
         body:
             '${signal.label}ï½œç¾??${stock.closePrice.toStringAsFixed(2)}$pnlText',
       );
@@ -2982,13 +2986,13 @@ class _StockListPageState extends State<StockListPage> {
           previous != current &&
           previousState == 'strong' &&
           currentState != 'strong') {
-        final nextText = labels.isEmpty ? '?¡å‘½ä¸? : labels.take(3).join('??);
+        final nextText = labels.isEmpty ? '?ï¿½å‘½ï¿½? : labels.take(3).join('??);
         final previousLabels = _labelsFromFingerprint(previous);
         final previousText =
-            previousLabels.isEmpty ? '?¡å‘½ä¸? : previousLabels.join('??);
+            previousLabels.isEmpty ? '?ï¿½å‘½ï¿½? : previousLabels.join('??);
         await NotificationService.showAlert(
           id: 4200 + code.hashCode.abs() % 700,
-          title: '?è‚¡æ¨¡å?æ¨™ç±¤è®Šæ›´ ${stock.code} ${stock.name}',
+          title: '?ï¿½è‚¡æ¨¡ï¿½?æ¨™ç±¤è®Šæ›´ ${stock.code} ${stock.name}',
           body: '??$previousText ??$nextText',
         );
       }
@@ -3079,14 +3083,14 @@ class _StockListPageState extends State<StockListPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?°è‚¡è³‡æ?å·²æ›´??)),
+        const SnackBar(content: Text('?ï¿½è‚¡è³‡ï¿½?å·²æ›´??)),
       );
     } catch (_) {
       if (!mounted || !showFeedback) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?´æ–°å¤±æ?ï¼Œè?ç¨å??è©¦')),
+        const SnackBar(content: Text('?ï¿½æ–°å¤±ï¿½?ï¼Œï¿½?ç¨ï¿½??ï¿½è©¦')),
       );
     }
   }
@@ -3122,17 +3126,17 @@ class _StockListPageState extends State<StockListPage> {
   String _googleWebSignInHintText(String? rawError) {
     final error = (rawError ?? '').toLowerCase();
     if (error.contains('origin_mismatch')) {
-      return 'Google ?»å…¥å¤±æ?ï¼šorigin_mismatch?‚è???OAuth Web Client ??Authorized JavaScript origins ? å…¥ http://localhost:7357 ??http://127.0.0.1:7357';
+      return 'Google ?ï¿½å…¥å¤±ï¿½?ï¼šorigin_mismatch?ï¿½ï¿½???OAuth Web Client ??Authorized JavaScript origins ?ï¿½å…¥ http://localhost:7357 ??http://127.0.0.1:7357';
     }
     if (error.contains('access_denied') ||
         error.contains('unauthorized') ||
         error.contains('invalid_client')) {
-      return 'Google ?»å…¥è¢«æ??‚è?ç¢ºè? OAuth ?Œæ??«é¢å·²å??ã€ç›®?å¸³?Ÿåœ¨æ¸¬è©¦ä½¿ç”¨?…å??®å…§ï¼Œä?ä½¿ç”¨æ­?¢º??Web Client ID';
+      return 'Google ?ï¿½å…¥è¢«ï¿½??ï¿½ï¿½?ç¢ºï¿½? OAuth ?ï¿½ï¿½??ï¿½é¢å·²ï¿½??ï¿½ã€ç›®?ï¿½å¸³?ï¿½åœ¨æ¸¬è©¦ä½¿ç”¨?ï¿½ï¿½??ï¿½å…§ï¼Œï¿½?ä½¿ç”¨ï¿½?ï¿½ï¿½??Web Client ID';
     }
     if (error.contains('popup')) {
-      return 'Google ?»å…¥è¦–ç?è¢«ç€è¦½?¨é˜»?‹ã€‚è??è¨±å½ˆå‡ºè¦–ç?å¾Œå?è©¦ä?æ¬?;
+      return 'Google ?ï¿½å…¥è¦–ï¿½?è¢«ç€è¦½?ï¿½é˜»?ï¿½ã€‚ï¿½??ï¿½è¨±å½ˆå‡ºè¦–ï¿½?å¾Œï¿½?è©¦ï¿½?ï¿½?;
     }
-    return 'Google ?»å…¥?ªå??ã€‚è?ç¢ºè?å·²å???Drive APIï¼Œä? OAuth Web Client å·²è¨­å®?localhost/127.0.0.1 ç¶²å?';
+    return 'Google ?ï¿½å…¥?ï¿½ï¿½??ï¿½ã€‚ï¿½?ç¢ºï¿½?å·²ï¿½???Drive APIï¼Œï¿½? OAuth Web Client å·²è¨­ï¿½?localhost/127.0.0.1 ç¶²ï¿½?';
   }
 
   void _showGoogleSignInNullFeedback({
@@ -3157,7 +3161,7 @@ class _StockListPageState extends State<StockListPage> {
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('?®å??…æ”¯??Android / Chrome(Web) Google ?™ä»½')),
+              content: Text('?ï¿½ï¿½??ï¿½æ”¯??Android / Chrome(Web) Google ?ï¿½ä»½')),
         );
       }
       return false;
@@ -3167,7 +3171,7 @@ class _StockListPageState extends State<StockListPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
-                  'Web å°šæœªè¨­å? GOOGLE_WEB_CLIENT_IDï¼Œè?? ä? --dart-define=GOOGLE_WEB_CLIENT_ID=...')),
+                  'Web å°šæœªè¨­ï¿½? GOOGLE_WEB_CLIENT_IDï¼Œï¿½??ï¿½ï¿½? --dart-define=GOOGLE_WEB_CLIENT_ID=...')),
         );
       }
       return false;
@@ -3180,7 +3184,7 @@ class _StockListPageState extends State<StockListPage> {
       final email = await _googleDriveBackupService.signInAndGetEmail();
       if (email == null) {
         _showGoogleSignInNullFeedback(
-          fallback: 'Google ?»å…¥?–æ?ï¼Œæœªå®Œæ??™ä»½',
+          fallback: 'Google ?ï¿½å…¥?ï¿½ï¿½?ï¼Œæœªå®Œï¿½??ï¿½ä»½',
           showFeedback: showFeedback,
         );
         return false;
@@ -3190,7 +3194,7 @@ class _StockListPageState extends State<StockListPage> {
       if (!success) {
         if (showFeedback && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Google é©—è?å¤±æ?ï¼Œè??æ–°?»å…¥')),
+            const SnackBar(content: Text('Google é©—ï¿½?å¤±ï¿½?ï¼Œï¿½??ï¿½æ–°?ï¿½å…¥')),
           );
         }
         return false;
@@ -3202,14 +3206,14 @@ class _StockListPageState extends State<StockListPage> {
       await _savePreferences();
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('å·²å?ä»½åˆ° Googleï¼?emailï¼?)),
+          SnackBar(content: Text('å·²ï¿½?ä»½åˆ° Googleï¿½?emailï¿½?)),
         );
       }
       return true;
     } catch (error) {
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('?™ä»½å¤±æ?ï¼?error')),
+          SnackBar(content: Text('?ï¿½ä»½å¤±ï¿½?ï¿½?error')),
         );
       }
       return false;
@@ -3230,7 +3234,7 @@ class _StockListPageState extends State<StockListPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('?®å??…æ”¯??Android / Chrome(Web) Google ?„å?')),
+              content: Text('?ï¿½ï¿½??ï¿½æ”¯??Android / Chrome(Web) Google ?ï¿½ï¿½?')),
         );
       }
       return;
@@ -3240,7 +3244,7 @@ class _StockListPageState extends State<StockListPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
-                  'Web å°šæœªè¨­å? GOOGLE_WEB_CLIENT_IDï¼Œè?? ä? --dart-define=GOOGLE_WEB_CLIENT_ID=...')),
+                  'Web å°šæœªè¨­ï¿½? GOOGLE_WEB_CLIENT_IDï¼Œï¿½??ï¿½ï¿½? --dart-define=GOOGLE_WEB_CLIENT_ID=...')),
         );
       }
       return;
@@ -3253,7 +3257,7 @@ class _StockListPageState extends State<StockListPage> {
       final email = await _googleDriveBackupService.signInAndGetEmail();
       if (email == null) {
         _showGoogleSignInNullFeedback(
-          fallback: 'Google ?»å…¥?–æ?ï¼Œæœª?„å?è³‡æ?',
+          fallback: 'Google ?ï¿½å…¥?ï¿½ï¿½?ï¼Œæœª?ï¿½ï¿½?è³‡ï¿½?',
           showFeedback: true,
         );
         return;
@@ -3262,7 +3266,7 @@ class _StockListPageState extends State<StockListPage> {
       if (payload == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Google ?²ç«¯å°šç„¡?™ä»½æª?)),
+            const SnackBar(content: Text('Google ?ï¿½ç«¯å°šç„¡?ï¿½ä»½ï¿½?)),
           );
         }
         return;
@@ -3271,7 +3275,7 @@ class _StockListPageState extends State<StockListPage> {
       if (prefsMap is! Map) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('?™ä»½æª”æ ¼å¼éŒ¯èª?)),
+            const SnackBar(content: Text('?ï¿½ä»½æª”æ ¼å¼éŒ¯ï¿½?)),
           );
         }
         return;
@@ -3302,13 +3306,13 @@ class _StockListPageState extends State<StockListPage> {
       await _refreshStocks(showFeedback: false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('å·²å? Google ?„å?è³‡æ?ï¼?emailï¼?)),
+          SnackBar(content: Text('å·²ï¿½? Google ?ï¿½ï¿½?è³‡ï¿½?ï¿½?emailï¿½?)),
         );
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('?„å?å¤±æ?ï¼?error')),
+          SnackBar(content: Text('?ï¿½ï¿½?å¤±ï¿½?ï¿½?error')),
         );
       }
     } finally {
@@ -3377,7 +3381,7 @@ class _StockListPageState extends State<StockListPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content:
-              Text('å·²è‡ª?•å??›å»ºè­°æ¨¡å¼ï?${BreakoutModeLabel(recommendation.mode)}'),
+              Text('å·²è‡ª?ï¿½ï¿½??ï¿½å»ºè­°æ¨¡å¼ï¿½?${BreakoutModeLabel(recommendation.mode)}'),
         ),
       );
     }
@@ -3386,8 +3390,8 @@ class _StockListPageState extends State<StockListPage> {
   Future<void> _sendTestNotification() async {
     await NotificationService.showAlert(
       id: 2001,
-      title: '?°è‚¡?é?æ¸¬è©¦',
-      body: '?šçŸ¥?Ÿèƒ½æ­?¸¸ï¼Œä?å¾Œæ??ªå??¨é€å????œåˆ©è¨Šè???,
+      title: '?ï¿½è‚¡?ï¿½ï¿½?æ¸¬è©¦',
+      body: '?ï¿½çŸ¥?ï¿½èƒ½ï¿½?ï¿½ï¿½ï¼Œï¿½?å¾Œï¿½??ï¿½ï¿½??ï¿½é€ï¿½????ï¿½åˆ©è¨Šï¿½???,
     );
 
     if (!mounted) {
@@ -3395,7 +3399,7 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('å·²é€å‡ºæ¸¬è©¦?é?ï¼Œè??¥ç??šçŸ¥??)),
+      const SnackBar(content: Text('å·²é€å‡ºæ¸¬è©¦?ï¿½ï¿½?ï¼Œï¿½??ï¿½ï¿½??ï¿½çŸ¥??)),
     );
   }
 
@@ -3403,7 +3407,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_lockSelectionParameters) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('å·²é?å®šé¸?¡å??¸ï??¨ç›¤?ƒæ?ä¸æ??¹å??¸å?æ¢ä»¶')),
+          const SnackBar(content: Text('å·²ï¿½?å®šé¸?ï¿½ï¿½??ï¿½ï¿½??ï¿½ç›¤?ï¿½ï¿½?ä¸ï¿½??ï¿½ï¿½??ï¿½ï¿½?æ¢ä»¶')),
         );
       }
       await _refreshStocks();
@@ -3424,13 +3428,16 @@ class _StockListPageState extends State<StockListPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('?¨ç›¤?ƒæ?å®Œæ?ï¼šå·²å¥—ç”¨å¼·å‹¢?™é¸æ¨¡å?')),
+      const SnackBar(content: Text('?ï¿½ç›¤?ï¿½ï¿½?å®Œï¿½?ï¼šå·²å¥—ç”¨å¼·å‹¢?ï¿½é¸æ¨¡ï¿½?')),
     );
   }
 
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
+    // Flush any pending persistence writes before disposing
+    unawaited(PersistenceService.instance.flushNow());
+    PersistenceService.instance.dispose();
     super.dispose();
   }
 
@@ -3462,7 +3469,7 @@ class _StockListPageState extends State<StockListPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('?¡æ??´æ¥?‹å?ï¼Œå·²è¤‡è£½?°è?????°å‰ªè²¼ç°¿')),
+      const SnackBar(content: Text('?ï¿½ï¿½??ï¿½æ¥?ï¿½ï¿½?ï¼Œå·²è¤‡è£½?ï¿½ï¿½?????ï¿½å‰ªè²¼ç°¿')),
     );
   }
 
@@ -3491,7 +3498,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'å·²å??¨å?æ¸?Top1ï¼?{tuning.applyStopLoss ? '?œæ? -${tuning.stopLossPercent}%' : ''}${(tuning.applyStopLoss && tuning.applyTakeProfit) ? ' / ' : ''}${tuning.applyTakeProfit ? '?œåˆ© +${tuning.takeProfitPercent}%' : ''}',
+          'å·²ï¿½??ï¿½ï¿½?ï¿½?Top1ï¿½?{tuning.applyStopLoss ? '?ï¿½ï¿½? -${tuning.stopLossPercent}%' : ''}${(tuning.applyStopLoss && tuning.applyTakeProfit) ? ' / ' : ''}${tuning.applyTakeProfit ? '?ï¿½åˆ© +${tuning.takeProfitPercent}%' : ''}',
         ),
       ),
     );
@@ -3684,116 +3691,116 @@ class _StockListPageState extends State<StockListPage> {
     final warnings = <String>[];
 
     if (_lockSelectionParameters) {
-      warnings.add('?®å??Ÿç”¨?¸è‚¡?ƒæ•¸?–å?ï¼šè‡ª?•èª¿?´å·²?«å?ï¼Œé??‹å?è§???æ?è®Šæ›´?¸å?æ¢ä»¶??);
+      warnings.add('?ï¿½ï¿½??ï¿½ç”¨?ï¿½è‚¡?ï¿½æ•¸?ï¿½ï¿½?ï¼šè‡ª?ï¿½èª¿?ï¿½å·²?ï¿½ï¿½?ï¼Œï¿½??ï¿½ï¿½?ï¿½???ï¿½ï¿½?è®Šæ›´?ï¿½ï¿½?æ¢ä»¶??);
     }
     if (_marketNewsSnapshot == null) {
-      warnings.add('?°è?å¿«ç…§å°šæœªå»ºç?ï¼šä?ä»?é¢¨éšª?¸é?æ¢ä»¶?¯èƒ½?å?ä¿å??–ä¸­?§åˆ¤è®€??);
+      warnings.add('?ï¿½ï¿½?å¿«ç…§å°šæœªå»ºï¿½?ï¼šï¿½?ï¿½?é¢¨éšª?ï¿½ï¿½?æ¢ä»¶?ï¿½èƒ½?ï¿½ï¿½?ä¿ï¿½??ï¿½ä¸­?ï¿½åˆ¤è®€??);
     }
 
     if (_maxPriceThreshold > 70) {
-      warnings.add('?¡åƒ¹ä¸Šé??é?ï¼Œå¯?½å??¢å?è³‡ä??¹ç??¥ã€?);
+      warnings.add('?ï¿½åƒ¹ä¸Šï¿½??ï¿½ï¿½?ï¼Œå¯?ï¿½ï¿½??ï¿½ï¿½?è³‡ï¿½??ï¿½ï¿½??ï¿½ï¿½?);
     }
     if (_minTradeValueThreshold < 500000000) {
-      warnings.add('?äº¤?¼é?æª»å?ä½ï?æµå??§é¢¨?ªä??‡ã€?);
+      warnings.add('?ï¿½äº¤?ï¿½ï¿½?æª»ï¿½?ä½ï¿½?æµï¿½??ï¿½é¢¨?ï¿½ï¿½??ï¿½ï¿½?);
     }
     if (!_excludeOverheated) {
-      warnings.add('å·²é??‰è¿½é«˜é?æ¿¾ï??­ç?æ³¢å?é¢¨éšª?é???);
+      warnings.add('å·²ï¿½??ï¿½è¿½é«˜ï¿½?æ¿¾ï¿½??ï¿½ï¿½?æ³¢ï¿½?é¢¨éšª?ï¿½ï¿½???);
     }
     if (!_onlyRising) {
-      warnings.add('?ªé??¶ç•¶?¥ä?æ¼²ï??²å ´?ç??¯èƒ½ä¸‹é???);
+      warnings.add('?ï¿½ï¿½??ï¿½ç•¶?ï¿½ï¿½?æ¼²ï¿½??ï¿½å ´?ï¿½ï¿½??ï¿½èƒ½ä¸‹ï¿½???);
     }
     if (_stopLossPercent > 8) {
-      warnings.add('?œæ??å¯¬ï¼Œå–®ç­†å??¤å¯?½å?å¤§ã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½å¯¬ï¼Œå–®ç­†ï¿½??ï¿½å¯?ï¿½ï¿½?å¤§ï¿½?);
     }
     if (!_requireOpenConfirm) {
-      warnings.add('?ªå??¨é???0?†é?ç¢ºè?ï¼Œè¿½?¹é¢¨?ªæ?é«˜ã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½ï¿½???0?ï¿½ï¿½?ç¢ºï¿½?ï¼Œè¿½?ï¿½é¢¨?ï¿½ï¿½?é«˜ï¿½?);
     }
     if (_autoRefreshEnabled && _autoRefreshMinutes > 20) {
-      warnings.add('?ªå??´æ–°?“é??é•·ï¼Œå¯?½éŒ¯?ç›¤ä¸­è??–ã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½æ–°?ï¿½ï¿½??ï¿½é•·ï¼Œå¯?ï¿½éŒ¯?ï¿½ç›¤ä¸­ï¿½??ï¿½ï¿½?);
     }
     if (!_autoDefensiveOnHighNewsRisk) {
-      warnings.add('?å¤§äº‹ä»¶æ¨¡å?å·²é??‰ï?çªç™¼æ¶ˆæ¯ä¸‹é??‹å?èª¿æ•´ç­–ç•¥??);
+      warnings.add('?ï¿½å¤§äº‹ä»¶æ¨¡ï¿½?å·²ï¿½??ï¿½ï¿½?çªç™¼æ¶ˆæ¯ä¸‹ï¿½??ï¿½ï¿½?èª¿æ•´ç­–ç•¥??);
     }
     if (!_useRelativeVolumeFilter) {
-      warnings.add('?ªå??¨ç›¸å°é??½é?æª»ï?è¡Œæ?è½‰å¼±?‚å¯?½èª¤?“é?è¨Šã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½ç›¸å°ï¿½??ï¿½ï¿½?æª»ï¿½?è¡Œï¿½?è½‰å¼±?ï¿½å¯?ï¿½èª¤?ï¿½ï¿½?è¨Šï¿½?);
     }
     if (!_enableTrailingStop) {
-      warnings.add('?ªå??¨ç§»?•å??©ï?å¼·å‹¢?¡å??¤ä?è­·è?å¼±ã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½ç§»?ï¿½ï¿½??ï¿½ï¿½?å¼·å‹¢?ï¿½ï¿½??ï¿½ï¿½?è­·ï¿½?å¼±ï¿½?);
     }
     if (_autoLossStreakFromJournal() >= 3) {
-      warnings.add('?®å???™§?é?ï¼Œç³»çµ±æ??ªå??å€‰ã€?);
+      warnings.add('?ï¿½ï¿½???ï¿½ï¿½?ï¿½ï¿½?ï¼Œç³»çµ±ï¿½??ï¿½ï¿½??ï¿½å€‰ï¿½?);
     }
     if (!_autoRegimeEnabled) {
-      warnings.add('?ªå???Regime ?ªå??‡æ?ï¼Œå??¸ä??ƒéš¨?¤å‹¢èª¿æ•´??);
+      warnings.add('?ï¿½ï¿½???Regime ?ï¿½ï¿½??ï¿½ï¿½?ï¼Œï¿½??ï¿½ï¿½??ï¿½éš¨?ï¿½å‹¢èª¿æ•´??);
     }
     if (!_timeSegmentTuningEnabled) {
-      warnings.add('?ªå??¨æ?æ®µå??‹å??¸ï??‹ç›¤?œè??Ÿé˜²è­·è?å¼±ã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½ï¿½?æ®µï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ç›¤?ï¿½ï¿½??ï¿½é˜²è­·ï¿½?å¼±ï¿½?);
     }
     if (!_enableAdaptiveAtrExit) {
-      warnings.add('?ªå???ATR ?ªé©?‰å??©ï??œåˆ©?€æª»å?æ³¢å??¤å?è¼ƒåƒµç¡¬ã€?);
+      warnings.add('?ï¿½ï¿½???ATR ?ï¿½é©?ï¿½ï¿½??ï¿½ï¿½??ï¿½åˆ©?ï¿½æª»ï¿½?æ³¢ï¿½??ï¿½ï¿½?è¼ƒåƒµç¡¬ï¿½?);
     }
     if (!_enableBreakoutQuality) {
-      warnings.add('?ªå??¨ç??´å?è³ªé?æ¿¾ï??‡ç??´è??Ÿå¯?½å?? ã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?è³ªï¿½?æ¿¾ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½å¯?ï¿½ï¿½??ï¿½ï¿½?);
     }
     if (_breakoutMinVolumeRatioPercent < 120) {
-      warnings.add('çªç ´?èƒ½?ç??ä?ï¼Œå»ºè­°è‡³å°?120% ä»¥ä???);
+      warnings.add('çªç ´?ï¿½èƒ½?ï¿½ï¿½??ï¿½ï¿½?ï¼Œå»ºè­°è‡³ï¿½?120% ä»¥ï¿½???);
     }
     if (_enableChipConcentrationFilter && _minChipConcentrationPercent > 0) {
-      warnings.add('å·²å??¨ç?ç¢¼é?ä¸­åº¦?æ¿¾ï¼Œä???${_minChipConcentrationPercent.toInt()}% ?„ä?é¡¯ç¤º??);
+      warnings.add('å·²ï¿½??ï¿½ï¿½?ç¢¼ï¿½?ä¸­åº¦?ï¿½æ¿¾ï¼Œï¿½???${_minChipConcentrationPercent.toInt()}% ?ï¿½ï¿½?é¡¯ç¤º??);
     }
     if (_enableMasterTrapFilter) {
-      warnings.add('ä¸»å?èª˜å??æ¿¾?‹å?ï¼Œè?å¹?${_masterTrapDropPercent.toInt()}% ?¤ç‚ºèª˜å?');
+      warnings.add('ä¸»ï¿½?èª˜ï¿½??ï¿½æ¿¾?ï¿½ï¿½?ï¼Œï¿½?ï¿½?${_masterTrapDropPercent.toInt()}% ?ï¿½ç‚ºèª˜ï¿½?');
     }
     if (!_enableRiskRewardPrefilter) {
-      warnings.add('?ªå??¨é¢¨?ªå ±?¬å?ç½®é?æ¿¾ï?ä½å ±?¬æ?äº¤æ??¯èƒ½å¢å???);
+      warnings.add('?ï¿½ï¿½??ï¿½é¢¨?ï¿½å ±?ï¿½ï¿½?ç½®ï¿½?æ¿¾ï¿½?ä½å ±?ï¿½ï¿½?äº¤ï¿½??ï¿½èƒ½å¢ï¿½???);
     }
     if (_minRiskRewardRatioX100 < 150) {
-      warnings.add('?€ä½é¢¨?ªå ±?¬æ??ä?ï¼Œå»ºè­°è‡³å°?1.50??);
+      warnings.add('?ï¿½ä½é¢¨?ï¿½å ±?ï¿½ï¿½??ï¿½ï¿½?ï¼Œå»ºè­°è‡³ï¿½?1.50??);
     }
     switch (BreakoutMode) {
       case BreakoutMode.confirmed:
         if (!_enableMultiDayBreakout) {
-          warnings.add('ç¢ºè?çªç ´æ¨¡å?ä¸‹é??‰é€??çªç ´ç¢ºè?ï¼Œå»ºè­°é??Ÿä»¥?ä??œè???);
+          warnings.add('ç¢ºï¿½?çªç ´æ¨¡ï¿½?ä¸‹ï¿½??ï¿½ï¿½??çªç ´ç¢ºï¿½?ï¼Œå»ºè­°ï¿½??ï¿½ä»¥?ï¿½ï¿½??ï¿½ï¿½???);
         }
         if (_minBreakoutStreakDays < 2) {
-          warnings.add('???çªç ´å¤©æ•¸?ä?ï¼Œå»ºè­°è‡³å°?2 å¤©ã€?);
+          warnings.add('???çªç ´å¤©æ•¸?ï¿½ï¿½?ï¼Œå»ºè­°è‡³ï¿½?2 å¤©ï¿½?);
         }
         break;
       case BreakoutMode.lowBaseTheme:
-        warnings.add('?®å??ºä??ºæ?é¡Œæ?æ¨¡å?ï¼Œè??­é?äº‹ä»¶é¢¨éšª?‡å??æ§ç®¡ã€?);
+        warnings.add('?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?é¡Œï¿½?æ¨¡ï¿½?ï¼Œï¿½??ï¿½ï¿½?äº‹ä»¶é¢¨éšª?ï¿½ï¿½??ï¿½æ§ç®¡ï¿½?);
         break;
       case BreakoutMode.pullbackRebreak:
-        warnings.add('?®å??ºå?æª”å??»æ¨¡å¼ï?å»ºè­°?é?è§€å¯Ÿé??½æ˜¯?¦å?æ­¥æ”¾å¤§ã€?);
+        warnings.add('?ï¿½ï¿½??ï¿½ï¿½?æª”ï¿½??ï¿½æ¨¡å¼ï¿½?å»ºè­°?ï¿½ï¿½?è§€å¯Ÿï¿½??ï¿½æ˜¯?ï¿½ï¿½?æ­¥æ”¾å¤§ï¿½?);
         break;
       case BreakoutMode.squeezeSetup:
-        warnings.add('?®å??ºé?ç¸®æ•´?†å??´æ¨¡å¼ï?è¨Šè??æ—©ä½†é?è¨Šå¯?½å?? ã€?);
+        warnings.add('?ï¿½ï¿½??ï¿½ï¿½?ç¸®æ•´?ï¿½ï¿½??ï¿½æ¨¡å¼ï¿½?è¨Šï¿½??ï¿½æ—©ä½†ï¿½?è¨Šå¯?ï¿½ï¿½??ï¿½ï¿½?);
         break;
       case BreakoutMode.preEventPosition:
-        warnings.add('?®å??ºä?ä»¶å??¡ä?æ¨¡å?ï¼Œå?å¿…æ§?¶å–®ç­†é¢¨?ªè??¨ä???);
+        warnings.add('?ï¿½ï¿½??ï¿½ï¿½?ä»¶ï¿½??ï¿½ï¿½?æ¨¡ï¿½?ï¼Œï¿½?å¿…æ§?ï¿½å–®ç­†é¢¨?ï¿½ï¿½??ï¿½ï¿½???);
         break;
       case BreakoutMode.early:
         break;
     }
     if (!_enableFalseBreakoutProtection) {
-      warnings.add('?ªå??¨å?çªç ´?²è­·ï¼Œè¿½é«˜é¢¨?ªå¯?½ä??‡ã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½ï¿½?çªç ´?ï¿½è­·ï¼Œè¿½é«˜é¢¨?ï¿½å¯?ï¿½ï¿½??ï¿½ï¿½?);
     }
     if (!_enableMarketBreadthFilter) {
-      warnings.add('?ªå??¨å??´å¯¬åº¦é?æ¿¾ï?å¼±å?ä¸­èª¤?²å ´æ©Ÿç??é???);
+      warnings.add('?ï¿½ï¿½??ï¿½ï¿½??ï¿½å¯¬åº¦ï¿½?æ¿¾ï¿½?å¼±ï¿½?ä¸­èª¤?ï¿½å ´æ©Ÿï¿½??ï¿½ï¿½???);
     }
     if ((_minMarketBreadthRatioX100 / 100) < 1.0) {
-      warnings.add('å¸‚å ´å¯¬åº¦?€æª»å?ä½ï?å»ºè­°?³å? 1.00??);
+      warnings.add('å¸‚å ´å¯¬åº¦?ï¿½æª»ï¿½?ä½ï¿½?å»ºè­°?ï¿½ï¿½? 1.00??);
     }
     if (!_enableEventRiskExclusion) {
-      warnings.add('?ªå??¨ä?ä»¶é¢¨?ªæ??¤ï?è²¡å ±/?è??¥å?å¾Œæ³¢?•é??‹å?ç®¡ç???);
+      warnings.add('?ï¿½ï¿½??ï¿½ï¿½?ä»¶é¢¨?ï¿½ï¿½??ï¿½ï¿½?è²¡å ±/?ï¿½ï¿½??ï¿½ï¿½?å¾Œæ³¢?ï¿½ï¿½??ï¿½ï¿½?ç®¡ï¿½???);
     }
     if (!_enableWeeklyWalkForwardAutoTune) {
-      warnings.add('?ªå??¨æ???walk-forward å¾®èª¿ï¼Œå??¸é©?‰ç›¤?‹é€Ÿåº¦?ƒä??ã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½ï¿½???walk-forward å¾®èª¿ï¼Œï¿½??ï¿½é©?ï¿½ç›¤?ï¿½é€Ÿåº¦?ï¿½ï¿½??ï¿½ï¿½?);
     }
     if (_cooldownDays <= 0) {
-      warnings.add('?œæ??·å»?Ÿç‚º 0 å¤©ï?????§æ?é¢¨éšª?¯èƒ½ä¸Šå???);
+      warnings.add('?ï¿½ï¿½??ï¿½å»?ï¿½ç‚º 0 å¤©ï¿½?????ï¿½ï¿½?é¢¨éšª?ï¿½èƒ½ä¸Šï¿½???);
     }
     if (!_enableSectorRotationBoost) {
-      warnings.add('?ªå??¨æ¿å¡Šè¼ª?•å?æ¬Šï??’å??¯èƒ½å¿½ç•¥?¶å?å¼·æ¿å¡Šã€?);
+      warnings.add('?ï¿½ï¿½??ï¿½æ¿å¡Šè¼ª?ï¿½ï¿½?æ¬Šï¿½??ï¿½ï¿½??ï¿½èƒ½å¿½ç•¥?ï¿½ï¿½?å¼·æ¿å¡Šï¿½?);
     }
 
     return warnings;
@@ -3870,7 +3877,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_lockSelectionParameters) {
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('å·²é?å®šé¸?¡å??¸ï??¡æ?å¥—ç”¨äº‹ä»¶æ¨¡æ¿')),
+          const SnackBar(content: Text('å·²ï¿½?å®šé¸?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?å¥—ç”¨äº‹ä»¶æ¨¡æ¿')),
         );
       }
       return;
@@ -3919,7 +3926,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'å·²å???{template.label}ï¼šå???${prevMinScore}??_minScoreThreshold?æ?äº¤å€?${_formatWithThousandsSeparator(prevMinTradeValue)}??{_formatWithThousandsSeparator(_minTradeValueThreshold)}?è¿½é«?${prevMaxChase}%??_maxChaseChangePercent%?å???${prevStopLoss}%??_stopLossPercent%?å???${prevTakeProfit}%??_takeProfitPercent%?å–®ç­†é¢¨??${_formatCurrency(prevRiskBudget.toDouble())}??{_formatCurrency(_riskBudgetPerTrade.toDouble())}',
+          'å·²ï¿½???{template.label}ï¼šï¿½???${prevMinScore}??_minScoreThreshold?ï¿½ï¿½?äº¤ï¿½?${_formatWithThousandsSeparator(prevMinTradeValue)}??{_formatWithThousandsSeparator(_minTradeValueThreshold)}?ï¿½è¿½ï¿½?${prevMaxChase}%??_maxChaseChangePercent%?ï¿½ï¿½???${prevStopLoss}%??_stopLossPercent%?ï¿½ï¿½???${prevTakeProfit}%??_takeProfitPercent%?ï¿½å–®ç­†é¢¨??${_formatCurrency(prevRiskBudget.toDouble())}??{_formatCurrency(_riskBudgetPerTrade.toDouble())}',
         ),
       ),
     );
@@ -3929,7 +3936,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_lockSelectionParameters) {
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('å·²é?å®šé¸?¡å??¸ï??¡æ??„å?äº‹ä»¶æ¨¡æ¿?ƒæ•¸')),
+          const SnackBar(content: Text('å·²ï¿½?å®šé¸?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?äº‹ä»¶æ¨¡æ¿?ï¿½æ•¸')),
         );
       }
       return;
@@ -3972,7 +3979,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'å·²é??Ÿä?ä»¶å??ƒæ•¸ï¼šå???$_minScoreThreshold?æ?äº¤å€?${_formatWithThousandsSeparator(_minTradeValueThreshold)}?è¿½é«˜ä???$_maxChaseChangePercent%?å???$_stopLossPercent%?å???$_takeProfitPercent%?å–®ç­†é¢¨??${_formatCurrency(_riskBudgetPerTrade.toDouble())}',
+          'å·²ï¿½??ï¿½ï¿½?ä»¶ï¿½??ï¿½æ•¸ï¼šï¿½???$_minScoreThreshold?ï¿½ï¿½?äº¤ï¿½?${_formatWithThousandsSeparator(_minTradeValueThreshold)}?ï¿½è¿½é«˜ï¿½???$_maxChaseChangePercent%?ï¿½ï¿½???$_stopLossPercent%?ï¿½ï¿½???$_takeProfitPercent%?ï¿½å–®ç­†é¢¨??${_formatCurrency(_riskBudgetPerTrade.toDouble())}',
         ),
       ),
     );
@@ -3989,8 +3996,8 @@ class _StockListPageState extends State<StockListPage> {
 
     await _openExternalUrisWithFallback(
       uris: uris,
-      webClipboardHint: '?è¦½?¨é˜»?‹æ–°?†é?ï¼Œå·²è¤‡è£½ CMoney ????°å‰ªè²¼ç°¿',
-      fallbackClipboardHint: '?¡æ??´æ¥?‹å?ï¼Œå·²è¤‡è£½ CMoney ?™æ´????°å‰ªè²¼ç°¿',
+      webClipboardHint: '?ï¿½è¦½?ï¿½é˜»?ï¿½æ–°?ï¿½ï¿½?ï¼Œå·²è¤‡è£½ CMoney ????ï¿½å‰ªè²¼ç°¿',
+      fallbackClipboardHint: '?ï¿½ï¿½??ï¿½æ¥?ï¿½ï¿½?ï¼Œå·²è¤‡è£½ CMoney ?ï¿½æ´????ï¿½å‰ªè²¼ç°¿',
     );
   }
 
@@ -4002,8 +4009,8 @@ class _StockListPageState extends State<StockListPage> {
 
     await _openExternalUrisWithFallback(
       uris: uris,
-      webClipboardHint: '?è¦½?¨é˜»?‹æ–°?†é?ï¼Œå·²è¤‡è£½ CMoney è¨è?????°å‰ªè²¼ç°¿',
-      fallbackClipboardHint: '?¡æ??´æ¥?‹å?ï¼Œå·²è¤‡è£½ CMoney è¨è?????°å‰ªè²¼ç°¿',
+      webClipboardHint: '?ï¿½è¦½?ï¿½é˜»?ï¿½æ–°?ï¿½ï¿½?ï¼Œå·²è¤‡è£½ CMoney è¨ï¿½?????ï¿½å‰ªè²¼ç°¿',
+      fallbackClipboardHint: '?ï¿½ï¿½??ï¿½æ¥?ï¿½ï¿½?ï¼Œå·²è¤‡è£½ CMoney è¨ï¿½?????ï¿½å‰ªè²¼ç°¿',
     );
   }
 
@@ -4101,7 +4108,7 @@ class _StockListPageState extends State<StockListPage> {
     });
     _savePreferences();
     final added = _favoriteStockCodes.length - before;
-    final message = added > 0 ? 'å·²æ–°å¢?$added æª”åˆ°?¶è??å–®' : '?™é¸?¡éƒ½å·²åœ¨?¶è??å–®ä¸?;
+    final message = added > 0 ? 'å·²æ–°ï¿½?$added æª”åˆ°?ï¿½ï¿½??ï¿½å–®' : '?ï¿½é¸?ï¿½éƒ½å·²åœ¨?ï¿½ï¿½??ï¿½å–®ï¿½?;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
@@ -4113,7 +4120,7 @@ class _StockListPageState extends State<StockListPage> {
 
     if (favorites.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?®å?æ²’æ??¯åŒ¯?ºç??¶è??¡ç¥¨')),
+        const SnackBar(content: Text('?ï¿½ï¿½?æ²’ï¿½??ï¿½åŒ¯?ï¿½ï¿½??ï¿½ï¿½??ï¿½ç¥¨')),
       );
       return;
     }
@@ -4124,9 +4131,9 @@ class _StockListPageState extends State<StockListPage> {
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
     final lines = <String>[
-      '?? ?°è‚¡?¶è??™é¸æ¸…å–®',
-      '?? ?¯å‡º?‚é?ï¼?dateText',
-      '?? æª”æ•¸ï¼?{favorites.length}',
+      '?? ?ï¿½è‚¡?ï¿½ï¿½??ï¿½é¸æ¸…å–®',
+      '?? ?ï¿½å‡º?ï¿½ï¿½?ï¿½?dateText',
+      '?? æª”æ•¸ï¿½?{favorites.length}',
       '------------------------------',
     ];
 
@@ -4135,12 +4142,12 @@ class _StockListPageState extends State<StockListPage> {
       final stock = item.stock;
       final isUp = stock.change >= 0;
       final changePrefix = isUp ? '+' : '';
-      final changeEmoji = isUp ? '?”º' : '?”»';
+      final changeEmoji = isUp ? '?ï¿½ï¿½' : '?ï¿½ï¿½';
       final scoreEmoji = item.score >= 80
           ? '??'
           : item.score >= 65
               ? '??
-              : '? ï?';
+              : '?ï¿½ï¿½?';
       final entryPrice = _entryPriceByCode[stock.code];
       final lots = _positionLotsByCode[stock.code];
       final pnlPercent = _calculatePnlPercent(stock, entryPrice);
@@ -4149,14 +4156,14 @@ class _StockListPageState extends State<StockListPage> {
         '${i + 1}. ${stock.code} ${stock.name} $scoreEmoji',
       );
       lines.add(
-          '   ?’° ${stock.closePrice.toStringAsFixed(2)}  $changeEmoji $changePrefix${stock.change.toStringAsFixed(2)}');
+          '   ?ï¿½ï¿½ ${stock.closePrice.toStringAsFixed(2)}  $changeEmoji $changePrefix${stock.change.toStringAsFixed(2)}');
       lines.add(
-        '   ?“¦ ??${_formatWithThousandsSeparator(stock.volume)}  ?¯ ??${item.score}${entryPrice == null || pnlPercent == null ? '' : '  ?’¼ ?æœ¬ ${entryPrice.toStringAsFixed(2)}'}${lots == null ? '' : '  å¼µæ•¸ ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}'}${pnlPercent == null ? '' : '  ?ç? ${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%'}${pnlAmount == null ? '' : '  (${pnlAmount >= 0 ? '+' : ''}${_formatCurrency(pnlAmount)})'}',
+        '   ?ï¿½ï¿½ ??${_formatWithThousandsSeparator(stock.volume)}  ?ï¿½ï¿½ ??${item.score}${entryPrice == null || pnlPercent == null ? '' : '  ?ï¿½ï¿½ ?ï¿½æœ¬ ${entryPrice.toStringAsFixed(2)}'}${lots == null ? '' : '  å¼µæ•¸ ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}'}${pnlPercent == null ? '' : '  ?ï¿½ï¿½? ${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%'}${pnlAmount == null ? '' : '  (${pnlAmount >= 0 ? '+' : ''}${_formatCurrency(pnlAmount)})'}',
       );
       lines.add('');
     }
 
-    lines.add('? ï? ?…ä??”ç©¶?ƒè€ƒï?è«‹è‡ªè¡Œæ§ç®¡é¢¨?ªã€?);
+    lines.add('?ï¿½ï¿½? ?ï¿½ï¿½??ï¿½ç©¶?ï¿½è€ƒï¿½?è«‹è‡ªè¡Œæ§ç®¡é¢¨?ï¿½ï¿½?);
 
     await Clipboard.setData(ClipboardData(text: lines.join('\n')));
     if (!mounted) {
@@ -4164,7 +4171,7 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('?¶è?æ¸…å–®å·²è?è£½åˆ°?ªè²¼ç°?)),
+      const SnackBar(content: Text('?ï¿½ï¿½?æ¸…å–®å·²ï¿½?è£½åˆ°?ï¿½è²¼ï¿½?)),
     );
   }
 
@@ -4243,7 +4250,7 @@ class _StockListPageState extends State<StockListPage> {
     double localPriceWeight = _priceWeight.toDouble();
     double localConcentrationWeight = _concentrationWeight.toDouble();
     double localTradeValueWeight = _tradeValueWeight.toDouble();
-    // fund?‘flow / margin filter locals
+    // fund?ï¿½flow / margin filter locals
     bool localEnableForeignFlowFilter = _enableForeignFlowFilter;
     double localMinForeignNet = _minForeignNet.toDouble();
     bool localEnableTrustFlowFilter = _enableTrustFlowFilter;
@@ -4289,12 +4296,12 @@ class _StockListPageState extends State<StockListPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'ç¯©é¸é£†è‚¡è¨­å?',
+                          'ç¯©é¸é£†è‚¡è¨­ï¿½?',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          '?‹æ?ä»‹é¢å¯†åº¦ï¼?{_mobileUiDensityLabel(localMobileUiDensity)}',
+                          '?ï¿½ï¿½?ä»‹é¢å¯†åº¦ï¿½?{_mobileUiDensityLabel(localMobileUiDensity)}',
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         const SizedBox(height: 6),
@@ -4303,7 +4310,7 @@ class _StockListPageState extends State<StockListPage> {
                           runSpacing: 8,
                           children: [
                             ChoiceChip(
-                              label: const Text('?’é©'),
+                              label: const Text('?ï¿½é©'),
                               selected: localMobileUiDensity ==
                                   _MobileUiDensity.comfortable,
                               onSelected: (_) {
@@ -4314,7 +4321,7 @@ class _StockListPageState extends State<StockListPage> {
                               },
                             ),
                             ChoiceChip(
-                              label: const Text('ç·Šæ?'),
+                              label: const Text('ç·Šï¿½?'),
                               selected: localMobileUiDensity ==
                                   _MobileUiDensity.compact,
                               onSelected: (_) {
@@ -4327,14 +4334,14 @@ class _StockListPageState extends State<StockListPage> {
                           ],
                         ),
                         Text(
-                          '?ç¤ºï¼šç?æ¹Šå??¨æ?æ©Ÿå¯¬åº¦ç??ˆï?< 600ï¼‰ã€?,
+                          '?ï¿½ç¤ºï¼šï¿½?æ¹Šï¿½??ï¿½ï¿½?æ©Ÿå¯¬åº¦ï¿½??ï¿½ï¿½?< 600ï¼‰ï¿½?,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 8),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localExpandCardDetailsByDefault,
-                          title: const Text('?è¨­å±•é??¡ç?è©³ç´°èªªæ?'),
+                          title: const Text('?ï¿½è¨­å±•ï¿½??ï¿½ï¿½?è©³ç´°èªªï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localExpandCardDetailsByDefault = value;
@@ -4342,7 +4349,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?‹æ?å­—ç?ï¼?{_mobileTextScaleLabel(localMobileTextScale)}',
+                          '?ï¿½ï¿½?å­—ï¿½?ï¿½?{_mobileTextScaleLabel(localMobileTextScale)}',
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         const SizedBox(height: 6),
@@ -4351,7 +4358,7 @@ class _StockListPageState extends State<StockListPage> {
                           runSpacing: 8,
                           children: [
                             ChoiceChip(
-                              label: const Text('å°?),
+                              label: const Text('ï¿½?),
                               selected:
                                   localMobileTextScale == _MobileTextScale.small,
                               onSelected: (_) {
@@ -4361,7 +4368,7 @@ class _StockListPageState extends State<StockListPage> {
                               },
                             ),
                             ChoiceChip(
-                              label: const Text('ä¸?),
+                              label: const Text('ï¿½?),
                               selected: localMobileTextScale ==
                                   _MobileTextScale.medium,
                               onSelected: (_) {
@@ -4372,7 +4379,7 @@ class _StockListPageState extends State<StockListPage> {
                               },
                             ),
                             ChoiceChip(
-                              label: const Text('å¤?),
+                              label: const Text('ï¿½?),
                               selected:
                                   localMobileTextScale == _MobileTextScale.large,
                               onSelected: (_) {
@@ -4384,14 +4391,14 @@ class _StockListPageState extends State<StockListPage> {
                           ],
                         ),
                         Text(
-                          '?ç¤ºï¼šå??¨æ?æ©Ÿå¯¬åº¦ç??ˆï?< 600ï¼‰ã€?,
+                          '?ï¿½ç¤ºï¼šï¿½??ï¿½ï¿½?æ©Ÿå¯¬åº¦ï¿½??ï¿½ï¿½?< 600ï¼‰ï¿½?,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 8),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableStrategyFilter,
-                          title: const Text('?Ÿç”¨ç­–ç•¥ç¯©é¸'),
+                          title: const Text('?ï¿½ç”¨ç­–ç•¥ç¯©é¸'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableStrategyFilter = value;
@@ -4401,7 +4408,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoRefreshEnabled,
-                          title: const Text('?ªå?å®šæ??´æ–°'),
+                          title: const Text('?ï¿½ï¿½?å®šï¿½??ï¿½æ–°'),
                           onChanged: (value) {
                             setLocalState(() {
                               localAutoRefreshEnabled = value;
@@ -4411,8 +4418,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: _intradayEnabled,
-                          title: const Text('?Ÿç”¨?¤ä¸­?³æ??µæ¸¬ï¼ˆæ?5?†é?ï¼?),
-                          subtitle: const Text('App ?¨å??¯æ?æ¯??†é?è¼ªè©¢ TWSE ?¤ä¸­è³‡æ?ä¸¦è?ç®—è???),
+                          title: const Text('?ï¿½ç”¨?ï¿½ä¸­?ï¿½ï¿½??ï¿½æ¸¬ï¼ˆï¿½?5?ï¿½ï¿½?ï¿½?),
+                          subtitle: const Text('App ?ï¿½ï¿½??ï¿½ï¿½?ï¿½??ï¿½ï¿½?è¼ªè©¢ TWSE ?ï¿½ä¸­è³‡ï¿½?ä¸¦ï¿½?ç®—ï¿½???),
                           onChanged: (value) async {
                             if (_intradayController != null) {
                               if (value) {
@@ -4430,8 +4437,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localLockSelectionParameters,
-                          title: const Text('?–å??¸è‚¡?ƒæ•¸ï¼ˆé˜²?ªå?æ¼‚ç§»ï¼?),
-                          subtitle: const Text('?Ÿç”¨å¾Œå??¨è‡ª?•ç??¥å???äº‹ä»¶æ¨¡æ¿/é«˜é¢¨?ªè‡ª?•ä?å®?),
+                          title: const Text('?ï¿½ï¿½??ï¿½è‚¡?ï¿½æ•¸ï¼ˆé˜²?ï¿½ï¿½?æ¼‚ç§»ï¿½?),
+                          subtitle: const Text('?ï¿½ç”¨å¾Œï¿½??ï¿½è‡ª?ï¿½ï¿½??ï¿½ï¿½???äº‹ä»¶æ¨¡æ¿/é«˜é¢¨?ï¿½è‡ª?ï¿½ï¿½?ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localLockSelectionParameters = value;
@@ -4446,7 +4453,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoApplyRecommendedMode,
-                          title: const Text('?ªå??‡æ?å»ºè­°æ¨¡å?ï¼ˆæ??¥ä?æ¬¡ï?'),
+                          title: const Text('?ï¿½ï¿½??ï¿½ï¿½?å»ºè­°æ¨¡ï¿½?ï¼ˆï¿½??ï¿½ï¿½?æ¬¡ï¿½?'),
                           onChanged: localLockSelectionParameters
                               ? null
                               : (value) {
@@ -4458,15 +4465,15 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoApplyOnlyTradingMorning,
-                          title: const Text('?ªåœ¨äº¤æ??¥æ—©ä¸Šè‡ª?•å???),
-                          subtitle: const Text('?±ä??³é€±ä? 08:00-10:30 ?æ??ªå?å¥—ç”¨å»ºè­°'),
+                          title: const Text('?ï¿½åœ¨äº¤ï¿½??ï¿½æ—©ä¸Šè‡ª?ï¿½ï¿½???),
+                          subtitle: const Text('?ï¿½ï¿½??ï¿½é€±ï¿½? 08:00-10:30 ?ï¿½ï¿½??ï¿½ï¿½?å¥—ç”¨å»ºè­°'),
                           onChanged: (value) {
                             setLocalState(() {
                               localAutoApplyOnlyTradingMorning = value;
                             });
                           },
                         ),
-                        Text('?ªå??´æ–°?“é?ï¼?{localAutoRefreshMinutes.toInt()} ?†é?'),
+                        Text('?ï¿½ï¿½??ï¿½æ–°?ï¿½ï¿½?ï¿½?{localAutoRefreshMinutes.toInt()} ?ï¿½ï¿½?'),
                         Slider(
                           value: localAutoRefreshMinutes,
                           min: 5,
@@ -4482,7 +4489,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localRequireOpenConfirm,
-                          title: const Text('?‹ç›¤30?†é?ç¢ºè??²å ´'),
+                          title: const Text('?ï¿½ç›¤30?ï¿½ï¿½?ç¢ºï¿½??ï¿½å ´'),
                           onChanged: (value) {
                             setLocalState(() {
                               localRequireOpenConfirm = value;
@@ -4492,7 +4499,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoDefensiveOnHighNewsRisk,
-                          title: const Text('?å¤§äº‹ä»¶æ¨¡å?ï¼ˆæ–°?é?é¢¨éšª?ªå?ä¿å?ï¼?),
+                          title: const Text('?ï¿½å¤§äº‹ä»¶æ¨¡ï¿½?ï¼ˆæ–°?ï¿½ï¿½?é¢¨éšª?ï¿½ï¿½?ä¿ï¿½?ï¿½?),
                           onChanged: localLockSelectionParameters
                               ? null
                               : (value) {
@@ -4504,8 +4511,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoApplyNewsEventTemplate,
-                          title: const Text('äº‹ä»¶æ¨¡æ¿?ªå?å¥—ç”¨'),
-                          subtitle: const Text('?µæ¸¬?°æˆ°???«æ?/?°è—¥ç­‰ä?ä»¶æ?ï¼Œè‡ª?•å??¨å??‰å???),
+                          title: const Text('äº‹ä»¶æ¨¡æ¿?ï¿½ï¿½?å¥—ç”¨'),
+                          subtitle: const Text('?ï¿½æ¸¬?ï¿½æˆ°???ï¿½ï¿½?/?ï¿½è—¥ç­‰ï¿½?ä»¶ï¿½?ï¼Œè‡ª?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½???),
                           onChanged: localLockSelectionParameters
                               ? null
                               : (value) {
@@ -4515,7 +4522,7 @@ class _StockListPageState extends State<StockListPage> {
                                 },
                         ),
                         Text(
-                          'äº‹ä»¶æ¨¡æ¿?ªå??„å?å¤©æ•¸ï¼?{localAutoRestoreNewsEventTemplateAfterDays.toInt()} å¤©ï?????¡ä?ä»¶å‘½ä¸­å??„å?ï¼?,
+                          'äº‹ä»¶æ¨¡æ¿?ï¿½ï¿½??ï¿½ï¿½?å¤©æ•¸ï¿½?{localAutoRestoreNewsEventTemplateAfterDays.toInt()} å¤©ï¿½?????ï¿½ï¿½?ä»¶å‘½ä¸­ï¿½??ï¿½ï¿½?ï¿½?,
                         ),
                         Slider(
                           value: localAutoRestoreNewsEventTemplateAfterDays,
@@ -4523,7 +4530,7 @@ class _StockListPageState extends State<StockListPage> {
                           max: 14,
                           divisions: 13,
                           label:
-                              '${localAutoRestoreNewsEventTemplateAfterDays.toInt()}å¤?,
+                              '${localAutoRestoreNewsEventTemplateAfterDays.toInt()}ï¿½?,
                           onChanged: (value) {
                             setLocalState(() {
                               localAutoRestoreNewsEventTemplateAfterDays =
@@ -4534,7 +4541,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localAutoRegimeEnabled,
-                          title: const Text('Regime ?ªå??‡æ?ï¼ˆå????¤æ•´/?²å?ï¼?),
+                          title: const Text('Regime ?ï¿½ï¿½??ï¿½ï¿½?ï¼ˆï¿½????ï¿½æ•´/?ï¿½ï¿½?ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localAutoRegimeEnabled = value;
@@ -4544,7 +4551,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localTimeSegmentTuningEnabled,
-                          title: const Text('?‚æ®µ?•æ??ƒæ•¸ï¼ˆé??¤ä?å®ˆï?'),
+                          title: const Text('?ï¿½æ®µ?ï¿½ï¿½??ï¿½æ•¸ï¼ˆï¿½??ï¿½ï¿½?å®ˆï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localTimeSegmentTuningEnabled = value;
@@ -4557,8 +4564,8 @@ class _StockListPageState extends State<StockListPage> {
                           maxLines: 5,
                           initialValue: localSectorRulesText,
                           decoration: const InputDecoration(
-                            labelText: '?¿å??†ç?è¦å?ï¼ˆæ ¼å¼ï?11-17=é£Ÿå?/å¡‘å?ï¼?,
-                            helperText: '?¯å?è¡Œï?ä¾‹ï?25-29=?šè?/?Šå?é«?,
+                            labelText: '?ï¿½ï¿½??ï¿½ï¿½?è¦ï¿½?ï¼ˆæ ¼å¼ï¿½?11-17=é£Ÿï¿½?/å¡‘ï¿½?ï¿½?,
+                            helperText: '?ï¿½ï¿½?è¡Œï¿½?ä¾‹ï¿½?25-29=?ï¿½ï¿½?/?ï¿½ï¿½?ï¿½?,
                             border: OutlineInputBorder(),
                           ),
                           onChanged: (value) {
@@ -4605,7 +4612,7 @@ class _StockListPageState extends State<StockListPage> {
                             child: ListTile(
                               dense: true,
                               leading: const Icon(Icons.info_outline),
-                              title: Text('${preset.label}?è¨­'),
+                              title: Text('${preset.label}?ï¿½è¨­'),
                               subtitle: Text(preset.description),
                             ),
                           ),
@@ -4614,7 +4621,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localOnlyRising,
-                          title: const Text('?ªç??¶æ—¥ä¸Šæ¼²'),
+                          title: const Text('?ï¿½ï¿½??ï¿½æ—¥ä¸Šæ¼²'),
                           onChanged: (value) {
                             setLocalState(() {
                               localOnlyRising = value;
@@ -4623,7 +4630,7 @@ class _StockListPageState extends State<StockListPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '?¡åƒ¹ä¸Šé?ï¼?{_formatWithThousandsSeparator(localMaxPrice.toInt())}',
+                          '?ï¿½åƒ¹ä¸Šï¿½?ï¿½?{_formatWithThousandsSeparator(localMaxPrice.toInt())}',
                         ),
                         Slider(
                           value: localMaxPrice,
@@ -4638,7 +4645,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?äº¤?é?æª»ï?${_formatWithThousandsSeparator(localVolumeThreshold.toInt())}',
+                          '?ï¿½äº¤?ï¿½ï¿½?æª»ï¿½?${_formatWithThousandsSeparator(localVolumeThreshold.toInt())}',
                         ),
                         Slider(
                           value: localVolumeThreshold,
@@ -4655,7 +4662,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localUseRelativeVolumeFilter,
-                          title: const Text('?Ÿç”¨?¸å??èƒ½?€æª?),
+                          title: const Text('?ï¿½ç”¨?ï¿½ï¿½??ï¿½èƒ½?ï¿½ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localUseRelativeVolumeFilter = value;
@@ -4663,7 +4670,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?¸å??èƒ½?€æª»ï?${localRelativeVolumePercent.toInt()}%ï¼ˆç›¸å°å¤§?¤å¹³?‡é?ï¼?),
+                            '?ï¿½ï¿½??ï¿½èƒ½?ï¿½æª»ï¿½?${localRelativeVolumePercent.toInt()}%ï¼ˆç›¸å°å¤§?ï¿½å¹³?ï¿½ï¿½?ï¿½?),
                         Slider(
                           value: localRelativeVolumePercent,
                           min: 100,
@@ -4677,7 +4684,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?äº¤?¼é?æª»ï?${_formatCurrency(localTradeValueThreshold)}',
+                          '?ï¿½äº¤?ï¿½ï¿½?æª»ï¿½?${_formatCurrency(localTradeValueThreshold)}',
                         ),
                         Slider(
                           value: localTradeValueThreshold,
@@ -4695,8 +4702,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableForeignFlowFilter,
-                          title: const Text('å¤–è?æ·¨è²·è¶…ç¯©??),
-                          subtitle: Text('?€æª»ï?${_formatWithThousandsSeparator(localMinForeignNet.toInt())}'),
+                          title: const Text('å¤–ï¿½?æ·¨è²·è¶…ç¯©??),
+                          subtitle: Text('?ï¿½æª»ï¿½?${_formatWithThousandsSeparator(localMinForeignNet.toInt())}'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableForeignFlowFilter = value;
@@ -4720,8 +4727,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableTrustFlowFilter,
-                          title: const Text('?•ä¿¡æ·¨è²·è¶…ç¯©??),
-                          subtitle: Text('?€æª»ï?${_formatWithThousandsSeparator(localMinTrustNet.toInt())}'),
+                          title: const Text('?ï¿½ä¿¡æ·¨è²·è¶…ç¯©??),
+                          subtitle: Text('?ï¿½æª»ï¿½?${_formatWithThousandsSeparator(localMinTrustNet.toInt())}'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableTrustFlowFilter = value;
@@ -4745,8 +4752,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableDealerFlowFilter,
-                          title: const Text('?ªç??†æ·¨è²·è?ç¯©é¸'),
-                          subtitle: Text('?€æª»ï?${_formatWithThousandsSeparator(localMinDealerNet.toInt())}'),
+                          title: const Text('?ï¿½ï¿½??ï¿½æ·¨è²·ï¿½?ç¯©é¸'),
+                          subtitle: Text('?ï¿½æª»ï¿½?${_formatWithThousandsSeparator(localMinDealerNet.toInt())}'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableDealerFlowFilter = value;
@@ -4770,8 +4777,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableMarginDiffFilter,
-                          title: const Text('?è?é¤˜é?è®Šå?ç¯©é¸'),
-                          subtitle: Text('?€æª»ï?${_formatWithThousandsSeparator(localMinMarginBalanceDiff.toInt())}'),
+                          title: const Text('?ï¿½ï¿½?é¤˜ï¿½?è®Šï¿½?ç¯©é¸'),
+                          subtitle: Text('?ï¿½æª»ï¿½?${_formatWithThousandsSeparator(localMinMarginBalanceDiff.toInt())}'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableMarginDiffFilter = value;
@@ -4796,7 +4803,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableScoring,
-                          title: const Text('?Ÿç”¨?“å??’å?'),
+                          title: const Text('?ï¿½ç”¨?ï¿½ï¿½??ï¿½ï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableScoring = value;
@@ -4806,14 +4813,14 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localExcludeOverheated,
-                          title: const Text('?’é™¤è¿½é?é¢¨éšªï¼ˆé??±ï?'),
+                          title: const Text('?ï¿½é™¤è¿½ï¿½?é¢¨éšªï¼ˆï¿½??ï¿½ï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localExcludeOverheated = value;
                             });
                           },
                         ),
-                        Text('?ç†±æ¼²å?ä¸Šé?ï¼?{localMaxChaseChangePercent.toInt()}%'),
+                        Text('?ï¿½ç†±æ¼²ï¿½?ä¸Šï¿½?ï¿½?{localMaxChaseChangePercent.toInt()}%'),
                         Slider(
                           value: localMaxChaseChangePercent,
                           min: 3,
@@ -4829,7 +4836,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localLimitTopCandidates,
-                          title: const Text('?…é¡¯ç¤ºå?20æª?),
+                          title: const Text('?ï¿½é¡¯ç¤ºï¿½?20ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localLimitTopCandidates = value;
@@ -4840,7 +4847,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableExitSignal,
-                          title: const Text('?Ÿç”¨?ºå ´è¨Šè?'),
+                          title: const Text('?ï¿½ç”¨?ï¿½å ´è¨Šï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableExitSignal = value;
@@ -4850,8 +4857,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localHoldingNotifyIncludeCaution,
-                          title: const Text('åº«å??é??…å«è­¦æ?è¨Šè?'),
-                          subtitle: const Text('?œé?å¾Œå??šçŸ¥?œæ?/?œåˆ©ï¼ˆè?å°‘é€šçŸ¥ï¼?),
+                          title: const Text('åº«ï¿½??ï¿½ï¿½??ï¿½å«è­¦ï¿½?è¨Šï¿½?'),
+                          subtitle: const Text('?ï¿½ï¿½?å¾Œï¿½??ï¿½çŸ¥?ï¿½ï¿½?/?ï¿½åˆ©ï¼ˆï¿½?å°‘é€šçŸ¥ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localHoldingNotifyIncludeCaution = value;
@@ -4861,8 +4868,8 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableAutoRiskAdjustment,
-                          title: const Text('?Ÿç”¨?ªå?èª¿å?ï¼ˆé¢¨?ªå??¸ï?'),
-                          subtitle: const Text('ä¾æ–°???¤å‹¢/å¯¬åº¦/??™§?•æ?èª¿æ•´?†æ•¸?é??½è??œåˆ©?®æ?'),
+                          title: const Text('?ï¿½ç”¨?ï¿½ï¿½?èª¿ï¿½?ï¼ˆé¢¨?ï¿½ï¿½??ï¿½ï¿½?'),
+                          subtitle: const Text('ä¾æ–°???ï¿½å‹¢/å¯¬åº¦/??ï¿½ï¿½?ï¿½ï¿½?èª¿æ•´?ï¿½æ•¸?ï¿½ï¿½??ï¿½ï¿½??ï¿½åˆ©?ï¿½ï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableAutoRiskAdjustment = value;
@@ -4870,7 +4877,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?ªå?èª¿å?å¼·åº¦ï¼?{localAutoRiskAdjustmentStrength.toInt()}ï¼?{_riskAdjustmentIntensityLabel(localAutoRiskAdjustmentStrength.toInt())}ï¼?,
+                          '?ï¿½ï¿½?èª¿ï¿½?å¼·åº¦ï¿½?{localAutoRiskAdjustmentStrength.toInt()}ï¿½?{_riskAdjustmentIntensityLabel(localAutoRiskAdjustmentStrength.toInt())}ï¿½?,
                         ),
                         Slider(
                           value: localAutoRiskAdjustmentStrength,
@@ -4890,9 +4897,9 @@ class _StockListPageState extends State<StockListPage> {
                           runSpacing: 8,
                           children: [
                             Tooltip(
-                              message: '?´æ ¼?æ¿¾ï¼šè??Ÿæ›´å°‘ã€å??²å???,
+                              message: '?ï¿½æ ¼?ï¿½æ¿¾ï¼šï¿½??ï¿½æ›´å°‘ã€ï¿½??ï¿½ï¿½???,
                               child: ChoiceChip(
-                                label: const Text('ä¿å? 25'),
+                                label: const Text('ä¿ï¿½? 25'),
                                 selected:
                                     localAutoRiskAdjustmentStrength.toInt() ==
                                         25,
@@ -4904,7 +4911,7 @@ class _StockListPageState extends State<StockListPage> {
                               ),
                             ),
                             Tooltip(
-                              message: 'æ¨™æ?è¨­å?ï¼šé€²æ”»?‡é¢¨?§å¹³è¡¡ã€?,
+                              message: 'æ¨™ï¿½?è¨­ï¿½?ï¼šé€²æ”»?ï¿½é¢¨?ï¿½å¹³è¡¡ï¿½?,
                               child: ChoiceChip(
                                 label: const Text('å¹³è¡¡ 50'),
                                 selected:
@@ -4918,7 +4925,7 @@ class _StockListPageState extends State<StockListPage> {
                               ),
                             ),
                             Tooltip(
-                              message: 'å¿«é€Ÿå??‰ï?èª¿å??´æ??Ÿã€?,
+                              message: 'å¿«é€Ÿï¿½??ï¿½ï¿½?èª¿ï¿½??ï¿½ï¿½??ï¿½ï¿½?,
                               child: ChoiceChip(
                                 label: const Text('ç©æ¥µ 75'),
                                 selected:
@@ -4936,14 +4943,14 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localExpandAggressiveEstimateByDefault,
-                          title: const Text('?è¨­å±•é?ç©æ¥µä¼°ç?'),
+                          title: const Text('?ï¿½è¨­å±•ï¿½?ç©æ¥µä¼°ï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localExpandAggressiveEstimateByDefault = value;
                             });
                           },
                         ),
-                        Text('?œæ?è­¦ç¤ºï¼?${localStopLossPercent.toInt()}%'),
+                        Text('?ï¿½ï¿½?è­¦ç¤ºï¿½?${localStopLossPercent.toInt()}%'),
                         Slider(
                           value: localStopLossPercent,
                           min: 3,
@@ -4956,7 +4963,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?œåˆ©è­¦ç¤ºï¼?${localTakeProfitPercent.toInt()}%'),
+                        Text('?ï¿½åˆ©è­¦ç¤ºï¿½?${localTakeProfitPercent.toInt()}%'),
                         Slider(
                           value: localTakeProfitPercent,
                           min: 5,
@@ -4972,7 +4979,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableTrailingStop,
-                          title: const Text('?Ÿç”¨ç§»å??œåˆ©'),
+                          title: const Text('?ï¿½ç”¨ç§»ï¿½??ï¿½åˆ©'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableTrailingStop = value;
@@ -4980,8 +4987,8 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         const Divider(height: 24),
-                        Text('æ¬Šé?è¨­å?ï¼?ï¼å¿½?¥ï?'),
-                        Text('?äº¤?æ??ï?${localVolumeWeight.toInt()}'),
+                        Text('æ¬Šï¿½?è¨­ï¿½?ï¿½?ï¼å¿½?ï¿½ï¿½?'),
+                        Text('?ï¿½äº¤?ï¿½ï¿½??ï¿½ï¿½?${localVolumeWeight.toInt()}'),
                         Slider(
                           value: localVolumeWeight.toDouble(),
                           min: 0,
@@ -4994,7 +5001,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('æ¼²è??¾å?æ¯”æ??ï?${localChangeWeight.toInt()}'),
+                        Text('æ¼²ï¿½??ï¿½ï¿½?æ¯”ï¿½??ï¿½ï¿½?${localChangeWeight.toInt()}'),
                         Slider(
                           value: localChangeWeight.toDouble(),
                           min: 0,
@@ -5007,7 +5014,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?¡åƒ¹è·é›¢æ¬Šé?ï¼?{localPriceWeight.toInt()}'),
+                        Text('?ï¿½åƒ¹è·é›¢æ¬Šï¿½?ï¿½?{localPriceWeight.toInt()}'),
                         Slider(
                           value: localPriceWeight.toDouble(),
                           min: 0,
@@ -5020,7 +5027,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('ç±Œç¢¼?†ä¸­åº¦æ??ï?${localConcentrationWeight.toInt()}'),
+                        Text('ç±Œç¢¼?ï¿½ä¸­åº¦ï¿½??ï¿½ï¿½?${localConcentrationWeight.toInt()}'),
                         Slider(
                           value: localConcentrationWeight.toDouble(),
                           min: 0,
@@ -5033,7 +5040,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?äº¤?¼æ??ï?${localTradeValueWeight.toInt()}'),
+                        Text('?ï¿½äº¤?ï¿½ï¿½??ï¿½ï¿½?${localTradeValueWeight.toInt()}'),
                         Slider(
                           value: localTradeValueWeight.toDouble(),
                           min: 0,
@@ -5052,7 +5059,7 @@ class _StockListPageState extends State<StockListPage> {
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             icon: const Icon(Icons.auto_fix_high),
-                            label: const Text('?ªå??œå?æ¬Šé?'),
+                            label: const Text('?ï¿½ï¿½??ï¿½ï¿½?æ¬Šï¿½?'),
                             onPressed: _latestStocks.isEmpty
                                 ? null
                                 : () {
@@ -5072,12 +5079,12 @@ class _StockListPageState extends State<StockListPage> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                           content:
-                                              const Text('æ¬Šé?å·²æ ¹?šè??Ÿè¡¨?¾è‡ª?•èª¿??)),
+                                              const Text('æ¬Šï¿½?å·²æ ¹?ï¿½ï¿½??ï¿½è¡¨?ï¿½è‡ª?ï¿½èª¿??)),
                                     );
                                   },
                           ),
                         ),
-                        Text('ç§»å??œåˆ©?æ’¤ï¼?{localTrailingPullbackPercent.toInt()}%'),
+                        Text('ç§»ï¿½??ï¿½åˆ©?ï¿½æ’¤ï¿½?{localTrailingPullbackPercent.toInt()}%'),
                         Slider(
                           value: localTrailingPullbackPercent,
                           min: 2,
@@ -5093,7 +5100,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableAdaptiveAtrExit,
-                          title: const Text('?Ÿç”¨ ATR ?ªé©?‰å???),
+                          title: const Text('?ï¿½ç”¨ ATR ?ï¿½é©?ï¿½ï¿½???),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableAdaptiveAtrExit = value;
@@ -5103,7 +5110,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableScoreTierSizing,
-                          title: const Text('?†æ•¸?†å±¤?‰ä?'),
+                          title: const Text('?ï¿½æ•¸?ï¿½å±¤?ï¿½ï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableScoreTierSizing = value;
@@ -5113,7 +5120,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableBreakoutQuality,
-                          title: const Text('çªç ´?è³ª?æ¿¾'),
+                          title: const Text('çªç ´?ï¿½è³ª?ï¿½æ¿¾'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableBreakoutQuality = value;
@@ -5121,7 +5128,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            'çªç ´?èƒ½?ç??€æª»ï?${localBreakoutMinVolumeRatio.toInt()}%'),
+                            'çªç ´?ï¿½èƒ½?ï¿½ï¿½??ï¿½æª»ï¿½?${localBreakoutMinVolumeRatio.toInt()}%'),
                         Slider(
                           value: localBreakoutMinVolumeRatio,
                           min: 100,
@@ -5138,15 +5145,15 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableChipConcentrationFilter,
-                          title: const Text('ç±Œç¢¼?†ä¸­åº¦é?æ¿?),
-                          subtitle: Text('?ªé¡¯ç¤ºé?ä¸­åº¦ ??${localMinChipConcentrationPercent.toInt()}% ?„å€‹è‚¡'),
+                          title: const Text('ç±Œç¢¼?ï¿½ä¸­åº¦ï¿½?ï¿½?),
+                          subtitle: Text('?ï¿½é¡¯ç¤ºï¿½?ä¸­åº¦ ??${localMinChipConcentrationPercent.toInt()}% ?ï¿½å€‹è‚¡'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableChipConcentrationFilter = value;
                             });
                           },
                         ),
-                        Text('?€ä½ç?ç¢¼é?ä¸­åº¦ï¼?{localMinChipConcentrationPercent.toInt()}%'),
+                        Text('?ï¿½ä½ï¿½?ç¢¼ï¿½?ä¸­åº¦ï¿½?{localMinChipConcentrationPercent.toInt()}%'),
                         Slider(
                           value: localMinChipConcentrationPercent,
                           min: 0,
@@ -5162,7 +5169,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableRiskRewardPrefilter,
-                          title: const Text('é¢¨éšª?±é…¬?ç½®?æ¿¾'),
+                          title: const Text('é¢¨éšª?ï¿½é…¬?ï¿½ç½®?ï¿½æ¿¾'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableRiskRewardPrefilter = value;
@@ -5170,7 +5177,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?€ä½é¢¨?ªå ±?¬æ?ï¼?{localMinRiskRewardRatio.toStringAsFixed(2)}'),
+                            '?ï¿½ä½é¢¨?ï¿½å ±?ï¿½ï¿½?ï¿½?{localMinRiskRewardRatio.toStringAsFixed(2)}'),
                         Slider(
                           value: localMinRiskRewardRatio,
                           min: 1.0,
@@ -5187,7 +5194,7 @@ class _StockListPageState extends State<StockListPage> {
                         DropdownButtonFormField<BreakoutMode>(
                           initialValue: localBreakoutStageMode,
                           decoration: const InputDecoration(
-                            labelText: 'é£†è‚¡ç¯©é¸æ¨¡å?',
+                            labelText: 'é£†è‚¡ç¯©é¸æ¨¡ï¿½?',
                             border: OutlineInputBorder(),
                           ),
                           items: BreakoutMode.values
@@ -5209,13 +5216,13 @@ class _StockListPageState extends State<StockListPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '?›ç???ç¢ºè?çªç ´/ä½åŸº?Ÿé????æ??æ”»/?ç¸®å¾…å™´/äº‹ä»¶?å¡ä½ï??¯ä??¤å‹¢å¿«é€Ÿå??›ã€?,
+                          '?ï¿½ï¿½???ç¢ºï¿½?çªç ´/ä½åŸº?ï¿½ï¿½????ï¿½ï¿½??ï¿½æ”»/?ï¿½ç¸®å¾…å™´/äº‹ä»¶?ï¿½å¡ä½ï¿½??ï¿½ï¿½??ï¿½å‹¢å¿«é€Ÿï¿½??ï¿½ï¿½?,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableMultiDayBreakout,
-                          title: const Text('???çªç ´ç¢ºè?'),
+                          title: const Text('???çªç ´ç¢ºï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableMultiDayBreakout = value;
@@ -5223,13 +5230,13 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?€ä½é€??çªç ´å¤©æ•¸ï¼?{localMinBreakoutStreakDays.toInt()} å¤?),
+                            '?ï¿½ä½ï¿½??çªç ´å¤©æ•¸ï¿½?{localMinBreakoutStreakDays.toInt()} ï¿½?),
                         Slider(
                           value: localMinBreakoutStreakDays,
                           min: 1,
                           max: 5,
                           divisions: 4,
-                          label: '${localMinBreakoutStreakDays.toInt()}å¤?,
+                          label: '${localMinBreakoutStreakDays.toInt()}ï¿½?,
                           onChanged: (value) {
                             setLocalState(() {
                               localMinBreakoutStreakDays = value;
@@ -5239,7 +5246,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableFalseBreakoutProtection,
-                          title: const Text('?‡ç??´é˜²è­?),
+                          title: const Text('?ï¿½ï¿½??ï¿½é˜²ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableFalseBreakoutProtection = value;
@@ -5249,7 +5256,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableMarketBreadthFilter,
-                          title: const Text('å¸‚å ´å¯¬åº¦?æ¿¾ï¼ˆæ¼²è·Œå®¶?¸æ?ï¼?),
+                          title: const Text('å¸‚å ´å¯¬åº¦?ï¿½æ¿¾ï¼ˆæ¼²è·Œå®¶?ï¿½ï¿½?ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableMarketBreadthFilter = value;
@@ -5257,7 +5264,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?€ä½å??´å¯¬åº¦æ?ï¼?{localMinMarketBreadthRatio.toStringAsFixed(2)}'),
+                            '?ï¿½ä½ï¿½??ï¿½å¯¬åº¦ï¿½?ï¿½?{localMinMarketBreadthRatio.toStringAsFixed(2)}'),
                         Slider(
                           value: localMinMarketBreadthRatio,
                           min: 0.8,
@@ -5273,7 +5280,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableEventRiskExclusion,
-                          title: const Text('äº‹ä»¶é¢¨éšª?’é™¤ï¼ˆè²¡???è?ï¼?),
+                          title: const Text('äº‹ä»¶é¢¨éšª?ï¿½é™¤ï¼ˆè²¡???ï¿½ï¿½?ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableEventRiskExclusion = value;
@@ -5282,7 +5289,7 @@ class _StockListPageState extends State<StockListPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'ä¸‰å?å­å¿«?Ÿé?è¨­ï?MVPï¼?,
+                          'ä¸‰ï¿½?å­å¿«?ï¿½ï¿½?è¨­ï¿½?MVPï¿½?,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         const SizedBox(height: 6),
@@ -5291,7 +5298,7 @@ class _StockListPageState extends State<StockListPage> {
                           runSpacing: 8,
                           children: [
                             ChoiceChip(
-                              label: const Text('ä¿å?'),
+                              label: const Text('ä¿ï¿½?'),
                               selected: selectedMvpPresetId == 'mvp_conservative',
                               onSelected: (_) {
                                 setLocalState(() {
@@ -5338,14 +5345,14 @@ class _StockListPageState extends State<StockListPage> {
                           ],
                         ),
                         Text(
-                          'ä¿å?ï¼šé¿?‹ä?ä»¶ç?ä¸”è?æ±‚è?é«˜å??½ï?å¹³è¡¡ï¼šæ?æº–é?æª»ï?ç©æ¥µï¼šæ”¾å¯¬ä?ä»¶ç??‡å??¸é?æª»ã€?,
+                          'ä¿ï¿½?ï¼šé¿?ï¿½ï¿½?ä»¶ï¿½?ä¸”ï¿½?æ±‚ï¿½?é«˜ï¿½??ï¿½ï¿½?å¹³è¡¡ï¼šï¿½?æº–ï¿½?æª»ï¿½?ç©æ¥µï¼šæ”¾å¯¬ï¿½?ä»¶ï¿½??ï¿½ï¿½??ï¿½ï¿½?æª»ï¿½?,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableEventCalendarWindow,
-                          title: const Text('æ³•èªª/è²¡å ±äº‹ä»¶çª—é?æ¿¾ï?MVPï¼?),
-                          subtitle: const Text('äº‹ä»¶?¥å?å¾Œå¤©?¸å…§?ˆé¿?‹ï?äº‹ä»¶?å¡ä½æ¨¡å¼é™¤å¤?),
+                          title: const Text('æ³•èªª/è²¡å ±äº‹ä»¶çª—ï¿½?æ¿¾ï¿½?MVPï¿½?),
+                          subtitle: const Text('äº‹ä»¶?ï¿½ï¿½?å¾Œå¤©?ï¿½å…§?ï¿½é¿?ï¿½ï¿½?äº‹ä»¶?ï¿½å¡ä½æ¨¡å¼é™¤ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               selectedMvpPresetId = null;
@@ -5353,13 +5360,13 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('äº‹ä»¶çª—å¤©?¸ï?Â±${localEventCalendarGuardDays.toInt()} å¤?),
+                        Text('äº‹ä»¶çª—å¤©?ï¿½ï¿½?Â±${localEventCalendarGuardDays.toInt()} ï¿½?),
                         Slider(
                           value: localEventCalendarGuardDays,
                           min: 0,
                           max: 3,
                           divisions: 3,
-                          label: 'Â±${localEventCalendarGuardDays.toInt()}å¤?,
+                          label: 'Â±${localEventCalendarGuardDays.toInt()}ï¿½?,
                           onChanged: (value) {
                             setLocalState(() {
                               selectedMvpPresetId = null;
@@ -5370,7 +5377,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableRevenueMomentumFilter,
-                          title: const Text('?ˆç??¶å??½é?æ¿¾ï?MVPï¼?),
+                          title: const Text('?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?æ¿¾ï¿½?MVPï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               selectedMvpPresetId = null;
@@ -5379,7 +5386,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?€ä½ç??¶å??½å??¸ï?${localMinRevenueMomentumScore.toInt()}ï¼?3 ~ +3ï¼?),
+                            '?ï¿½ä½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?${localMinRevenueMomentumScore.toInt()}ï¿½?3 ~ +3ï¿½?),
                         Slider(
                           value: localMinRevenueMomentumScore,
                           min: -3,
@@ -5397,7 +5404,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableEarningsSurpriseFilter,
-                          title: const Text('è²¡å ± surprise ?æ¿¾ï¼ˆMVPï¼?),
+                          title: const Text('è²¡å ± surprise ?ï¿½æ¿¾ï¼ˆMVPï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               selectedMvpPresetId = null;
@@ -5406,7 +5413,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?€ä½è²¡??surprise ?†æ•¸ï¼?{localMinEarningsSurpriseScore.toInt()}ï¼?3 ~ +3ï¼?),
+                            '?ï¿½ä½è²¡??surprise ?ï¿½æ•¸ï¿½?{localMinEarningsSurpriseScore.toInt()}ï¿½?3 ~ +3ï¿½?),
                         Slider(
                           value: localMinEarningsSurpriseScore,
                           min: -3,
@@ -5424,7 +5431,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableOvernightGapRiskGuard,
-                          title: const Text('?”æ—¥è·³ç©ºé¢¨éšª?²è­·ï¼ˆç›¤å¾?å¤œé?ï¼?),
+                          title: const Text('?ï¿½æ—¥è·³ç©ºé¢¨éšª?ï¿½è­·ï¼ˆç›¤ï¿½?å¤œï¿½?ï¿½?),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableOvernightGapRiskGuard = value;
@@ -5434,7 +5441,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableSectorExposureCap,
-                          title: const Text('?¢æ¥­?†ä¸­åº¦ä??ï?ä¾æ??¡ï?'),
+                          title: const Text('?ï¿½æ¥­?ï¿½ä¸­åº¦ï¿½??ï¿½ï¿½?ä¾ï¿½??ï¿½ï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableSectorExposureCap = value;
@@ -5442,26 +5449,26 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            '?®ä??¢æ¥­?€å¤šæ????™é¸ï¼?{localMaxHoldingPerSector.toInt()} æª?),
+                            '?ï¿½ï¿½??ï¿½æ¥­?ï¿½å¤šï¿½????ï¿½é¸ï¿½?{localMaxHoldingPerSector.toInt()} ï¿½?),
                         Slider(
                           value: localMaxHoldingPerSector,
                           min: 1,
                           max: 6,
                           divisions: 5,
-                          label: '${localMaxHoldingPerSector.toInt()}æª?,
+                          label: '${localMaxHoldingPerSector.toInt()}ï¿½?,
                           onChanged: (value) {
                             setLocalState(() {
                               localMaxHoldingPerSector = value;
                             });
                           },
                         ),
-                        Text('?œæ??·å»?Ÿï?${localCooldownDays.toInt()} å¤?),
+                        Text('?ï¿½ï¿½??ï¿½å»?ï¿½ï¿½?${localCooldownDays.toInt()} ï¿½?),
                         Slider(
                           value: localCooldownDays,
                           min: 0,
                           max: 7,
                           divisions: 7,
-                          label: '${localCooldownDays.toInt()}å¤?,
+                          label: '${localCooldownDays.toInt()}ï¿½?,
                           onChanged: (value) {
                             setLocalState(() {
                               localCooldownDays = value;
@@ -5471,7 +5478,7 @@ class _StockListPageState extends State<StockListPage> {
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: localEnableSectorRotationBoost,
-                          title: const Text('?¿å?è¼ªå?å¼·åº¦?’å?'),
+                          title: const Text('?ï¿½ï¿½?è¼ªï¿½?å¼·åº¦?ï¿½ï¿½?'),
                           onChanged: (value) {
                             setLocalState(() {
                               localEnableSectorRotationBoost = value;
@@ -5489,7 +5496,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                            'ATR ?œåˆ©?æ•¸ï¼?{localAtrTakeProfitMultiplier.toInt()}x'),
+                            'ATR ?ï¿½åˆ©?ï¿½æ•¸ï¿½?{localAtrTakeProfitMultiplier.toInt()}x'),
                         Slider(
                           value: localAtrTakeProfitMultiplier,
                           min: 1,
@@ -5502,7 +5509,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?®å?????§æ?ç­†æ•¸ï¼?{localManualLossStreak.toInt()}'),
+                        Text('?ï¿½ï¿½?????ï¿½ï¿½?ç­†æ•¸ï¿½?{localManualLossStreak.toInt()}'),
                         Slider(
                           value: localManualLossStreak,
                           min: 0,
@@ -5515,7 +5522,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?€ä½å??€æª»ï?${localMinScore.toInt()}'),
+                        Text('?ï¿½ä½ï¿½??ï¿½æª»ï¿½?${localMinScore.toInt()}'),
                         Slider(
                           value: localMinScore,
                           min: _minScore.toDouble(),
@@ -5528,7 +5535,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('?èƒ½æ¬Šé?ï¼?{localVolumeWeight.toInt()}'),
+                        Text('?ï¿½èƒ½æ¬Šï¿½?ï¿½?{localVolumeWeight.toInt()}'),
                         Slider(
                           value: localVolumeWeight,
                           min: 0,
@@ -5541,7 +5548,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('æ¼²å?æ¬Šé?ï¼?{localChangeWeight.toInt()}'),
+                        Text('æ¼²ï¿½?æ¬Šï¿½?ï¿½?{localChangeWeight.toInt()}'),
                         Slider(
                           value: localChangeWeight,
                           min: 0,
@@ -5554,7 +5561,7 @@ class _StockListPageState extends State<StockListPage> {
                             });
                           },
                         ),
-                        Text('ä½åƒ¹æ¬Šé?ï¼?{localPriceWeight.toInt()}'),
+                        Text('ä½åƒ¹æ¬Šï¿½?ï¿½?{localPriceWeight.toInt()}'),
                         Slider(
                           value: localPriceWeight,
                           min: 0,
@@ -5568,7 +5575,7 @@ class _StockListPageState extends State<StockListPage> {
                           },
                         ),
                         Text(
-                          '?ç¤ºï¼šå¯?ˆé??è¨­ï¼Œå?å¾®èª¿?ƒæ•¸?‚å?è½‰åˆ¤?·ä??€æ­·å²è³‡æ?ï¼Œç›®?ç”¨?èƒ½ï¼‹æ¼²å¹…ï?ä½åƒ¹å»ºç??æ­¥?†æ•¸??,
+                          '?ï¿½ç¤ºï¼šå¯?ï¿½ï¿½??ï¿½è¨­ï¼Œï¿½?å¾®èª¿?ï¿½æ•¸?ï¿½ï¿½?è½‰åˆ¤?ï¿½ï¿½??ï¿½æ­·å²è³‡ï¿½?ï¼Œç›®?ï¿½ç”¨?ï¿½èƒ½ï¼‹æ¼²å¹…ï¿½?ä½åƒ¹å»ºï¿½??ï¿½æ­¥?ï¿½æ•¸??,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 12),
@@ -5946,13 +5953,13 @@ class _StockListPageState extends State<StockListPage> {
     _savePreferencesTagged('filter_sheet_apply');
 
     final message = _enableStrategyFilter
-        ? 'å·²å??¨ç??¥ï??¡åƒ¹ <= $_maxPriceThresholdï¼Œé? ${_useRelativeVolumeFilter ? '>= $_relativeVolumePercent%?‡é?ä¸? : '>='} ${_formatWithThousandsSeparator(_surgeVolumeThreshold)}ï¼Œå€?>= ${_formatCurrency(_minTradeValueThreshold)}${_onlyRising ? 'ï¼Œåª?‹ä?æ¼? : ''}'
-        : 'å·²é¡¯ç¤ºå…¨?¨è‚¡ç¥?;
+        ? 'å·²ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½åƒ¹ <= $_maxPriceThresholdï¼Œï¿½? ${_useRelativeVolumeFilter ? '>= $_relativeVolumePercent%?ï¿½ï¿½?ï¿½? : '>='} ${_formatWithThousandsSeparator(_surgeVolumeThreshold)}ï¼Œï¿½?>= ${_formatCurrency(_minTradeValueThreshold)}${_onlyRising ? 'ï¼Œåª?ï¿½ï¿½?ï¿½? : ''}'
+        : 'å·²é¡¯ç¤ºå…¨?ï¿½è‚¡ï¿½?;
     ScaffoldMessenger.of(context)
         .showSnackBar(
       SnackBar(
         content: Text(
-          attemptedCoreChange ? '$messageï¼ˆå·²?–å??¸å??ƒæ•¸ï¼Œå?å¥—ç”¨?é¸?¡è¨­å®šï?' : message,
+          attemptedCoreChange ? '$messageï¼ˆå·²?ï¿½ï¿½??ï¿½ï¿½??ï¿½æ•¸ï¼Œï¿½?å¥—ç”¨?ï¿½é¸?ï¿½è¨­å®šï¿½?' : message,
         ),
       ),
     );
@@ -6048,7 +6055,7 @@ class _StockListPageState extends State<StockListPage> {
     if (stock != null) {
       threshold += _sectorRegimeScoreBias(_regimeForStock(stock));
     }
-    // breadth-based adjustment: ?¾è²¨å¯¬åº¦?å¼±?‚æ?é«˜é?æª»ï?å¯¬åº¦å¼·æ??¾å¯¬
+    // breadth-based adjustment: ?ï¿½è²¨å¯¬åº¦?ï¿½å¼±?ï¿½ï¿½?é«˜ï¿½?æª»ï¿½?å¯¬åº¦å¼·ï¿½??ï¿½å¯¬
     if (_latestMarketBreadthRatio < 0.9) {
       threshold += 2;
     } else if (_latestMarketBreadthRatio > 1.1) {
@@ -6081,8 +6088,8 @@ class _StockListPageState extends State<StockListPage> {
     final level = score >= 75
         ? 'é«˜é¢¨??
         : score >= 55
-            ? 'ä¸­æ€§å?ä¿å?'
-            : 'é¢¨éšª?¯æ§';
+            ? 'ä¸­æ€§ï¿½?ä¿ï¿½?'
+            : 'é¢¨éšª?ï¿½æ§';
     return _RiskSnapshot(score: score, level: level);
   }
 
@@ -6287,7 +6294,7 @@ class _StockListPageState extends State<StockListPage> {
   String _riskAdjustmentIntensityLabel([int? strength]) {
     final value = (strength ?? _autoRiskAdjustmentStrength).clamp(0, 100);
     if (value <= 33) {
-      return 'ä¿å?';
+      return 'ä¿ï¿½?';
     }
     if (value <= 66) {
       return 'å¹³è¡¡';
@@ -6379,18 +6386,18 @@ class _StockListPageState extends State<StockListPage> {
 
   String _sectorGroupForCode(String code) {
     if (code.length < 2) {
-      return '?¶ä?';
+      return '?ï¿½ï¿½?';
     }
     final prefix = int.tryParse(code.substring(0, 2));
     if (prefix == null) {
-      return '?¶ä?';
+      return '?ï¿½ï¿½?';
     }
     for (final rule in _sectorRules) {
       if (prefix >= rule.start && prefix <= rule.end) {
         return rule.group;
       }
     }
-    return '?¶ä?';
+    return '?ï¿½ï¿½?';
   }
 
   void _rebuildSectorRegime(List<StockModel> stocks) {
@@ -6515,8 +6522,8 @@ class _StockListPageState extends State<StockListPage> {
   String _regimeLabelOf(_MarketRegime regime) {
     return switch (regime) {
       _MarketRegime.bull => 'å¤šé ­',
-      _MarketRegime.range => '?¤æ•´',
-      _MarketRegime.defensive => '?²å?',
+      _MarketRegime.range => '?ï¿½æ•´',
+      _MarketRegime.defensive => '?ï¿½ï¿½?',
     };
   }
 
@@ -6552,7 +6559,7 @@ class _StockListPageState extends State<StockListPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('è¨­å??è‚¡ - ${stock.code} ${stock.name}'),
+          title: Text('è¨­ï¿½??ï¿½è‚¡ - ${stock.code} ${stock.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -6561,8 +6568,8 @@ class _StockListPageState extends State<StockListPage> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                  labelText: 'è²·å…¥?æœ¬',
-                  hintText: 'ä¾‹å? 48.50',
+                  labelText: 'è²·å…¥?ï¿½æœ¬',
+                  hintText: 'ä¾‹ï¿½? 48.50',
                 ),
               ),
               const SizedBox(height: 12),
@@ -6571,8 +6578,8 @@ class _StockListPageState extends State<StockListPage> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                  labelText: '?è‚¡å¼µæ•¸',
-                  hintText: 'ä¾‹å? 1 ??0.5',
+                  labelText: '?ï¿½è‚¡å¼µæ•¸',
+                  hintText: 'ä¾‹ï¿½? 1 ??0.5',
                 ),
               ),
             ],
@@ -6580,13 +6587,13 @@ class _StockListPageState extends State<StockListPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('?–æ?'),
+              child: const Text('?ï¿½ï¿½?'),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(
                 const _PositionInput(clear: true),
               ),
-              child: const Text('æ¸…é™¤?è‚¡'),
+              child: const Text('æ¸…é™¤?ï¿½è‚¡'),
             ),
             TextButton(
               onPressed: () async {
@@ -6607,7 +6614,7 @@ class _StockListPageState extends State<StockListPage> {
                 lotsController.text = result.totalLots
                     .toStringAsFixed(result.totalLots % 1 == 0 ? 0 : 2);
               },
-              child: const Text('?†æ‰¹è¨ˆç?'),
+              child: const Text('?ï¿½æ‰¹è¨ˆï¿½?'),
             ),
             FilledButton(
               onPressed: () {
@@ -6620,7 +6627,7 @@ class _StockListPageState extends State<StockListPage> {
                   ),
                 );
               },
-              child: const Text('?²å?'),
+              child: const Text('?ï¿½ï¿½?'),
             ),
           ],
         );
@@ -6638,7 +6645,7 @@ class _StockListPageState extends State<StockListPage> {
       });
       await _savePreferences();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('å·²æ???${stock.code} ?è‚¡è¨­å?')),
+        SnackBar(content: Text('å·²ï¿½???${stock.code} ?ï¿½è‚¡è¨­ï¿½?')),
       );
       return;
     }
@@ -6647,14 +6654,14 @@ class _StockListPageState extends State<StockListPage> {
     final lots = result.lots;
     if (entryPrice == null || entryPrice <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?æœ¬å¿…é?å¤§æ–¼ 0')),
+        const SnackBar(content: Text('?ï¿½æœ¬å¿…ï¿½?å¤§æ–¼ 0')),
       );
       return;
     }
 
     if (lots == null || lots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('å¼µæ•¸å¿…é?å¤§æ–¼ 0')),
+        const SnackBar(content: Text('å¼µæ•¸å¿…ï¿½?å¤§æ–¼ 0')),
       );
       return;
     }
@@ -6667,7 +6674,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'å·²å„²å­?${stock.code} ?æœ¬ ${entryPrice.toStringAsFixed(2)} / å¼µæ•¸ ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}',
+          'å·²å„²ï¿½?${stock.code} ?ï¿½æœ¬ ${entryPrice.toStringAsFixed(2)} / å¼µæ•¸ ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}',
         ),
       ),
     );
@@ -6682,7 +6689,7 @@ class _StockListPageState extends State<StockListPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('?‹å??°å?/?´æ–°åº«å?'),
+          title: const Text('?ï¿½ï¿½??ï¿½ï¿½?/?ï¿½æ–°åº«ï¿½?'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -6690,8 +6697,8 @@ class _StockListPageState extends State<StockListPage> {
                 controller: codeController,
                 textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
-                  labelText: '?¡ç¥¨ä»??',
-                  hintText: 'ä¾‹å? 2324',
+                  labelText: '?ï¿½ç¥¨ï¿½??',
+                  hintText: 'ä¾‹ï¿½? 2324',
                 ),
               ),
               const SizedBox(height: 10),
@@ -6700,8 +6707,8 @@ class _StockListPageState extends State<StockListPage> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                  labelText: 'è²·å…¥?æœ¬',
-                  hintText: 'ä¾‹å? 39.25',
+                  labelText: 'è²·å…¥?ï¿½æœ¬',
+                  hintText: 'ä¾‹ï¿½? 39.25',
                 ),
               ),
               const SizedBox(height: 10),
@@ -6710,8 +6717,8 @@ class _StockListPageState extends State<StockListPage> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
-                  labelText: '?è‚¡å¼µæ•¸',
-                  hintText: 'ä¾‹å? 1 ??0.5',
+                  labelText: '?ï¿½è‚¡å¼µæ•¸',
+                  hintText: 'ä¾‹ï¿½? 1 ??0.5',
                 ),
               ),
             ],
@@ -6719,7 +6726,7 @@ class _StockListPageState extends State<StockListPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('?–æ?'),
+              child: const Text('?ï¿½ï¿½?'),
             ),
             FilledButton(
               onPressed: () {
@@ -6731,7 +6738,7 @@ class _StockListPageState extends State<StockListPage> {
                   _PositionInput(entryPrice: entryPrice, lots: lots),
                 ));
               },
-              child: const Text('?²å?'),
+              child: const Text('?ï¿½ï¿½?'),
             ),
           ],
         );
@@ -6746,7 +6753,7 @@ class _StockListPageState extends State<StockListPage> {
     final payload = result.$2;
     if (code.isEmpty || !RegExp(r'^[0-9A-Z]+$').hasMatch(code)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?¡ç¥¨ä»???¼å??¯èª¤')),
+        const SnackBar(content: Text('?ï¿½ç¥¨ï¿½???ï¿½ï¿½??ï¿½èª¤')),
       );
       return;
     }
@@ -6755,13 +6762,13 @@ class _StockListPageState extends State<StockListPage> {
     final lots = payload.lots;
     if (entryPrice == null || entryPrice <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?æœ¬å¿…é?å¤§æ–¼ 0')),
+        const SnackBar(content: Text('?ï¿½æœ¬å¿…ï¿½?å¤§æ–¼ 0')),
       );
       return;
     }
     if (lots == null || lots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('å¼µæ•¸å¿…é?å¤§æ–¼ 0')),
+        const SnackBar(content: Text('å¼µæ•¸å¿…ï¿½?å¤§æ–¼ 0')),
       );
       return;
     }
@@ -6779,7 +6786,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'å·²å„²å­?$code ?æœ¬ ${entryPrice.toStringAsFixed(2)} / å¼µæ•¸ ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}',
+          'å·²å„²ï¿½?$code ?ï¿½æœ¬ ${entryPrice.toStringAsFixed(2)} / å¼µæ•¸ ${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)}',
         ),
       ),
     );
@@ -6793,7 +6800,7 @@ class _StockListPageState extends State<StockListPage> {
     final lots = _positionLotsByCode[stock.code];
     if (entryPrice == null || lots == null || lots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('è«‹å?è¨­å??è‚¡?æœ¬?‡å¼µ?¸å?è¨˜é?å¹³å€?)),
+        const SnackBar(content: Text('è«‹ï¿½?è¨­ï¿½??ï¿½è‚¡?ï¿½æœ¬?ï¿½å¼µ?ï¿½ï¿½?è¨˜ï¿½?å¹³ï¿½?)),
       );
       return;
     }
@@ -6813,11 +6820,11 @@ class _StockListPageState extends State<StockListPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('è¨˜é?å¹³å€?- ${stock.code} ${stock.name}'),
+              title: Text('è¨˜ï¿½?å¹³ï¿½?- ${stock.code} ${stock.name}'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('?è‚¡?æœ¬ ${entryPrice.toStringAsFixed(2)}'),
+                  Text('?ï¿½è‚¡?ï¿½æœ¬ ${entryPrice.toStringAsFixed(2)}'),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -6845,7 +6852,7 @@ class _StockListPageState extends State<StockListPage> {
                     controller: exitPriceController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: '?ºå ´??),
+                    decoration: const InputDecoration(labelText: '?ï¿½å ´??),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -6857,18 +6864,18 @@ class _StockListPageState extends State<StockListPage> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: reasonController,
-                    decoration: const InputDecoration(labelText: 'å¹³å€‰å???),
+                    decoration: const InputDecoration(labelText: 'å¹³å€‰ï¿½???),
                   ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('?–æ?'),
+                  child: const Text('?ï¿½ï¿½?'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('è¨˜é?'),
+                  child: const Text('è¨˜ï¿½?'),
                 ),
               ],
             );
@@ -6889,7 +6896,7 @@ class _StockListPageState extends State<StockListPage> {
         exitPrice <= 0 ||
         closeLots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('å¹³å€‰è??™æ ¼å¼éŒ¯èª?)),
+        const SnackBar(content: Text('å¹³å€‰ï¿½??ï¿½æ ¼å¼éŒ¯ï¿½?)),
       );
       return;
     }
@@ -6897,7 +6904,7 @@ class _StockListPageState extends State<StockListPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
-                'å¹³å€‰å¼µ?¸ä??¯å¤§?¼ç›®?æ???${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)} å¼?)),
+                'å¹³å€‰å¼µ?ï¿½ï¿½??ï¿½å¤§?ï¿½ç›®?ï¿½ï¿½???${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)} ï¿½?)),
       );
       return;
     }
@@ -6938,7 +6945,7 @@ class _StockListPageState extends State<StockListPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'å·²è??„å¹³?‰ï?${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%ï¼ˆé€?™§ $autoStreak ç­†ï?',
+          'å·²ï¿½??ï¿½å¹³?ï¿½ï¿½?${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toStringAsFixed(2)}%ï¼ˆï¿½?ï¿½ï¿½ $autoStreak ç­†ï¿½?',
         ),
       ),
     );
@@ -6947,7 +6954,7 @@ class _StockListPageState extends State<StockListPage> {
   Future<void> _openTradeJournalPage() async {
     if (_tradeJournalEntries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?®å?å°šç„¡äº¤æ??¥è?ç´€??)),
+        const SnackBar(content: Text('?ï¿½ï¿½?å°šç„¡äº¤ï¿½??ï¿½ï¿½?ç´€??)),
       );
       return;
     }
@@ -6977,14 +6984,14 @@ class _StockListPageState extends State<StockListPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('?†æ‰¹è²·é€²è?ç®?),
+              title: const Text('?ï¿½æ‰¹è²·é€²ï¿½?ï¿½?),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('æ¯è?ä¸€ç­†ï??¼å?ï¼šåƒ¹??å¼µæ•¸'),
+                  const Text('æ¯ï¿½?ä¸€ç­†ï¿½??ï¿½ï¿½?ï¼šåƒ¹??å¼µæ•¸'),
                   const SizedBox(height: 6),
-                  const Text('ä¾‹å?ï¼š\n48,1\n52,2\n50,0.5'),
+                  const Text('ä¾‹ï¿½?ï¼š\n48,1\n52,2\n50,0.5'),
                   const SizedBox(height: 12),
                   TextField(
                     controller: linesController,
@@ -6994,7 +7001,7 @@ class _StockListPageState extends State<StockListPage> {
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
-                      hintText: '?¹æ ¼,å¼µæ•¸',
+                      hintText: '?ï¿½æ ¼,å¼µæ•¸',
                       errorText: errorText,
                     ),
                   ),
@@ -7003,7 +7010,7 @@ class _StockListPageState extends State<StockListPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('?–æ?'),
+                  child: const Text('?ï¿½ï¿½?'),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -7011,13 +7018,13 @@ class _StockListPageState extends State<StockListPage> {
                         _parseBatchCostInput(linesController.text);
                     if (parseResult == null) {
                       setDialogState(() {
-                        errorText = '?¼å??¯èª¤ï¼Œè?ä½¿ç”¨?Œåƒ¹??å¼µæ•¸?ä??½å¤§??0';
+                        errorText = '?ï¿½ï¿½??ï¿½èª¤ï¼Œï¿½?ä½¿ç”¨?ï¿½åƒ¹??å¼µæ•¸?ï¿½ï¿½??ï¿½å¤§??0';
                       });
                       return;
                     }
                     Navigator.of(context).pop(parseResult);
                   },
-                  child: const Text('å¥—ç”¨çµæ?'),
+                  child: const Text('å¥—ç”¨çµï¿½?'),
                 ),
               ],
             );
@@ -7074,7 +7081,7 @@ class _StockListPageState extends State<StockListPage> {
   _ExitSignal _evaluateExitSignal(StockModel stock, int score) {
     if (!_enableExitSignal) {
       return const _ExitSignal(
-        label: '?ªå??¨å‡º?´è???,
+        label: '?ï¿½ï¿½??ï¿½å‡º?ï¿½ï¿½???,
         type: _ExitSignalType.neutral,
       );
     }
@@ -7095,7 +7102,7 @@ class _StockListPageState extends State<StockListPage> {
 
     if (pnlPercent != null && pnlPercent <= -_stopLossPercent) {
       return _ExitSignal(
-        label: '?œæ?è­¦ç¤º ${pnlPercent.toStringAsFixed(1)}%',
+        label: '?ï¿½ï¿½?è­¦ç¤º ${pnlPercent.toStringAsFixed(1)}%',
         type: _ExitSignalType.danger,
       );
     }
@@ -7109,36 +7116,36 @@ class _StockListPageState extends State<StockListPage> {
         if (peak >= adaptiveTakeProfit &&
             pullback >= effectivePullbackPercent) {
           return _ExitSignal(
-            label: 'ç§»å??œåˆ©?ºå ´ ${pullback.toStringAsFixed(1)}%',
+            label: 'ç§»ï¿½??ï¿½åˆ©?ï¿½å ´ ${pullback.toStringAsFixed(1)}%',
             type: _ExitSignalType.profit,
           );
         }
         return _ExitSignal(
-          label: 'ç§»å??œåˆ©??§ å³°å€?{peak.toStringAsFixed(1)}%',
+          label: 'ç§»ï¿½??ï¿½åˆ©??ï¿½ï¿½ å³°ï¿½?{peak.toStringAsFixed(1)}%',
           type: _ExitSignalType.hold,
         );
       }
       return _ExitSignal(
         label:
-            '?†æ‰¹?œåˆ© +${pnlPercent.toStringAsFixed(1)}%ï¼ˆç›®æ¨?${adaptiveTakeProfit.toStringAsFixed(1)}%ï¼?,
+            '?ï¿½æ‰¹?ï¿½åˆ© +${pnlPercent.toStringAsFixed(1)}%ï¼ˆç›®ï¿½?${adaptiveTakeProfit.toStringAsFixed(1)}%ï¿½?,
         type: _ExitSignalType.profit,
       );
     }
 
     if (_excludeOverheated && stock.change >= _maxChaseChangePercent) {
-      return const _ExitSignal(label: 'è¿½é?é¢¨éšª', type: _ExitSignalType.caution);
+      return const _ExitSignal(label: 'è¿½ï¿½?é¢¨éšª', type: _ExitSignalType.caution);
     }
 
     if (score < _effectiveMinScoreThreshold(stock)) {
-      return const _ExitSignal(label: 'è½‰å¼±è§€å¯?, type: _ExitSignalType.caution);
+      return const _ExitSignal(label: 'è½‰å¼±è§€ï¿½?, type: _ExitSignalType.caution);
     }
 
     if (pnlPercent == null) {
       return const _ExitSignal(
-          label: '?ªæ??‰ï??å‡º?´ï?', type: _ExitSignalType.neutral);
+          label: '?ï¿½ï¿½??ï¿½ï¿½??ï¿½å‡º?ï¿½ï¿½?', type: _ExitSignalType.neutral);
     }
 
-    return const _ExitSignal(label: 'çºŒæŠ±è§€å¯?, type: _ExitSignalType.hold);
+    return const _ExitSignal(label: 'çºŒæŠ±è§€ï¿½?, type: _ExitSignalType.hold);
   }
 
   _EntrySignal _evaluateEntrySignal(StockModel stock, int score) {
@@ -7146,7 +7153,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         const _EntrySignal(
-          label: '?ªå??¨é€²å ´ç¯©é¸',
+          label: '?ï¿½ï¿½??ï¿½é€²å ´ç¯©é¸',
           type: _EntrySignalType.neutral,
         ),
       );
@@ -7155,7 +7162,7 @@ class _StockListPageState extends State<StockListPage> {
     if (_excludeOverheated && stock.change >= _maxChaseChangePercent) {
       return _commitImmediateEntrySignal(
         stock.code,
-        const _EntrySignal(label: '?¿å?è¿½é?', type: _EntrySignalType.avoid),
+        const _EntrySignal(label: '?ï¿½ï¿½?è¿½ï¿½?', type: _EntrySignalType.avoid),
       );
     }
 
@@ -7163,7 +7170,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         const _EntrySignal(
-          label: 'å¾?9:30å¾Œç¢ºèª?,
+          label: 'ï¿½?9:30å¾Œç¢ºï¿½?,
           type: _EntrySignalType.wait,
         ),
       );
@@ -7178,7 +7185,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         _EntrySignal(
-          label: '?œæ??·å»ä¸­ï???$remain å¤©ï?',
+          label: '?ï¿½ï¿½??ï¿½å»ä¸­ï¿½???$remain å¤©ï¿½?',
           type: _EntrySignalType.wait,
         ),
       );
@@ -7199,7 +7206,7 @@ class _StockListPageState extends State<StockListPage> {
         stock.code,
         _EntrySignal(
           label:
-              'é¢¨éšª?±é…¬ä¸è¶³ï¼? ${(_minRiskRewardRatioX100 / 100).toStringAsFixed(2)}ï¼?,
+              'é¢¨éšª?ï¿½é…¬ä¸è¶³ï¿½? ${(_minRiskRewardRatioX100 / 100).toStringAsFixed(2)}ï¿½?,
           type: _EntrySignalType.wait,
         ),
       );
@@ -7210,7 +7217,7 @@ class _StockListPageState extends State<StockListPage> {
         stock.code,
         _EntrySignal(
           label:
-              'å¸‚å ´å¯¬åº¦ä¸è¶³ï¼? ${(_minMarketBreadthRatioX100 / 100).toStringAsFixed(2)}ï¼?,
+              'å¸‚å ´å¯¬åº¦ä¸è¶³ï¿½? ${(_minMarketBreadthRatioX100 / 100).toStringAsFixed(2)}ï¿½?,
           type: _EntrySignalType.wait,
         ),
       );
@@ -7220,7 +7227,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         const _EntrySignal(
-          label: '?‘ä¼¼?‡ç???,
+          label: '?ï¿½ä¼¼?ï¿½ï¿½???,
           type: _EntrySignalType.avoid,
         ),
       );
@@ -7230,7 +7237,7 @@ class _StockListPageState extends State<StockListPage> {
       return _commitImmediateEntrySignal(
         stock.code,
         const _EntrySignal(
-          label: 'äº‹ä»¶é¢¨éšª?’é™¤',
+          label: 'äº‹ä»¶é¢¨éšª?ï¿½é™¤',
           type: _EntrySignalType.wait,
         ),
       );
@@ -7247,7 +7254,7 @@ class _StockListPageState extends State<StockListPage> {
         stock.volume >= strongVolumeThreshold) {
       return _applyEntrySignalHysteresis(
         stock.code,
-        const _EntrySignal(label: 'å¼·å‹¢?²å ´', type: _EntrySignalType.strong),
+        const _EntrySignal(label: 'å¼·å‹¢?ï¿½å ´', type: _EntrySignalType.strong),
       );
     }
 
@@ -7260,7 +7267,7 @@ class _StockListPageState extends State<StockListPage> {
 
     return _applyEntrySignalHysteresis(
       stock.code,
-      const _EntrySignal(label: 'ç­‰å?è¨Šè?', type: _EntrySignalType.wait),
+      const _EntrySignal(label: 'ç­‰ï¿½?è¨Šï¿½?', type: _EntrySignalType.wait),
     );
   }
 
@@ -7307,11 +7314,11 @@ class _StockListPageState extends State<StockListPage> {
 
   String _entrySignalDefaultLabel(_EntrySignalType type) {
     return switch (type) {
-      _EntrySignalType.strong => 'å¼·å‹¢?²å ´',
+      _EntrySignalType.strong => 'å¼·å‹¢?ï¿½å ´',
       _EntrySignalType.watch => 'è§€å¯Ÿé€²å ´',
-      _EntrySignalType.wait => 'ç­‰å?è¨Šè?',
-      _EntrySignalType.avoid => '?¿å?è¿½é?',
-      _EntrySignalType.neutral => '?ªå??¨é€²å ´ç¯©é¸',
+      _EntrySignalType.wait => 'ç­‰ï¿½?è¨Šï¿½?',
+      _EntrySignalType.avoid => '?ï¿½ï¿½?è¿½ï¿½?',
+      _EntrySignalType.neutral => '?ï¿½ï¿½??ï¿½é€²å ´ç¯©é¸',
     };
   }
 
@@ -7412,8 +7419,8 @@ class _StockListPageState extends State<StockListPage> {
 
     if (minutes < 9 * 60) {
       return const _MarketTimingStatus(
-        label: '?¤å?è§€å¯?,
-        description: 'å°šæœª?‹ç›¤ï¼Œå??‹å€™é¸?‡é¢¨?ªç??Ÿã€?,
+        label: '?ï¿½ï¿½?è§€ï¿½?,
+        description: 'å°šæœª?ï¿½ç›¤ï¼Œï¿½??ï¿½å€™é¸?ï¿½é¢¨?ï¿½ï¿½??ï¿½ï¿½?,
         type: _MarketTimingType.premarket,
       );
     }
@@ -7421,30 +7428,30 @@ class _StockListPageState extends State<StockListPage> {
     if (minutes < (9 * 60 + 30)) {
       if (_requireOpenConfirm) {
         return const _MarketTimingStatus(
-          label: '?‹ç›¤ç¢ºè???,
-          description: '09:30 ?å?è§€å¯Ÿï??¿å?è¿½åƒ¹??,
+          label: '?ï¿½ç›¤ç¢ºï¿½???,
+          description: '09:30 ?ï¿½ï¿½?è§€å¯Ÿï¿½??ï¿½ï¿½?è¿½åƒ¹??,
           type: _MarketTimingType.openConfirm,
         );
       }
 
       return const _MarketTimingStatus(
-        label: '?‹ç›¤?æ®µ',
-        description: 'å·²é???09:30 ç¢ºè?ï¼Œè??é?é¢¨éšª?è???,
+        label: '?ï¿½ç›¤?ï¿½æ®µ',
+        description: 'å·²ï¿½???09:30 ç¢ºï¿½?ï¼Œï¿½??ï¿½ï¿½?é¢¨éšª?ï¿½ï¿½???,
         type: _MarketTimingType.openConfirm,
       );
     }
 
     if (minutes <= (13 * 60 + 30)) {
       return const _MarketTimingStatus(
-        label: '?¯ç¢ºèªé€²å ´',
-        description: '?¯ä?ç­–ç•¥?‡é¢¨?ªæ?ä»¶ç¢ºèªé€²å ´??,
+        label: '?ï¿½ç¢ºèªé€²å ´',
+        description: '?ï¿½ï¿½?ç­–ç•¥?ï¿½é¢¨?ï¿½ï¿½?ä»¶ç¢ºèªé€²å ´??,
         type: _MarketTimingType.tradable,
       );
     }
 
     return const _MarketTimingStatus(
-      label: '?¶ç›¤å¾Œæª¢è¦?,
-      description: '?¤å??¯å?æ¸¬è?èª¿æ•´?æ—¥?ƒæ•¸??,
+      label: '?ï¿½ç›¤å¾Œæª¢ï¿½?,
+      description: '?ï¿½ï¿½??ï¿½ï¿½?æ¸¬ï¿½?èª¿æ•´?ï¿½æ—¥?ï¿½æ•¸??,
       type: _MarketTimingType.closed,
     );
   }
@@ -7460,20 +7467,20 @@ class _StockListPageState extends State<StockListPage> {
     if (normalizedTradeValueForFilter(stock.tradeValue) <
         _minTradeValueThreshold) {
       return const _PremarketRisk(
-        label: '?èƒ½?å¼±',
+        label: '?ï¿½èƒ½?ï¿½å¼±',
         type: _PremarketRiskType.medium,
       );
     }
 
     if (stock.change < -2) {
       return const _PremarketRisk(
-        label: '?å¼±?‡ç›ª',
+        label: '?ï¿½å¼±?ï¿½ç›ª',
         type: _PremarketRiskType.medium,
       );
     }
 
     return const _PremarketRisk(
-      label: 'é¢¨éšª?¯æ§',
+      label: 'é¢¨éšª?ï¿½æ§',
       type: _PremarketRiskType.low,
     );
   }
@@ -7586,8 +7593,8 @@ class _StockListPageState extends State<StockListPage> {
         if (_masterTrapAlertedByCode[stock.code] == true) continue;
         await NotificationService.showAlert(
           id: 4000 + stock.code.hashCode.abs() % 900,
-          title: 'ä¸»å?èª˜å?è­¦ç¤º ${stock.code} ${stock.name}',
-          body: 'ç±Œç¢¼?†ä¸­åº¦æ€¥è?ï¼Œç¾??${stock.chipConcentration.toStringAsFixed(1)}%',
+          title: 'ä¸»ï¿½?èª˜ï¿½?è­¦ç¤º ${stock.code} ${stock.name}',
+          body: 'ç±Œç¢¼?ï¿½ä¸­åº¦æ€¥ï¿½?ï¼Œç¾??${stock.chipConcentration.toStringAsFixed(1)}%',
         );
         _masterTrapAlertedByCode[stock.code] = true;
       } else {
@@ -7617,15 +7624,15 @@ class _StockListPageState extends State<StockListPage> {
 
   String _googleBackupStatusLabel() {
     if (!_isGoogleBackupConnected()) {
-      return 'Google ?™ä»½ï¼šæœª??¥';
+      return 'Google ?ï¿½ä»½ï¼šæœª??ï¿½ï¿½';
     }
     if (_lastGoogleBackupAt == null) {
-      return 'Google ?™ä»½ï¼šå·²??¥ï¼Œå??ªå?ä»?;
+      return 'Google ?ï¿½ä»½ï¼šå·²??ï¿½ï¿½ï¼Œï¿½??ï¿½ï¿½?ï¿½?;
     }
     if (_isGoogleBackupFreshToday()) {
-      return 'Google ?™ä»½ï¼šä??¥å·²?™ä»½ ${_lastGoogleBackupAt!.hour.toString().padLeft(2, '0')}:${_lastGoogleBackupAt!.minute.toString().padLeft(2, '0')}';
+      return 'Google ?ï¿½ä»½ï¼šï¿½??ï¿½å·²?ï¿½ä»½ ${_lastGoogleBackupAt!.hour.toString().padLeft(2, '0')}:${_lastGoogleBackupAt!.minute.toString().padLeft(2, '0')}';
     }
-    return 'Google ?™ä»½ï¼šæ?è¿?${_formatCompactDateTime(_lastGoogleBackupAt!)}';
+    return 'Google ?ï¿½ä»½ï¼šï¿½?ï¿½?${_formatCompactDateTime(_lastGoogleBackupAt!)}';
   }
 
   IconData _googleBackupStatusIcon() {
@@ -7737,8 +7744,8 @@ class _StockListPageState extends State<StockListPage> {
 
   String _mobileUiDensityLabel(_MobileUiDensity density) {
     return switch (density) {
-      _MobileUiDensity.comfortable => '?’é©',
-      _MobileUiDensity.compact => 'ç·Šæ?',
+      _MobileUiDensity.comfortable => '?ï¿½é©',
+      _MobileUiDensity.compact => 'ç·Šï¿½?',
     };
   }
 
@@ -7754,9 +7761,9 @@ class _StockListPageState extends State<StockListPage> {
 
   String _mobileTextScaleLabel(_MobileTextScale scale) {
     return switch (scale) {
-      _MobileTextScale.small => 'å°?,
-      _MobileTextScale.medium => 'ä¸?,
-      _MobileTextScale.large => 'å¤?,
+      _MobileTextScale.small => 'ï¿½?,
+      _MobileTextScale.medium => 'ï¿½?,
+      _MobileTextScale.large => 'ï¿½?,
     };
   }
 
@@ -7804,29 +7811,29 @@ class _StockListPageState extends State<StockListPage> {
   }) {
     String? labelFor(String key) {
       return switch (key) {
-        'strategy' => '?Ÿç”¨ç­–ç•¥ç¯©é¸',
-        'score' => '?Ÿç”¨?“å??’å?',
-        'onlyRising' => '?ªç?ä¸Šæ¼²',
-        'excludeOverheated' => '?’é™¤è¿½é?é¢¨éšª',
-        'maxChase' => 'è¿½é?æ¼²å?ä¸Šé?',
-        'minScore' => '?€ä½å??¸é?æª?,
-        'breakoutMode' => 'é£†è‚¡ç¯©é¸æ¨¡å?',
-        'eventWindowEnabled' => 'äº‹ä»¶çª—é?æ¿?,
+        'strategy' => '?ï¿½ç”¨ç­–ç•¥ç¯©é¸',
+        'score' => '?ï¿½ç”¨?ï¿½ï¿½??ï¿½ï¿½?',
+        'onlyRising' => '?ï¿½ï¿½?ä¸Šæ¼²',
+        'excludeOverheated' => '?ï¿½é™¤è¿½ï¿½?é¢¨éšª',
+        'maxChase' => 'è¿½ï¿½?æ¼²ï¿½?ä¸Šï¿½?',
+        'minScore' => '?ï¿½ä½ï¿½??ï¿½ï¿½?ï¿½?,
+        'breakoutMode' => 'é£†è‚¡ç¯©é¸æ¨¡ï¿½?',
+        'eventWindowEnabled' => 'äº‹ä»¶çª—ï¿½?ï¿½?,
         'eventWindowDays' => 'äº‹ä»¶çª—å¤©??,
-        'revenueEnabled' => '?Ÿæ”¶?•èƒ½?æ¿¾',
-        'revenueMin' => '?Ÿæ”¶?•èƒ½?†æ•¸?€æª?,
-        'earningsEnabled' => 'è²¡å ± surprise ?æ¿¾',
-        'earningsMin' => 'è²¡å ± surprise ?†æ•¸?€æª?,
-        'riskRewardEnabled' => 'é¢¨éšª?±é…¬?ç½®?æ¿¾',
-        'riskRewardMin' => 'é¢¨éšª?±é…¬æ¯”é?æª?,
-        'breadthEnabled' => 'å¸‚å ´å¯¬åº¦?æ¿¾',
-        'breadthMin' => 'å¸‚å ´å¯¬åº¦?€æª?,
-        'sectorCapEnabled' => '?¢æ¥­?†ä¸­åº¦ä???,
-        'sectorCap' => '?®ä??¢æ¥­ä¸Šé?',
-        'concentrationWeight' => 'ç±Œç¢¼æ¬Šé?',
-        'tradeValueWeight' => '?äº¤?¼æ???,
-        'enableMasterTrapFilter' => 'ä¸»å?èª˜å??æ¿¾',
-        'masterTrapDropPercent' => 'èª˜å?è·Œå??€æª?,
+        'revenueEnabled' => '?ï¿½æ”¶?ï¿½èƒ½?ï¿½æ¿¾',
+        'revenueMin' => '?ï¿½æ”¶?ï¿½èƒ½?ï¿½æ•¸?ï¿½ï¿½?,
+        'earningsEnabled' => 'è²¡å ± surprise ?ï¿½æ¿¾',
+        'earningsMin' => 'è²¡å ± surprise ?ï¿½æ•¸?ï¿½ï¿½?,
+        'riskRewardEnabled' => 'é¢¨éšª?ï¿½é…¬?ï¿½ç½®?ï¿½æ¿¾',
+        'riskRewardMin' => 'é¢¨éšª?ï¿½é…¬æ¯”ï¿½?ï¿½?,
+        'breadthEnabled' => 'å¸‚å ´å¯¬åº¦?ï¿½æ¿¾',
+        'breadthMin' => 'å¸‚å ´å¯¬åº¦?ï¿½ï¿½?,
+        'sectorCapEnabled' => '?ï¿½æ¥­?ï¿½ä¸­åº¦ï¿½???,
+        'sectorCap' => '?ï¿½ï¿½??ï¿½æ¥­ä¸Šï¿½?',
+        'concentrationWeight' => 'ç±Œç¢¼æ¬Šï¿½?',
+        'tradeValueWeight' => '?ï¿½äº¤?ï¿½ï¿½???,
+        'enableMasterTrapFilter' => 'ä¸»ï¿½?èª˜ï¿½??ï¿½æ¿¾',
+        'masterTrapDropPercent' => 'èª˜ï¿½?è·Œï¿½??ï¿½ï¿½?,
         _ => null,
       };
     }
@@ -7868,7 +7875,7 @@ class _StockListPageState extends State<StockListPage> {
 
   String _candidateDriftHistoryLabel(_CandidateDriftRecord record) {
     final base =
-        '${_formatTimeHHmm(record.timestamp)} ${record.type == 'reset' ? '?ºæ??ç½®' : '?å–®è®Šå? +${record.addedCount}/-${record.removedCount}'}';
+        '${_formatTimeHHmm(record.timestamp)} ${record.type == 'reset' ? '?ï¿½ï¿½??ï¿½ç½®' : '?ï¿½å–®è®Šï¿½? +${record.addedCount}/-${record.removedCount}'}';
     if (record.changedFilters.isEmpty) {
       return base;
     }
@@ -7876,7 +7883,7 @@ class _StockListPageState extends State<StockListPage> {
     final more = record.changedFilters.length > 3
         ? ' +${record.changedFilters.length - 3}'
         : '';
-    return '$baseï¼?tags$moreï¼?;
+    return '$baseï¿½?tags$moreï¿½?;
   }
 
   void _scheduleDiagnosticsSnapshotPersist() {
@@ -7958,18 +7965,18 @@ class _StockListPageState extends State<StockListPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('å·²é??Ÿä?æ¬¡æ?è¼ƒå??¸å¿«??)),
+      const SnackBar(content: Text('å·²ï¿½??ï¿½ï¿½?æ¬¡ï¿½?è¼ƒï¿½??ï¿½å¿«??)),
     );
   }
 
   String BreakoutModeLabel(BreakoutMode mode) {
     return switch (mode) {
-      BreakoutMode.early => '?›ç???,
-      BreakoutMode.confirmed => 'ç¢ºè?çªç ´',
-      BreakoutMode.lowBaseTheme => 'ä½åŸº?Ÿé???,
-      BreakoutMode.pullbackRebreak => '?æ??æ”»',
-      BreakoutMode.squeezeSetup => '?ç¸®å¾…å™´',
-      BreakoutMode.preEventPosition => 'äº‹ä»¶?å¡ä½?,
+      BreakoutMode.early => '?ï¿½ï¿½???,
+      BreakoutMode.confirmed => 'ç¢ºï¿½?çªç ´',
+      BreakoutMode.lowBaseTheme => 'ä½åŸº?ï¿½ï¿½???,
+      BreakoutMode.pullbackRebreak => '?ï¿½ï¿½??ï¿½æ”»',
+      BreakoutMode.squeezeSetup => '?ï¿½ç¸®å¾…å™´',
+      BreakoutMode.preEventPosition => 'äº‹ä»¶?ï¿½å¡ï¿½?,
     };
   }
 
@@ -7986,12 +7993,12 @@ class _StockListPageState extends State<StockListPage> {
 
   String _breakoutStageRejectLabel() {
     return switch (BreakoutMode) {
-      BreakoutMode.early => 'å°šæœª?²å…¥?›ç??´å???,
-      BreakoutMode.confirmed => '???çªç ´ä¸è¶³ï¼? $_minBreakoutStreakDays å¤©ï?',
-      BreakoutMode.lowBaseTheme => '?ªé?ä½åŸº?Ÿé??æ?ä»?,
-      BreakoutMode.pullbackRebreak => '?ªé??æ??æ”»æ¢ä»¶',
-      BreakoutMode.squeezeSetup => '?ªé??ç¸®?´ç?å¾…å™´æ¢ä»¶',
-      BreakoutMode.preEventPosition => '?ªé?äº‹ä»¶?å¡ä½æ?ä»?,
+      BreakoutMode.early => 'å°šæœª?ï¿½å…¥?ï¿½ï¿½??ï¿½ï¿½???,
+      BreakoutMode.confirmed => '???çªç ´ä¸è¶³ï¿½? $_minBreakoutStreakDays å¤©ï¿½?',
+      BreakoutMode.lowBaseTheme => '?ï¿½ï¿½?ä½åŸº?ï¿½ï¿½??ï¿½ï¿½?ï¿½?,
+      BreakoutMode.pullbackRebreak => '?ï¿½ï¿½??ï¿½ï¿½??ï¿½æ”»æ¢ä»¶',
+      BreakoutMode.squeezeSetup => '?ï¿½ï¿½??ï¿½ç¸®?ï¿½ï¿½?å¾…å™´æ¢ä»¶',
+      BreakoutMode.preEventPosition => '?ï¿½ï¿½?äº‹ä»¶?ï¿½å¡ä½ï¿½?ï¿½?,
     };
   }
 
@@ -8001,15 +8008,15 @@ class _StockListPageState extends State<StockListPage> {
       return false;
     }
     final keywords = <String>[
-      'é¡Œæ?',
-      '?ˆä?',
-      '?°å?',
+      'é¡Œï¿½?',
+      '?ï¿½ï¿½?',
+      '?ï¿½ï¿½?',
       'AI',
-      '?¿ç?',
+      '?ï¿½ï¿½?',
       'è£œåŠ©',
       'è¨‚å–®',
       'è½‰å–®',
-      '?Ÿæ”¶',
+      '?ï¿½æ”¶',
       'æ³•èªª'
     ];
     for (final item in snapshot.items.take(30)) {
@@ -8028,7 +8035,7 @@ class _StockListPageState extends State<StockListPage> {
     if (snapshot == null || snapshot.items.isEmpty) {
       return false;
     }
-    final keywords = <String>['è²¡å ±', 'æ³•èªª', '?Ÿæ”¶', '?°å?', 'è¨‚å–®', 'è½‰å–®', 'å±•æ?', '?ˆä?'];
+    final keywords = <String>['è²¡å ±', 'æ³•èªª', '?ï¿½æ”¶', '?ï¿½ï¿½?', 'è¨‚å–®', 'è½‰å–®', 'å±•ï¿½?', '?ï¿½ï¿½?'];
     for (final item in snapshot.items.take(30)) {
       final title = item.title;
       final hitStock = title.contains(stock.code) || title.contains(stock.name);
@@ -8064,7 +8071,7 @@ class _StockListPageState extends State<StockListPage> {
       return null;
     }
 
-    final eventKeywords = <String>['æ³•èªª', 'æ³•èªª??, 'è²¡å ±', 'æ³•èªª?æ?', 'æ¥­ç¸¾?¼è¡¨'];
+    final eventKeywords = <String>['æ³•èªª', 'æ³•èªª??, 'è²¡å ±', 'æ³•èªª?ï¿½ï¿½?', 'æ¥­ç¸¾?ï¿½è¡¨'];
     final items = _newsItemsForStock(stock, limit: 25)
         .where((item) => eventKeywords.any((k) => item.title.contains(k)))
         .toList();
@@ -8144,7 +8151,7 @@ class _StockListPageState extends State<StockListPage> {
     }
 
     final items = _newsItemsForStock(stock, limit: 20)
-        .where((item) => item.title.contains('?Ÿæ”¶'))
+        .where((item) => item.title.contains('?ï¿½æ”¶'))
         .toList();
     if (items.isEmpty) {
       return 0;
@@ -8153,18 +8160,18 @@ class _StockListPageState extends State<StockListPage> {
     var score = 0;
     for (final item in items) {
       final title = item.title;
-      if (title.contains('?™å?') || title.contains('?µé?')) {
+      if (title.contains('?ï¿½ï¿½?') || title.contains('?ï¿½ï¿½?')) {
         score += 2;
       }
-      if (title.contains('å¹´æ?') || title.contains('?ˆæ?')) {
+      if (title.contains('å¹´ï¿½?') || title.contains('?ï¿½ï¿½?')) {
         score -= 1;
       }
-      if (title.contains('è¡°é€€') || title.contains('ä¸‹æ?')) {
+      if (title.contains('è¡°é€€') || title.contains('ä¸‹ï¿½?')) {
         score -= 2;
       }
 
-      final yoy = _extractPercentSignal(title, 'å¹´å?');
-      final mom = _extractPercentSignal(title, '?ˆå?');
+      final yoy = _extractPercentSignal(title, 'å¹´ï¿½?');
+      final mom = _extractPercentSignal(title, '?ï¿½ï¿½?');
       score += yoy >= 15 ? 2 : (yoy > 0 ? 1 : 0);
       score += mom >= 10 ? 1 : (mom > 0 ? 1 : 0);
     }
@@ -8181,7 +8188,7 @@ class _StockListPageState extends State<StockListPage> {
         .where((item) =>
             item.title.contains('è²¡å ±') ||
             item.title.contains('EPS') ||
-            item.title.contains('æ¯è‚¡?ˆé?') ||
+            item.title.contains('æ¯è‚¡?ï¿½ï¿½?') ||
             item.title.contains('æ³•èªª'))
         .toList();
     if (items.isEmpty) {
@@ -8191,17 +8198,17 @@ class _StockListPageState extends State<StockListPage> {
     var score = 0;
     for (final item in items) {
       final title = item.title;
-      if (title.contains('?ªæ–¼?æ?') ||
-          title.contains('è¶…é???) ||
+      if (title.contains('?ï¿½æ–¼?ï¿½ï¿½?') ||
+          title.contains('è¶…ï¿½???) ||
           title.contains('ä¸Šä¿®') ||
-          title.contains('è½‰ç?')) {
+          title.contains('è½‰ï¿½?')) {
         score += 2;
       }
-      if (title.contains('ä½æ–¼?æ?') ||
-          title.contains('ä¸å??æ?') ||
+      if (title.contains('ä½æ–¼?ï¿½ï¿½?') ||
+          title.contains('ä¸ï¿½??ï¿½ï¿½?') ||
           title.contains('ä¸‹ä¿®') ||
           title.contains('è½‰è™§') ||
-          title.contains('?§æ?')) {
+          title.contains('?ï¿½ï¿½?')) {
         score -= 2;
       }
     }
@@ -8346,7 +8353,7 @@ void diagnoseStock(StockModel stock, int score) {
       return true;
     }
 
-    final riskKeywords = <String>['è²¡å ±', 'æ³•èªª', '?¤æ???, 'å¢è?', 'æ¸›è?', '?è?'];
+    final riskKeywords = <String>['è²¡å ±', 'æ³•èªª', '?ï¿½ï¿½???, 'å¢ï¿½?', 'æ¸›ï¿½?', '?ï¿½ï¿½?'];
     for (final item in snapshot.items.take(20)) {
       final title = item.title;
       final hitStock = title.contains(stock.code) || title.contains(stock.name);
@@ -8384,60 +8391,60 @@ void diagnoseStock(StockModel stock, int score) {
           newsLevel == NewsRiskLevel.high) {
         return _ModeRecommendation(
           mode: BreakoutMode.preEventPosition,
-          reason: '?®å??ºç›¤å¾?å¤œé?ï¼Œä??°è??±åº¦è¼ƒé?ï¼Œå»ºè­°ç”¨äº‹ä»¶?å¡ä½å??”æ—¥è§€å¯Ÿå??®ã€?,
+          reason: '?ï¿½ï¿½??ï¿½ç›¤ï¿½?å¤œï¿½?ï¼Œï¿½??ï¿½ï¿½??ï¿½åº¦è¼ƒï¿½?ï¼Œå»ºè­°ç”¨äº‹ä»¶?ï¿½å¡ä½ï¿½??ï¿½æ—¥è§€å¯Ÿï¿½??ï¿½ï¿½?,
         );
       }
       if (regime == _MarketRegime.defensive || breadth < 1.0) {
         return _ModeRecommendation(
           mode: BreakoutMode.squeezeSetup,
           reason:
-              '?®å??ºç›¤å¾?å¤œé?ï¼Œå??´å?å¼±ï?å¯¬åº¦ ${breadth.toStringAsFixed(2)}ï¼‰ï?å»ºè­°?ˆä»¥?ç¸®å¾…å™´?šä?é¢¨éšª?™é¸??,
+              '?ï¿½ï¿½??ï¿½ç›¤ï¿½?å¤œï¿½?ï¼Œï¿½??ï¿½ï¿½?å¼±ï¿½?å¯¬åº¦ ${breadth.toStringAsFixed(2)}ï¼‰ï¿½?å»ºè­°?ï¿½ä»¥?ï¿½ç¸®å¾…å™´?ï¿½ï¿½?é¢¨éšª?ï¿½é¸??,
         );
       }
       return _ModeRecommendation(
         mode: BreakoutMode.confirmed,
-        reason: '?®å??ºç›¤å¾?å¤œé?ï¼Œå»ºè­°ä»¥ç¢ºè?çªç ´æ¨¡å?è¦å??”æ—¥?²å ´ï¼Œé?ä½é?å¤œé?è¨Šã€?,
+        reason: '?ï¿½ï¿½??ï¿½ç›¤ï¿½?å¤œï¿½?ï¼Œå»ºè­°ä»¥ç¢ºï¿½?çªç ´æ¨¡ï¿½?è¦ï¿½??ï¿½æ—¥?ï¿½å ´ï¼Œï¿½?ä½ï¿½?å¤œï¿½?è¨Šï¿½?,
       );
     }
 
     if (regime == _MarketRegime.defensive || breadth < 0.95) {
       return _ModeRecommendation(
         mode: BreakoutMode.squeezeSetup,
-        reason: '?¤å‹¢?é˜²å®ˆï?å¯¬åº¦ ${breadth.toStringAsFixed(2)}ï¼‰ï??ˆç”¨?ç¸®å¾…å™´?ä?è¿½é?é¢¨éšª??,
+        reason: '?ï¿½å‹¢?ï¿½é˜²å®ˆï¿½?å¯¬åº¦ ${breadth.toStringAsFixed(2)}ï¼‰ï¿½??ï¿½ç”¨?ï¿½ç¸®å¾…å™´?ï¿½ï¿½?è¿½ï¿½?é¢¨éšª??,
       );
     }
 
     if (regime == _MarketRegime.bull && breadth >= 1.25) {
       return _ModeRecommendation(
         mode: BreakoutMode.early,
-        reason: '?¤å‹¢?å?ä¸”å¯¬åº¦å¼·ï¼?{breadth.toStringAsFixed(2)}ï¼‰ï??¯ç”¨?›ç??´æ¶ç¬¬ä?æ®µã€?,
+        reason: '?ï¿½å‹¢?ï¿½ï¿½?ä¸”å¯¬åº¦å¼·ï¿½?{breadth.toStringAsFixed(2)}ï¼‰ï¿½??ï¿½ç”¨?ï¿½ï¿½??ï¿½æ¶ç¬¬ï¿½?æ®µï¿½?,
       );
     }
 
     if (regime == _MarketRegime.bull && breadth >= 1.05) {
       return _ModeRecommendation(
         mode: BreakoutMode.pullbackRebreak,
-        reason: 'å¤šé ­å»¶ç?ä½†é?æ¥µå¼·ï¼Œå?æª”å??»å¯?¼é¡§?ç??‡å…¥?´æ??‡ã€?,
+        reason: 'å¤šé ­å»¶ï¿½?ä½†ï¿½?æ¥µå¼·ï¼Œï¿½?æª”ï¿½??ï¿½å¯?ï¿½é¡§?ï¿½ï¿½??ï¿½å…¥?ï¿½ï¿½??ï¿½ï¿½?,
       );
     }
 
     if (newsLevel == NewsRiskLevel.medium && breadth >= 1.0) {
       return const _ModeRecommendation(
         mode: BreakoutMode.preEventPosition,
-        reason: '?°è??±åº¦?‡æº«ä½†æœª?°æ¥µç«¯ï??¯ç”¨äº‹ä»¶?å¡ä½å??‰è©¦?®ã€?,
+        reason: '?ï¿½ï¿½??ï¿½åº¦?ï¿½æº«ä½†æœª?ï¿½æ¥µç«¯ï¿½??ï¿½ç”¨äº‹ä»¶?ï¿½å¡ä½ï¿½??ï¿½è©¦?ï¿½ï¿½?,
       );
     }
 
     if (regime == _MarketRegime.range && breadth >= 1.0) {
       return _ModeRecommendation(
         mode: BreakoutMode.confirmed,
-        reason: '?¤æ•´å¸‚ä»¥ç¢ºè?çªç ´?æ¿¾?œè?ï¼Œé¿?å?çªç ´??,
+        reason: '?ï¿½æ•´å¸‚ä»¥ç¢ºï¿½?çªç ´?ï¿½æ¿¾?ï¿½ï¿½?ï¼Œé¿?ï¿½ï¿½?çªç ´??,
       );
     }
 
     return const _ModeRecommendation(
       mode: BreakoutMode.lowBaseTheme,
-      reason: 'è¼ªå??å¿«?‚ï?ä½åŸº?Ÿé??æ¨¡å¼é€šå¸¸è¼ƒå®¹?“æ‰¾?°è?æ¼²è‚¡??,
+      reason: 'è¼ªï¿½??ï¿½å¿«?ï¿½ï¿½?ä½åŸº?ï¿½ï¿½??ï¿½æ¨¡å¼é€šå¸¸è¼ƒå®¹?ï¿½æ‰¾?ï¿½ï¿½?æ¼²è‚¡??,
     );
   }
 
@@ -8563,7 +8570,7 @@ void diagnoseStock(StockModel stock, int score) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'æ¯é€±è‡ª?•å¾®èª¿å??ï?${tunedSymbols.join('/')}ï¼‰ï??œæ? -$tunedStopLoss% / ?œåˆ© +$tunedTakeProfit% / ?€ä½å? $tunedMinScore',
+          'æ¯é€±è‡ª?ï¿½å¾®èª¿ï¿½??ï¿½ï¿½?${tunedSymbols.join('/')}ï¼‰ï¿½??ï¿½ï¿½? -$tunedStopLoss% / ?ï¿½åˆ© +$tunedTakeProfit% / ?ï¿½ä½ï¿½? $tunedMinScore',
         ),
       ),
     );
@@ -8639,7 +8646,7 @@ void diagnoseStock(StockModel stock, int score) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('?¨ä?è¨ˆç? - ${stock.code} ${stock.name}'),
+              title: Text('?ï¿½ï¿½?è¨ˆï¿½? - ${stock.code} ${stock.name}'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -8647,7 +8654,7 @@ void diagnoseStock(StockModel stock, int score) {
                     controller: riskController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: '?®ç??€å¤§å¯?¿å??§æ?ï¼ˆå?ï¼?,
+                      labelText: '?ï¿½ï¿½??ï¿½å¤§å¯?ï¿½ï¿½??ï¿½ï¿½?ï¼ˆï¿½?ï¿½?,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -8655,14 +8662,14 @@ void diagnoseStock(StockModel stock, int score) {
                     controller: entryController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: '?è??²å ´??),
+                    decoration: const InputDecoration(labelText: '?ï¿½ï¿½??ï¿½å ´??),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: stopController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: '?œæ???),
+                    decoration: const InputDecoration(labelText: '?ï¿½ï¿½???),
                   ),
                   const SizedBox(height: 12),
                   if (resultText.isNotEmpty)
@@ -8675,7 +8682,7 @@ void diagnoseStock(StockModel stock, int score) {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('?œé?'),
+                  child: const Text('?ï¿½ï¿½?'),
                 ),
                 TextButton(
                   onPressed: calculatedLots == null || calculatedEntry == null
@@ -8693,12 +8700,12 @@ void diagnoseStock(StockModel stock, int score) {
                           ScaffoldMessenger.of(this.context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'å·²å???${stock.code} ?æœ¬ ${calculatedEntry!.toStringAsFixed(2)} / å¼µæ•¸ ${calculatedLots!.toStringAsFixed(calculatedLots! % 1 == 0 ? 0 : 2)}',
+                                'å·²ï¿½???${stock.code} ?ï¿½æœ¬ ${calculatedEntry!.toStringAsFixed(2)} / å¼µæ•¸ ${calculatedLots!.toStringAsFixed(calculatedLots! % 1 == 0 ? 0 : 2)}',
                               ),
                             ),
                           );
                         },
-                  child: const Text('å¥—ç”¨?°æ???),
+                  child: const Text('å¥—ç”¨?ï¿½ï¿½???),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -8709,7 +8716,7 @@ void diagnoseStock(StockModel stock, int score) {
 
                     if (riskBudget == null || entry == null || stop == null) {
                       setDialogState(() {
-                        resultText = 'è«‹è¼¸?¥æ­£ç¢ºæ•¸å­?;
+                        resultText = 'è«‹è¼¸?ï¿½æ­£ç¢ºæ•¸ï¿½?;
                       });
                       return;
                     }
@@ -8727,7 +8734,7 @@ void diagnoseStock(StockModel stock, int score) {
 
                     if (lots == null) {
                       setDialogState(() {
-                        resultText = '?œæ??¹é?å°æ–¼?²å ´?¹ï?ä¸”è™§?é?é¡é?å¤§æ–¼ 0';
+                        resultText = '?ï¿½ï¿½??ï¿½ï¿½?å°æ–¼?ï¿½å ´?ï¿½ï¿½?ä¸”è™§?ï¿½ï¿½?é¡ï¿½?å¤§æ–¼ 0';
                       });
                       return;
                     }
@@ -8742,7 +8749,7 @@ void diagnoseStock(StockModel stock, int score) {
                       calculatedLots = roundedLots;
                       calculatedEntry = entry;
                       resultText =
-                          'å»ºè­°å¼µæ•¸ï¼šç? $roundedLots å¼µï??†æ•¸?‰ä? ${tierPercent}%ï¼‰\n?ä¼°?•å…¥ï¼šç? ${_formatCurrency(positionAmount)}\næ¯è‚¡é¢¨éšªï¼?{(entry - stop).toStringAsFixed(2)}\n?°è?ä¿‚æ•¸ x${newsRiskMultiplier.toStringAsFixed(2)} ? ??™§ä¿‚æ•¸ x${streakMultiplier.toStringAsFixed(2)} = x${riskMultiplier.toStringAsFixed(2)}ï¼ˆå¯?¿å??§æ? ${_formatCurrency(effectiveRiskBudget)}ï¼?;
+                          'å»ºè­°å¼µæ•¸ï¼šï¿½? $roundedLots å¼µï¿½??ï¿½æ•¸?ï¿½ï¿½? ${tierPercent}%ï¼‰\n?ï¿½ä¼°?ï¿½å…¥ï¼šï¿½? ${_formatCurrency(positionAmount)}\næ¯è‚¡é¢¨éšªï¿½?{(entry - stop).toStringAsFixed(2)}\n?ï¿½ï¿½?ä¿‚æ•¸ x${newsRiskMultiplier.toStringAsFixed(2)} ? ??ï¿½ï¿½ä¿‚æ•¸ x${streakMultiplier.toStringAsFixed(2)} = x${riskMultiplier.toStringAsFixed(2)}ï¼ˆå¯?ï¿½ï¿½??ï¿½ï¿½? ${_formatCurrency(effectiveRiskBudget)}ï¿½?;
                     });
 
                     setState(() {
@@ -8750,7 +8757,7 @@ void diagnoseStock(StockModel stock, int score) {
                     });
                     _savePreferences();
                   },
-                  child: const Text('è¨ˆç?'),
+                  child: const Text('è¨ˆï¿½?'),
                 ),
               ],
             );
@@ -8789,26 +8796,26 @@ void diagnoseStock(StockModel stock, int score) {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Google ?²ç«¯?™ä»½',
+                    'Google ?ï¿½ç«¯?ï¿½ä»½',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _googleBackupEmail == null
-                        ? '?®å??ªé€?¥ Google å¸³è?'
-                        : 'å·²é€?¥ï¼?_googleBackupEmail',
+                        ? '?ï¿½ï¿½??ï¿½ï¿½?ï¿½ï¿½ Google å¸³ï¿½?'
+                        : 'å·²ï¿½?ï¿½ï¿½ï¿½?_googleBackupEmail',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   if (_lastGoogleBackupAt != null)
                     Text(
-                      '?€è¿‘å?ä»½ï?${_lastGoogleBackupAt!.year}-${_lastGoogleBackupAt!.month.toString().padLeft(2, '0')}-${_lastGoogleBackupAt!.day.toString().padLeft(2, '0')} ${_lastGoogleBackupAt!.hour.toString().padLeft(2, '0')}:${_lastGoogleBackupAt!.minute.toString().padLeft(2, '0')}',
+                      '?ï¿½è¿‘ï¿½?ä»½ï¿½?${_lastGoogleBackupAt!.year}-${_lastGoogleBackupAt!.month.toString().padLeft(2, '0')}-${_lastGoogleBackupAt!.day.toString().padLeft(2, '0')} ${_lastGoogleBackupAt!.hour.toString().padLeft(2, '0')}:${_lastGoogleBackupAt!.minute.toString().padLeft(2, '0')}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: localEnableDaily,
-                    title: const Text('æ¯æ—¥?ªå??™ä»½ï¼ˆé???App ?´æ–°?‚è§¸?¼ï?'),
+                    title: const Text('æ¯æ—¥?ï¿½ï¿½??ï¿½ä»½ï¼ˆï¿½???App ?ï¿½æ–°?ï¿½è§¸?ï¿½ï¿½?'),
                     onChanged: (value) {
                       setLocalState(() {
                         localEnableDaily = value;
@@ -8835,7 +8842,7 @@ void diagnoseStock(StockModel stock, int score) {
                                 }
                                 if (email == null) {
                                   _showGoogleSignInNullFeedback(
-                                    fallback: 'Google ?»å…¥?–æ?',
+                                    fallback: 'Google ?ï¿½å…¥?ï¿½ï¿½?',
                                     showFeedback: true,
                                   );
                                   return;
@@ -8845,25 +8852,25 @@ void diagnoseStock(StockModel stock, int score) {
                                 });
                                 await _savePreferences();
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('å·²é€?¥ Googleï¼?emailï¼?)),
+                                  SnackBar(content: Text('å·²ï¿½?ï¿½ï¿½ Googleï¿½?emailï¿½?)),
                                 );
                               },
                         icon: const Icon(Icons.login),
-                        label: const Text('??¥ Google'),
+                        label: const Text('??ï¿½ï¿½ Google'),
                       ),
                       FilledButton.tonalIcon(
                         onPressed: _isGoogleBackupBusy
                             ? null
                             : () => _backupNowToGoogle(showFeedback: true),
                         icon: const Icon(Icons.cloud_upload),
-                        label: const Text('ç«‹å³?™ä»½'),
+                        label: const Text('ç«‹å³?ï¿½ä»½'),
                       ),
                       FilledButton.tonalIcon(
                         onPressed: _isGoogleBackupBusy
                             ? null
                             : _restoreFromGoogleBackup,
                         icon: const Icon(Icons.cloud_download),
-                        label: const Text('?²ç«¯?„å?'),
+                        label: const Text('?ï¿½ç«¯?ï¿½ï¿½?'),
                       ),
                       TextButton.icon(
                         onPressed: _isGoogleBackupBusy
@@ -8879,7 +8886,7 @@ void diagnoseStock(StockModel stock, int score) {
                                 await _savePreferences();
                               },
                         icon: const Icon(Icons.logout),
-                        label: const Text('?»å‡º'),
+                        label: const Text('?ï¿½å‡º'),
                       ),
                     ],
                   ),
@@ -8929,7 +8936,7 @@ void diagnoseStock(StockModel stock, int score) {
                 final query = queryController.text.trim();
                 if (query.isEmpty) {
                   setDialogState(() {
-                    diagnosis = 'è«‹è¼¸?¥è‚¡ç¥¨ä»£?Ÿæ??ç¨±';
+                    diagnosis = 'è«‹è¼¸?ï¿½è‚¡ç¥¨ä»£?ï¿½ï¿½??ï¿½ç¨±';
                   });
                   return;
                 }
@@ -8966,7 +8973,7 @@ void diagnoseStock(StockModel stock, int score) {
 
                 if (matched.code.isEmpty) {
                   setDialogState(() {
-                    diagnosis = '?¾ä??°ç¬¦?ˆç??¡ç¥¨';
+                    diagnosis = '?ï¿½ï¿½??ï¿½ç¬¦?ï¿½ï¿½??ï¿½ç¥¨';
                   });
                   return;
                 }
@@ -8977,46 +8984,46 @@ void diagnoseStock(StockModel stock, int score) {
                 final effectiveShowStrongOnly = _showStrongOnly && _enableScoring;
                 if (effectiveShowStrongOnly &&
                     !strongOnlyCodes.contains(matched.code)) {
-                  reasons.add('å¼·å‹¢?å?ï¼ˆé?å¼·å‹¢è¨Šè?ï¼?);
+                  reasons.add('å¼·å‹¢?ï¿½ï¿½?ï¼ˆï¿½?å¼·å‹¢è¨Šï¿½?ï¿½?);
                 }
                 if (_searchKeyword.trim().isNotEmpty &&
                     !searchedCodes.contains(matched.code)) {
-                  reasons.add('ä¸ç¬¦?ˆç›®?æ?å°‹é??µå?');
+                  reasons.add('ä¸ç¬¦?ï¿½ç›®?ï¿½ï¿½?å°‹ï¿½??ï¿½ï¿½?');
                 }
                 if (_limitTopCandidates &&
                     searchedCodes.contains(matched.code) &&
                     !limitedCodes.contains(matched.code)) {
-                  reasons.add('è¶…å‡º??$_topCandidateLimit æª”ä???);
+                  reasons.add('è¶…å‡º??$_topCandidateLimit æª”ï¿½???);
                 }
                 if (_showOnlyFavorites &&
                     !_favoriteStockCodes.contains(matched.code)) {
-                  reasons.add('?®å??ºæ”¶?æ¨¡å¼ï?æ­¤æ??æ”¶?ï?');
+                  reasons.add('?ï¿½ï¿½??ï¿½æ”¶?ï¿½æ¨¡å¼ï¿½?æ­¤ï¿½??ï¿½æ”¶?ï¿½ï¿½?');
                 }
                 if (_showOnlyHoldings &&
                     !_positionLotsByCode.containsKey(matched.code) &&
                     !_entryPriceByCode.containsKey(matched.code)) {
-                  reasons.add('?®å??ºæ??¡æ¨¡å¼ï?æ­¤æ??æ??¡ï?');
+                  reasons.add('?ï¿½ï¿½??ï¿½ï¿½??ï¿½æ¨¡å¼ï¿½?æ­¤ï¿½??ï¿½ï¿½??ï¿½ï¿½?');
                 }
 
                 final inDisplay = displayedCodes.contains(matched.code);
                 final stage = !strategyCodes.contains(matched.code)
-                    ? '?ºç?æ¢ä»¶?æ®µ'
+                    ? '?ï¿½ï¿½?æ¢ä»¶?ï¿½æ®µ'
                     : (!candidateCodes.contains(matched.code)
-                        ? '?†æ•¸?€æª»é?æ®?
+                        ? '?ï¿½æ•¸?ï¿½æª»ï¿½?ï¿½?
                         : (!qualityCodes.contains(matched.code)
-                            ? '?‹æ?/é¢¨éšª?æ®µ'
-                            : (inDisplay ? 'å·²åœ¨?®å?æ¸…å–®' : 'å¾Œç?è¦–å??æ¿¾?æ®µ')));
+                            ? '?ï¿½ï¿½?/é¢¨éšª?ï¿½æ®µ'
+                            : (inDisplay ? 'å·²åœ¨?ï¿½ï¿½?æ¸…å–®' : 'å¾Œï¿½?è¦–ï¿½??ï¿½æ¿¾?ï¿½æ®µ')));
 
                 final lines = <String>[
                   '${matched.code} ${matched.name}',
-                  '?®å??æ®µï¼?stage',
+                  '?ï¿½ï¿½??ï¿½æ®µï¿½?stage',
                 ];
                 if (inDisplay) {
-                  lines.add('???®å??¨æ??®ä¸­');
+                  lines.add('???ï¿½ï¿½??ï¿½ï¿½??ï¿½ä¸­');
                 } else if (reasons.isEmpty) {
-                  lines.add('?¹ï? ?®å??ªé¡¯ç¤ºï?ä½†ç„¡?ç¢º?’é™¤?Ÿå?ï¼ˆå¯?½å??’å?/?åˆ¶å½±éŸ¿ï¼?);
+                  lines.add('?ï¿½ï¿½? ?ï¿½ï¿½??ï¿½é¡¯ç¤ºï¿½?ä½†ç„¡?ï¿½ç¢º?ï¿½é™¤?ï¿½ï¿½?ï¼ˆå¯?ï¿½ï¿½??ï¿½ï¿½?/?ï¿½åˆ¶å½±éŸ¿ï¿½?);
                 } else {
-                  lines.add('?’é™¤?Ÿå?ï¼?);
+                  lines.add('?ï¿½é™¤?ï¿½ï¿½?ï¿½?);
                   lines.addAll(reasons.map((reason) => '??$reason'));
                 }
 
@@ -9026,7 +9033,7 @@ void diagnoseStock(StockModel stock, int score) {
               }
 
               return AlertDialog(
-                title: const Text('?®æ??’é™¤è¨ºæ–·'),
+                title: const Text('?ï¿½ï¿½??ï¿½é™¤è¨ºæ–·'),
                 content: SizedBox(
                   width: 420,
                   child: Column(
@@ -9036,7 +9043,7 @@ void diagnoseStock(StockModel stock, int score) {
                       TextField(
                         controller: queryController,
                         decoration: const InputDecoration(
-                          labelText: 'è¼¸å…¥ä»???–å?ç¨±ï?ä¾‹ï?3576 ???¯å??ç?ï¼?,
+                          labelText: 'è¼¸å…¥ï¿½???ï¿½ï¿½?ç¨±ï¿½?ä¾‹ï¿½?3576 ???ï¿½ï¿½??ï¿½ï¿½?ï¿½?,
                         ),
                         onSubmitted: (_) => runDiagnosis(),
                       ),
@@ -9055,7 +9062,7 @@ void diagnoseStock(StockModel stock, int score) {
                               setDialogState(() {});
                             },
                             icon: const Icon(Icons.input),
-                            label: Text('å¸¶å…¥?®å??œå?ï¼?{_searchKeyword.trim()}'),
+                            label: Text('å¸¶å…¥?ï¿½ï¿½??ï¿½ï¿½?ï¿½?{_searchKeyword.trim()}'),
                           ),
                         ),
                       ],
@@ -9064,7 +9071,7 @@ void diagnoseStock(StockModel stock, int score) {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            '?€è¿‘æŸ¥è©?,
+                            '?ï¿½è¿‘æŸ¥ï¿½?,
                             style: Theme.of(context).textTheme.labelSmall,
                           ),
                         ),
@@ -9104,7 +9111,7 @@ void diagnoseStock(StockModel stock, int score) {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('?œé?'),
+                    child: const Text('?ï¿½ï¿½?'),
                   ),
                   FilledButton(
                     onPressed: runDiagnosis,
@@ -9157,93 +9164,93 @@ void diagnoseStock(StockModel stock, int score) {
 
     String modeNarrative(BreakoutMode mode) {
       return switch (mode) {
-        BreakoutMode.early => '?‹æ??ã€Œå?çªç ´?ï??é??‹é??¹æ˜¯?¦å»¶çº?,
-        BreakoutMode.confirmed => '?‹æ??ã€Œç¢ºèªç??´ã€ï??é??‹ç??´å??¯å¦ç«™ç©©',
-        BreakoutMode.lowBaseTheme => '?‹æ??ã€Œä??ºæ?è£œæ¼²?ï??šå¸¸å±¬é??è¼ª?•æ¥æ£?,
-        BreakoutMode.pullbackRebreak => '?‹æ??ã€Œå?æª”å??»ã€ï??é??‹å?æ¸¬å??æ”¾??,
-        BreakoutMode.squeezeSetup => '?‹æ??ã€Œé?ç¸®å??´ã€ï??é??‹æ˜¯?¦æ”¾?è„«?¢ç›¤??,
-        BreakoutMode.preEventPosition => '?‹æ??ã€Œä?ä»¶å??¡ä??ï??é??‹ä?ä»¶å?è³‡é??¯å¦?ç?',
+        BreakoutMode.early => '?ï¿½ï¿½??ï¿½ã€Œï¿½?çªç ´?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½æ˜¯?ï¿½å»¶ï¿½?,
+        BreakoutMode.confirmed => '?ï¿½ï¿½??ï¿½ã€Œç¢ºèªï¿½??ï¿½ã€ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½å¦ç«™ç©©',
+        BreakoutMode.lowBaseTheme => '?ï¿½ï¿½??ï¿½ã€Œï¿½??ï¿½ï¿½?è£œæ¼²?ï¿½ï¿½??ï¿½å¸¸å±¬ï¿½??ï¿½è¼ª?ï¿½æ¥ï¿½?,
+        BreakoutMode.pullbackRebreak => '?ï¿½ï¿½??ï¿½ã€Œï¿½?æª”ï¿½??ï¿½ã€ï¿½??ï¿½ï¿½??ï¿½ï¿½?æ¸¬ï¿½??ï¿½æ”¾??,
+        BreakoutMode.squeezeSetup => '?ï¿½ï¿½??ï¿½ã€Œï¿½?ç¸®ï¿½??ï¿½ã€ï¿½??ï¿½ï¿½??ï¿½æ˜¯?ï¿½æ”¾?ï¿½è„«?ï¿½ç›¤??,
+        BreakoutMode.preEventPosition => '?ï¿½ï¿½??ï¿½ã€Œï¿½?ä»¶ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?ä»¶ï¿½?è³‡ï¿½??ï¿½å¦?ï¿½ï¿½?',
       };
     }
 
     String sectorNarrative(String value) {
-      if (value.contains('?‘è?')) {
-        return '?¿å?å±¬é??ï?å¸¸å??©ç?/?¿ç??‡æ??¼è??‘å??›å½±??;
+      if (value.contains('?ï¿½ï¿½?')) {
+        return '?ï¿½ï¿½?å±¬ï¿½??ï¿½ï¿½?å¸¸ï¿½??ï¿½ï¿½?/?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½å½±??;
       }
-      if (value.contains('?»å?') ||
-          value.contains('?Šå?é«?) ||
-          value.contains('?šè?')) {
-        return '?¿å?å±¬ç??€?é•·ï¼Œå¸¸?—AI/ä¼ºæ????¯æ°£å¾ªç’°å¸¶å?';
+      if (value.contains('?ï¿½ï¿½?') ||
+          value.contains('?ï¿½ï¿½?ï¿½?) ||
+          value.contains('?ï¿½ï¿½?')) {
+        return '?ï¿½ï¿½?å±¬ï¿½??ï¿½?ï¿½é•·ï¼Œå¸¸?ï¿½AI/ä¼ºï¿½????ï¿½æ°£å¾ªç’°å¸¶ï¿½?';
       }
-      if (value.contains('?¼éµ')) {
-        return '?¿å?å±¬æ™¯æ°?¾ª?°ï?å¸¸å??±åƒ¹?‡å??©æ??¹æ ¼å½±éŸ¿';
+      if (value.contains('?ï¿½éµ')) {
+        return '?ï¿½ï¿½?å±¬æ™¯ï¿½?ï¿½ï¿½?ï¿½ï¿½?å¸¸ï¿½??ï¿½åƒ¹?ï¿½ï¿½??ï¿½ï¿½??ï¿½æ ¼å½±éŸ¿';
       }
-      if (value.contains('é£Ÿå?') || value.contains('å¡‘å?')) {
-        return '?¿å??æ????Ÿç‰©?™ï?å¸¸å??æœ¬?‡é?æ±‚è??–å½±??;
+      if (value.contains('é£Ÿï¿½?') || value.contains('å¡‘ï¿½?')) {
+        return '?ï¿½ï¿½??ï¿½ï¿½????ï¿½ç‰©?ï¿½ï¿½?å¸¸ï¿½??ï¿½æœ¬?ï¿½ï¿½?æ±‚ï¿½??ï¿½å½±??;
       }
-      return '?¿å?è³‡é??‰è¼ª?•è·¡è±¡ï?å»ºè­°?­é??åƒ¹?ç??§è?å¯?;
+      return '?ï¿½ï¿½?è³‡ï¿½??ï¿½è¼ª?ï¿½è·¡è±¡ï¿½?å»ºè­°?ï¿½ï¿½??ï¿½åƒ¹?ï¿½ï¿½??ï¿½ï¿½?ï¿½?;
     }
 
     final topicNarrativeByTag = <String, String>{
-      'AI': 'AI/ç®—å?é¡Œæ??‡æº«ï¼Œè??‘å?å¥½ä¼º?å™¨?‡å?å°é???,
-      'ä½è?è¡›æ?': 'ä½è?è¡›æ?é¡Œæ??‡æº«ï¼Œè??‘å?å¥½ç¶²?šè??šè?è¨­å???,
-      '?«æ?': '?²ç–«/?«ç?é¡Œæ??‡æº«ï¼Œè??‘å¯?½æ??‘ç??€?«ç??‡é˜²?«é?',
-      '?°è—¥?Ÿæ?': '?°è—¥/?¨å?é¡Œæ??‡æº«ï¼Œè??‘å¯?½æ??‘ç??€?‡é†«?¥é?',
-      'è»å·¥?°ç·£': '?°ç·£é¢¨éšªé¡Œæ??‡æº«ï¼Œè??‘å¯?½æ??‘è?å·?å®‰æ§/è³‡å???,
-      '?½æ??Ÿç‰©??: '?½æ??‡å??©æ?é¡Œæ??‡æº«ï¼Œè??‘å¯?½æ??‘ä?æ¸¸è??¿ä»£?½æ???,
-      'ä¾›æ???: 'ä¾›æ??ˆé?çµ„é??å?æº«ï?è³‡é??¯èƒ½æµå??¿ä»£ä¾›æ??‡åœ¨?°å???,
-      '?¿ç??©ç?': '?¿ç?/?©ç?é¡Œæ??‡æº«ï¼Œé??è??¿ç??—æ??ç¾¤è¼ƒæ??—é?æ³?,
+      'AI': 'AI/ç®—ï¿½?é¡Œï¿½??ï¿½æº«ï¼Œï¿½??ï¿½ï¿½?å¥½ä¼º?ï¿½å™¨?ï¿½ï¿½?å°ï¿½???,
+      'ä½ï¿½?è¡›ï¿½?': 'ä½ï¿½?è¡›ï¿½?é¡Œï¿½??ï¿½æº«ï¼Œï¿½??ï¿½ï¿½?å¥½ç¶²?ï¿½ï¿½??ï¿½ï¿½?è¨­ï¿½???,
+      '?ï¿½ï¿½?': '?ï¿½ç–«/?ï¿½ï¿½?é¡Œï¿½??ï¿½æº«ï¼Œï¿½??ï¿½å¯?ï¿½ï¿½??ï¿½ï¿½??ï¿½?ï¿½ï¿½??ï¿½é˜²?ï¿½ï¿½?',
+      '?ï¿½è—¥?ï¿½ï¿½?': '?ï¿½è—¥/?ï¿½ï¿½?é¡Œï¿½??ï¿½æº«ï¼Œï¿½??ï¿½å¯?ï¿½ï¿½??ï¿½ï¿½??ï¿½?ï¿½é†«?ï¿½ï¿½?',
+      'è»å·¥?ï¿½ç·£': '?ï¿½ç·£é¢¨éšªé¡Œï¿½??ï¿½æº«ï¼Œï¿½??ï¿½å¯?ï¿½ï¿½??ï¿½ï¿½?ï¿½?å®‰æ§/è³‡ï¿½???,
+      '?ï¿½ï¿½??ï¿½ç‰©??: '?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?é¡Œï¿½??ï¿½æº«ï¼Œï¿½??ï¿½å¯?ï¿½ï¿½??ï¿½ï¿½?æ¸¸ï¿½??ï¿½ä»£?ï¿½ï¿½???,
+      'ä¾›ï¿½???: 'ä¾›ï¿½??ï¿½ï¿½?çµ„ï¿½??ï¿½ï¿½?æº«ï¿½?è³‡ï¿½??ï¿½èƒ½æµï¿½??ï¿½ä»£ä¾›ï¿½??ï¿½åœ¨?ï¿½ï¿½???,
+      '?ï¿½ï¿½??ï¿½ï¿½?': '?ï¿½ï¿½?/?ï¿½ï¿½?é¡Œï¿½??ï¿½æº«ï¼Œï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ç¾¤è¼ƒï¿½??ï¿½ï¿½?ï¿½?,
     };
 
     final topicSectorKeywords = <String, List<String>>{
-      'AI': <String>['?»å?', '?Šå?é«?, '?šè?'],
-      'ä½è?è¡›æ?': <String>['?šè?', '?»å?'],
-      '?«æ?': <String>['é£Ÿå?', 'å¡‘å?'],
-      '?°è—¥?Ÿæ?': <String>['é£Ÿå?', 'å¡‘å?'],
-      'è»å·¥?°ç·£': <String>['?»å?', '?šè?'],
-      '?½æ??Ÿç‰©??: <String>['é£Ÿå?', 'å¡‘å?', '?¼éµ'],
-      'ä¾›æ???: <String>['?¼éµ', '?»å?'],
-      '?¿ç??©ç?': <String>['?‘è?'],
+      'AI': <String>['?ï¿½ï¿½?', '?ï¿½ï¿½?ï¿½?, '?ï¿½ï¿½?'],
+      'ä½ï¿½?è¡›ï¿½?': <String>['?ï¿½ï¿½?', '?ï¿½ï¿½?'],
+      '?ï¿½ï¿½?': <String>['é£Ÿï¿½?', 'å¡‘ï¿½?'],
+      '?ï¿½è—¥?ï¿½ï¿½?': <String>['é£Ÿï¿½?', 'å¡‘ï¿½?'],
+      'è»å·¥?ï¿½ç·£': <String>['?ï¿½ï¿½?', '?ï¿½ï¿½?'],
+      '?ï¿½ï¿½??ï¿½ç‰©??: <String>['é£Ÿï¿½?', 'å¡‘ï¿½?', '?ï¿½éµ'],
+      'ä¾›ï¿½???: <String>['?ï¿½éµ', '?ï¿½ï¿½?'],
+      '?ï¿½ï¿½??ï¿½ï¿½?': <String>['?ï¿½ï¿½?'],
     };
 
     switch (entrySignal.type) {
       case _EntrySignalType.strong:
         reasons.add(
-          '?€è¡“é¢ï¼šå???$score ?”å¼·?¢é?æª?${strongScoreThreshold.toStringAsFixed(0)}ï¼Œä?æ¼²å? ${stock.change.toStringAsFixed(2)}% ??${strongMinChange.toStringAsFixed(2)}%',
+          '?ï¿½è¡“é¢ï¼šï¿½???$score ?ï¿½å¼·?ï¿½ï¿½?ï¿½?${strongScoreThreshold.toStringAsFixed(0)}ï¼Œï¿½?æ¼²ï¿½? ${stock.change.toStringAsFixed(2)}% ??${strongMinChange.toStringAsFixed(2)}%',
         );
         reasons.add(
-          '?åƒ¹?¢ï??äº¤??${_formatWithThousandsSeparator(stock.volume)} é«˜æ–¼å¼·å‹¢?é?æª?${_formatWithThousandsSeparator(strongVolumeThreshold.round())}',
+          '?ï¿½åƒ¹?ï¿½ï¿½??ï¿½äº¤??${_formatWithThousandsSeparator(stock.volume)} é«˜æ–¼å¼·å‹¢?ï¿½ï¿½?ï¿½?${_formatWithThousandsSeparator(strongVolumeThreshold.round())}',
         );
         break;
       case _EntrySignalType.watch:
         reasons.add(
-          '?€è¡“é¢ï¼šå???$score å·²é??¯è?å¯Ÿé?æª?$effectiveMinScoreï¼Œåƒ¹?¼ç¶­?ä?æ¼²ï?${stock.change.toStringAsFixed(2)}%ï¼?,
+          '?ï¿½è¡“é¢ï¼šï¿½???$score å·²ï¿½??ï¿½ï¿½?å¯Ÿï¿½?ï¿½?$effectiveMinScoreï¼Œåƒ¹?ï¿½ç¶­?ï¿½ï¿½?æ¼²ï¿½?${stock.change.toStringAsFixed(2)}%ï¿½?,
         );
-        reasons.add('ç¯€å¥é¢ï¼šç›®?å??Œå?è§€å¯Ÿã€ç?å»¶ç??è€Œé?è¿½åƒ¹');
+        reasons.add('ç¯€å¥é¢ï¼šç›®?ï¿½ï¿½??ï¿½ï¿½?è§€å¯Ÿã€ï¿½?å»¶ï¿½??ï¿½è€Œï¿½?è¿½åƒ¹');
         break;
       case _EntrySignalType.wait:
-        reasons.add('è¨Šè??€?‹ï??®å??ç?å¾…ï?å»ºè­°ç­‰é??¹å?ç¢ºè?å¾Œå??²å ´');
+        reasons.add('è¨Šï¿½??ï¿½?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?å¾…ï¿½?å»ºè­°ç­‰ï¿½??ï¿½ï¿½?ç¢ºï¿½?å¾Œï¿½??ï¿½å ´');
         break;
       case _EntrySignalType.avoid:
-        reasons.add('è¨Šè??€?‹ï??®å??é¿?è¿½é«˜ï??ˆç?é¢¨éšª?æº«è¼ƒç©©??);
+        reasons.add('è¨Šï¿½??ï¿½?ï¿½ï¿½??ï¿½ï¿½??ï¿½é¿?ï¿½è¿½é«˜ï¿½??ï¿½ï¿½?é¢¨éšª?ï¿½æº«è¼ƒç©©??);
         break;
       case _EntrySignalType.neutral:
-        reasons.add('è¨Šè??€?‹ï??®å??ªå??¨é€²å ´ç¯©é¸ï¼Œå»ºè­°å??‹é¢¨?ªæ§ç®¡è¨­å®?);
+        reasons.add('è¨Šï¿½??ï¿½?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½é€²å ´ç¯©é¸ï¼Œå»ºè­°ï¿½??ï¿½é¢¨?ï¿½æ§ç®¡è¨­ï¿½?);
         break;
     }
 
     reasons.add(
-      '?‹æ??¢ï?$modeLabelï¼?{modeNarrative(matchedModes.isEmpty ? BreakoutMode : matchedModes.first)}',
+      '?ï¿½ï¿½??ï¿½ï¿½?$modeLabelï¿½?{modeNarrative(matchedModes.isEmpty ? BreakoutMode : matchedModes.first)}',
     );
     reasons.add(
-      '?ºæœ¬?¢å?ï¼šé??½é?æ¨™ï?${_formatWithThousandsSeparator(stock.volume)} ??${_formatWithThousandsSeparator(effectiveVolumeThreshold)}ï¼?,
+      '?ï¿½æœ¬?ï¿½ï¿½?ï¼šï¿½??ï¿½ï¿½?æ¨™ï¿½?${_formatWithThousandsSeparator(stock.volume)} ??${_formatWithThousandsSeparator(effectiveVolumeThreshold)}ï¿½?,
     );
 
     final sectorBonus = _sectorRotationBonus(stock);
     if (sectorBonus > 0) {
-      reasons.add('?¿å??¢ï?$sectorï¼ˆè¼ª?•å???+$sectorBonusï¼‰ï?${sectorNarrative(sector)}');
+      reasons.add('?ï¿½ï¿½??ï¿½ï¿½?$sectorï¼ˆè¼ª?ï¿½ï¿½???+$sectorBonusï¼‰ï¿½?${sectorNarrative(sector)}');
     } else {
-      reasons.add('?¿å??¢ï?$sectorï¼?{sectorNarrative(sector)}');
+      reasons.add('?ï¿½ï¿½??ï¿½ï¿½?$sectorï¿½?{sectorNarrative(sector)}');
     }
 
     final matchedTopic = topicStrengths.firstWhere(
@@ -9259,37 +9266,37 @@ void diagnoseStock(StockModel stock, int score) {
 
     if (matchedTopic.tag.isNotEmpty) {
       reasons.add(
-        'é¡Œæ??¢ï?${topicNarrativeByTag[matchedTopic.tag] ?? 'ä¸»é?è³‡é?è¼ªå??å¼·'}ï¼?{matchedTopic.tag} å¼·åº¦ ${matchedTopic.score}ï¼?,
+        'é¡Œï¿½??ï¿½ï¿½?${topicNarrativeByTag[matchedTopic.tag] ?? 'ä¸»ï¿½?è³‡ï¿½?è¼ªï¿½??ï¿½å¼·'}ï¿½?{matchedTopic.tag} å¼·åº¦ ${matchedTopic.score}ï¿½?,
       );
     } else {
       final topTopic =
           topicStrengths.isEmpty ? (tag: '', score: 0) : topicStrengths.first;
       if (topTopic.score >= 30) {
         reasons.add(
-          'é¡Œæ??¢ï??®å??¤é¢ä¸»é??ã€?{topTopic.tag}?ï?å¼·åº¦ ${topTopic.score}ï¼‰ï?ä½†è?æ­¤è‚¡?œè¯åº¦æ™®?šï?å»ºè­°ä¿å??†æ‰¹',
+          'é¡Œï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½é¢ä¸»ï¿½??ï¿½ï¿½?{topTopic.tag}?ï¿½ï¿½?å¼·åº¦ ${topTopic.score}ï¼‰ï¿½?ä½†ï¿½?æ­¤è‚¡?ï¿½è¯åº¦æ™®?ï¿½ï¿½?å»ºè­°ä¿ï¿½??ï¿½æ‰¹',
         );
       }
     }
 
     if (revenueMomentumScore != null) {
       final momentumText = revenueMomentumScore >= 2
-          ? '?å¼·'
-          : (revenueMomentumScore >= 0 ? 'ä¸­æ€? : '?å¼±');
-      reasons.add('?Ÿæ”¶?•èƒ½ï¼?momentumTextï¼ˆå???$revenueMomentumScoreï¼?);
+          ? '?ï¿½å¼·'
+          : (revenueMomentumScore >= 0 ? 'ä¸­ï¿½? : '?ï¿½å¼±');
+      reasons.add('?ï¿½æ”¶?ï¿½èƒ½ï¿½?momentumTextï¼ˆï¿½???$revenueMomentumScoreï¿½?);
     }
 
     if (earningsSurpriseScore != null) {
       final surpriseText = earningsSurpriseScore >= 2
-          ? '?æ­£??
-          : (earningsSurpriseScore >= 0 ? 'ä¸­æ€? : '?è???);
-      reasons.add('è²¡å ± surpriseï¼?surpriseTextï¼ˆå???$earningsSurpriseScoreï¼?);
+          ? '?ï¿½æ­£??
+          : (earningsSurpriseScore >= 0 ? 'ä¸­ï¿½? : '?ï¿½ï¿½???);
+      reasons.add('è²¡å ± surpriseï¿½?surpriseTextï¼ˆï¿½???$earningsSurpriseScoreï¿½?);
     }
 
     if (nearestEventWindowDays != null) {
       final eventText = nearestEventWindowDays >= 0
           ? 'D-${nearestEventWindowDays.abs()}'
           : 'D+${nearestEventWindowDays.abs()}';
-      reasons.add('æ³•èªª/è²¡å ±äº‹ä»¶çª—ï?$eventText');
+      reasons.add('æ³•èªª/è²¡å ±äº‹ä»¶çª—ï¿½?$eventText');
     }
 
     final deduped = <String>[];
@@ -9304,9 +9311,9 @@ void diagnoseStock(StockModel stock, int score) {
 
   String _premarketRiskTypeLabel(_PremarketRiskType type) {
     return switch (type) {
-      _PremarketRiskType.high => 'é«?,
-      _PremarketRiskType.medium => 'ä¸?,
-      _PremarketRiskType.low => 'ä½?,
+      _PremarketRiskType.high => 'ï¿½?,
+      _PremarketRiskType.medium => 'ï¿½?,
+      _PremarketRiskType.low => 'ï¿½?,
     };
   }
 
@@ -9315,17 +9322,17 @@ void diagnoseStock(StockModel stock, int score) {
     _PremarketRiskType riskType,
   ) {
     final riskTail = switch (riskType) {
-      _PremarketRiskType.high => 'ï¼ˆç›¤?é¢¨?ªé?ï¼Œåš´?§å€‰ä?ï¼?,
-      _PremarketRiskType.medium => 'ï¼ˆç›¤?é¢¨?ªä¸­ï¼Œå??¹è?ä½³ï?',
+      _PremarketRiskType.high => 'ï¼ˆç›¤?ï¿½é¢¨?ï¿½ï¿½?ï¼Œåš´?ï¿½å€‰ï¿½?ï¿½?,
+      _PremarketRiskType.medium => 'ï¼ˆç›¤?ï¿½é¢¨?ï¿½ä¸­ï¼Œï¿½??ï¿½ï¿½?ä½³ï¿½?',
       _PremarketRiskType.low => '',
     };
 
     return switch (signalType) {
-      _EntrySignalType.strong => '?¯å??‰è©¦??riskTail',
-      _EntrySignalType.watch => '?ˆè?å¯Ÿï?ç­‰ç?å¼·å???riskTail',
-      _EntrySignalType.wait => '?ˆç?è¨Šè?ç¢ºè?$riskTail',
-      _EntrySignalType.avoid => '?ˆé¿?‹ï?ä¸è¿½??riskTail',
-      _EntrySignalType.neutral => '?ˆç?é¢¨éšªè¨­å??æ±ºç­?riskTail',
+      _EntrySignalType.strong => '?ï¿½ï¿½??ï¿½è©¦??riskTail',
+      _EntrySignalType.watch => '?ï¿½ï¿½?å¯Ÿï¿½?ç­‰ï¿½?å¼·ï¿½???riskTail',
+      _EntrySignalType.wait => '?ï¿½ï¿½?è¨Šï¿½?ç¢ºï¿½?$riskTail',
+      _EntrySignalType.avoid => '?ï¿½é¿?ï¿½ï¿½?ä¸è¿½??riskTail',
+      _EntrySignalType.neutral => '?ï¿½ï¿½?é¢¨éšªè¨­ï¿½??ï¿½æ±ºï¿½?riskTail',
     };
   }
 
@@ -9354,7 +9361,7 @@ void diagnoseStock(StockModel stock, int score) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('?®å?æ²’æ??¯æ?ä¾›é??‰å»ºè­°ç?é«?ä¸­é¢¨?ªæ???)),
+        const SnackBar(content: Text('?ï¿½ï¿½?æ²’ï¿½??ï¿½ï¿½?ä¾›ï¿½??ï¿½å»ºè­°ï¿½?ï¿½?ä¸­é¢¨?ï¿½ï¿½???)),
       );
       return;
     }
@@ -9388,7 +9395,7 @@ void diagnoseStock(StockModel stock, int score) {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('é«?ä¸­é¢¨?ªæ??¡é??‰å»ºè­?),
+          title: const Text('ï¿½?ä¸­é¢¨?ï¿½ï¿½??ï¿½ï¿½??ï¿½å»ºï¿½?),
           content: SizedBox(
             width: 520,
             child: Column(
@@ -9396,12 +9403,12 @@ void diagnoseStock(StockModel stock, int score) {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'å»ºè­°è¦å?ï¼šé?é¢¨éšªä¿ç? 50%?ä¸­é¢¨éšªä¿ç? 75%ï¼ˆå??ç¤ºï¼Œä??ƒè‡ª?•æ”¹?•åº«å­˜ï?',
+                  'å»ºè­°è¦ï¿½?ï¼šï¿½?é¢¨éšªä¿ï¿½? 50%?ï¿½ä¸­é¢¨éšªä¿ï¿½? 75%ï¼ˆï¿½??ï¿½ç¤ºï¼Œï¿½??ï¿½è‡ª?ï¿½æ”¹?ï¿½åº«å­˜ï¿½?',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'å»ºè­°?ˆè??¯å?æ¸›ç¢¼ ${totalCloseLots.toStringAsFixed(totalCloseLots % 1 == 0 ? 0 : 2)} å¼?,
+                  'å»ºè­°?ï¿½ï¿½??ï¿½ï¿½?æ¸›ç¢¼ ${totalCloseLots.toStringAsFixed(totalCloseLots % 1 == 0 ? 0 : 2)} ï¿½?,
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
                 const SizedBox(height: 8),
@@ -9422,8 +9429,8 @@ void diagnoseStock(StockModel stock, int score) {
                         contentPadding: EdgeInsets.zero,
                         title: Text('${row.code} ${row.name}'),
                         subtitle: Text(
-                          'é¢¨éšª ${_premarketRiskTypeLabel(row.premarketRiskType)}ï½œç›®??${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)} å¼µï?å»ºè­°?ˆæ?ç¢?$closeRatioTextï¼ˆç? $closeLots å¼µï?ä¿ç? $keepLots å¼µï?\n'
-                          '${row.entryPrice == null || row.closePrice == null ? '' : '?æœ¬ ${row.entryPrice!.toStringAsFixed(2)} / ?¾åƒ¹ ${row.closePrice!.toStringAsFixed(2)}ï½?}${row.decisionSummary}',
+                          'é¢¨éšª ${_premarketRiskTypeLabel(row.premarketRiskType)}ï½œç›®??${lots.toStringAsFixed(lots % 1 == 0 ? 0 : 2)} å¼µï¿½?å»ºè­°?ï¿½ï¿½?ï¿½?$closeRatioTextï¼ˆï¿½? $closeLots å¼µï¿½?ä¿ï¿½? $keepLots å¼µï¿½?\n'
+                          '${row.entryPrice == null || row.closePrice == null ? '' : '?ï¿½æœ¬ ${row.entryPrice!.toStringAsFixed(2)} / ?ï¿½åƒ¹ ${row.closePrice!.toStringAsFixed(2)}ï¿½?}${row.decisionSummary}',
                         ),
                       );
                     }).toList(),
@@ -9435,7 +9442,7 @@ void diagnoseStock(StockModel stock, int score) {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('?œé?'),
+              child: const Text('?ï¿½ï¿½?'),
             ),
           ],
         );
@@ -9475,21 +9482,21 @@ void diagnoseStock(StockModel stock, int score) {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('?°è‚¡é£†è‚¡?†æ?'),
+        title: const Text('?ï¿½è‚¡é£†è‚¡?ï¿½ï¿½?'),
         actions: useCompactAppBarActions
             ? [
                 IconButton(
-                  tooltip: '?æ–°?´ç?è³‡æ?',
+                  tooltip: '?ï¿½æ–°?ï¿½ï¿½?è³‡ï¿½?',
                   onPressed: _refreshStocks,
                   icon: const Icon(Icons.refresh),
                 ),
                 IconButton(
-                  tooltip: 'Google ?™ä»½',
+                  tooltip: 'Google ?ï¿½ä»½',
                   onPressed: _openGoogleBackupSheet,
                   icon: const Icon(Icons.cloud_sync),
                 ),
                 PopupMenuButton<_CompactTopAction>(
-                  tooltip: '?´å??Ÿèƒ½',
+                  tooltip: '?ï¿½ï¿½??ï¿½èƒ½',
                   onSelected: (action) {
                     switch (action) {
                       case _CompactTopAction.backtest:
@@ -9508,7 +9515,7 @@ void diagnoseStock(StockModel stock, int score) {
                       child: ListTile(
                         dense: true,
                         leading: Icon(Icons.analytics),
-                        title: Text('?æ¸¬MVP'),
+                        title: Text('?ï¿½æ¸¬MVP'),
                       ),
                     ),
                     PopupMenuItem<_CompactTopAction>(
@@ -9516,7 +9523,7 @@ void diagnoseStock(StockModel stock, int score) {
                       child: ListTile(
                         dense: true,
                         leading: Icon(Icons.bolt),
-                        title: Text('?¨ç›¤ä¸€?µæ???),
+                        title: Text('?ï¿½ç›¤ä¸€?ï¿½ï¿½???),
                       ),
                     ),
                     PopupMenuItem<_CompactTopAction>(
@@ -9524,7 +9531,7 @@ void diagnoseStock(StockModel stock, int score) {
                       child: ListTile(
                         dense: true,
                         leading: Icon(Icons.menu_book),
-                        title: Text('äº¤æ??¥è?'),
+                        title: Text('äº¤ï¿½??ï¿½ï¿½?'),
                       ),
                     ),
                     PopupMenuItem<_CompactTopAction>(
@@ -9532,7 +9539,7 @@ void diagnoseStock(StockModel stock, int score) {
                       child: ListTile(
                         dense: true,
                         leading: Icon(Icons.notifications_active),
-                        title: Text('æ¸¬è©¦?é?'),
+                        title: Text('æ¸¬è©¦?ï¿½ï¿½?'),
                       ),
                     ),
                   ],
@@ -9540,32 +9547,32 @@ void diagnoseStock(StockModel stock, int score) {
               ]
             : [
                 IconButton(
-                  tooltip: '?æ¸¬MVP',
+                  tooltip: '?ï¿½æ¸¬MVP',
                   onPressed: _openBacktestPage,
                   icon: const Icon(Icons.analytics),
                 ),
                 IconButton(
-                  tooltip: '?¨ç›¤ä¸€?µæ???,
+                  tooltip: '?ï¿½ç›¤ä¸€?ï¿½ï¿½???,
                   onPressed: _runMorningScan,
                   icon: const Icon(Icons.bolt),
                 ),
                 IconButton(
-                  tooltip: 'äº¤æ??¥è?',
+                  tooltip: 'äº¤ï¿½??ï¿½ï¿½?',
                   onPressed: _openTradeJournalPage,
                   icon: const Icon(Icons.menu_book),
                 ),
                 IconButton(
-                  tooltip: 'æ¸¬è©¦?é?',
+                  tooltip: 'æ¸¬è©¦?ï¿½ï¿½?',
                   onPressed: _sendTestNotification,
                   icon: const Icon(Icons.notifications_active),
                 ),
                 IconButton(
-                  tooltip: '?æ–°?´ç?è³‡æ?',
+                  tooltip: '?ï¿½æ–°?ï¿½ï¿½?è³‡ï¿½?',
                   onPressed: _refreshStocks,
                   icon: const Icon(Icons.refresh),
                 ),
                 IconButton(
-                  tooltip: 'Google ?™ä»½',
+                  tooltip: 'Google ?ï¿½ä»½',
                   onPressed: _openGoogleBackupSheet,
                   icon: const Icon(Icons.cloud_sync),
                 ),
@@ -9609,7 +9616,7 @@ void diagnoseStock(StockModel stock, int score) {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'è¼‰å…¥?°è‚¡è³‡æ?å¤±æ?',
+                        'è¼‰å…¥?ï¿½è‚¡è³‡ï¿½?å¤±ï¿½?',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
@@ -9622,7 +9629,7 @@ void diagnoseStock(StockModel stock, int score) {
                       FilledButton.icon(
                         onPressed: _retryFetch,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('?è©¦'),
+                        label: const Text('?ï¿½è©¦'),
                       ),
                     ],
                   ),
@@ -9714,50 +9721,50 @@ void diagnoseStock(StockModel stock, int score) {
               }
 
               if (stock.closePrice > _maxPriceThreshold) {
-                markDrop(stock, '?¡åƒ¹è¶…ä???);
+                markDrop(stock, '?ï¿½åƒ¹è¶…ï¿½???);
                 continue;
               }
               if (stock.volume < effectiveVolumeThreshold) {
-                markDrop(stock, '?èƒ½ä¸è¶³');
+                markDrop(stock, '?ï¿½èƒ½ä¸è¶³');
                 continue;
               }
               if (normalizedTradeValueForFilter(stock.tradeValue) <
                   _minTradeValueThreshold) {
-                markDrop(stock, '?äº¤?¼ä?è¶?);
+                markDrop(stock, '?ï¿½äº¤?ï¿½ï¿½?ï¿½?);
                 continue;
               }
               if (_onlyRising && stock.change <= 0) {
-                markDrop(stock, '?ä?æ¼²è‚¡');
+                markDrop(stock, '?ï¿½ï¿½?æ¼²è‚¡');
                 continue;
               }
               if (_excludeOverheated &&
                   stock.change >= _maxChaseChangePercent) {
-                markDrop(stock, 'è¿½é?é¢¨éšª');
+                markDrop(stock, 'è¿½ï¿½?é¢¨éšª');
                 continue;
               }
               if (_enableForeignFlowFilter &&
                   stock.foreignNet < _minForeignNet) {
-                markDrop(stock, 'å¤–è?è²·è?ä¸è¶³');
+                markDrop(stock, 'å¤–ï¿½?è²·ï¿½?ä¸è¶³');
                 continue;
               }
               if (_enableTrustFlowFilter && stock.trustNet < _minTrustNet) {
-                markDrop(stock, '?•ä¿¡è²·è?ä¸è¶³');
+                markDrop(stock, '?ï¿½ä¿¡è²·ï¿½?ä¸è¶³');
                 continue;
               }
               if (_enableDealerFlowFilter &&
                   stock.dealerNet < _minDealerNet) {
-                markDrop(stock, '?ªç??†è²·è¶…ä?è¶?);
+                markDrop(stock, '?ï¿½ï¿½??ï¿½è²·è¶…ï¿½?ï¿½?);
                 continue;
               }
               if (_enableMarginDiffFilter &&
                   stock.marginBalanceDiff < _minMarginBalanceDiff) {
-                markDrop(stock, '?è?é¤˜é?è®Šå?ä¸è¶³');
+                markDrop(stock, '?ï¿½ï¿½?é¤˜ï¿½?è®Šï¿½?ä¸è¶³');
                 continue;
               }
               strategyStocks.add(stock);
             }
 
-            // save today?™s drop reasons for historical analysis
+            // save today?ï¿½s drop reasons for historical analysis
             recordFilterStats();
 
             final scoredStocks = strategyStocks
@@ -9812,7 +9819,7 @@ void diagnoseStock(StockModel stock, int score) {
                 regime: marketRegime,
               );
               if (item.score < minScore) {
-                markDrop(item.stock, '?†æ•¸ä¸è¶³');
+                markDrop(item.stock, '?ï¿½æ•¸ä¸è¶³');
                 continue;
               }
               candidateStocks.add(item);
@@ -9838,45 +9845,45 @@ void diagnoseStock(StockModel stock, int score) {
             final qualityFilteredStocks = <_ScoredStock>[];
             for (final item in candidateStocks) {
               if (!_passesBreakoutStage(item.stock, item.score)) {
-                markDrop(item.stock, '?‹æ?ä¸ç¬¦');
+                markDrop(item.stock, '?ï¿½ï¿½?ä¸ç¬¦');
                 continue;
               }
               if (!_passesRiskRewardPrefilter(item.stock)) {
-                markDrop(item.stock, 'é¢¨éšª?±é…¬ä¸è¶³');
+                markDrop(item.stock, 'é¢¨éšª?ï¿½é…¬ä¸è¶³');
                 continue;
               }
               if (_isLikelyFalseBreakout(item.stock, item.score)) {
-                markDrop(item.stock, '?‘ä¼¼?‡ç???);
+                markDrop(item.stock, '?ï¿½ä¼¼?ï¿½ï¿½???);
                 continue;
               }
               if (!_passesEventRiskExclusion(item.stock)) {
-                markDrop(item.stock, 'äº‹ä»¶é¢¨éšª?’é™¤');
+                markDrop(item.stock, 'äº‹ä»¶é¢¨éšª?ï¿½é™¤');
                 continue;
               }
               if (_enableEventCalendarWindow &&
                   BreakoutMode != BreakoutMode.preEventPosition) {
                 final days = eventWindowDaysOf(item.stock);
                 if (days != null && days.abs() <= _eventCalendarGuardDays) {
-                  markDrop(item.stock, 'æ³•èªª/è²¡å ±äº‹ä»¶çª?);
+                  markDrop(item.stock, 'æ³•èªª/è²¡å ±äº‹ä»¶ï¿½?);
                   continue;
                 }
               }
               if (_enableRevenueMomentumFilter) {
                 final momentum = revenueMomentumOf(item.stock);
                 if (momentum < _minRevenueMomentumScore) {
-                  markDrop(item.stock, '?Ÿæ”¶?•èƒ½?å¼±');
+                  markDrop(item.stock, '?ï¿½æ”¶?ï¿½èƒ½?ï¿½å¼±');
                   continue;
                 }
               }
               if (_enableEarningsSurpriseFilter) {
                 final surprise = earningsSurpriseOf(item.stock);
                 if (surprise < _minEarningsSurpriseScore) {
-                  markDrop(item.stock, 'è²¡å ±é©šå?åº¦å?å¼?);
+                  markDrop(item.stock, 'è²¡å ±é©šï¿½?åº¦ï¿½?ï¿½?);
                   continue;
                 }
               }
               if (_isLikelyOvernightGapRisk(item.stock)) {
-                markDrop(item.stock, '?”æ—¥è·³ç©ºé¢¨éšª');
+                markDrop(item.stock, '?ï¿½æ—¥è·³ç©ºé¢¨éšª');
                 continue;
               }
               if (_enableSectorExposureCap &&
@@ -9884,7 +9891,7 @@ void diagnoseStock(StockModel stock, int score) {
                 final sector = _sectorGroupForCode(item.stock.code);
                 final used = sectorQuotaUsage[sector] ?? 0;
                 if (used >= _maxHoldingPerSector) {
-                  markDrop(item.stock, '?¢æ¥­?†ä¸­åº¦ä???);
+                  markDrop(item.stock, '?ï¿½æ¥­?ï¿½ä¸­åº¦ï¿½???);
                   continue;
                 }
                 sectorQuotaUsage[sector] = used + 1;
@@ -9980,43 +9987,43 @@ void diagnoseStock(StockModel stock, int score) {
                 return reasons.take(2).join('??);
               }
               if (effectiveShowStrongOnly && !strongOnlyCodes.contains(code)) {
-                return 'å¼·å‹¢?å?ï¼ˆé?å¼·å‹¢è¨Šè?ï¼?;
+                return 'å¼·å‹¢?ï¿½ï¿½?ï¼ˆï¿½?å¼·å‹¢è¨Šï¿½?ï¿½?;
               }
               if (_limitTopCandidates &&
                   searchedCodes.contains(code) &&
                   !limitedCodes.contains(code)) {
-                return 'è¶…å‡º??$_topCandidateLimit æª”ä???;
+                return 'è¶…å‡º??$_topCandidateLimit æª”ï¿½???;
               }
-              return '?’å?è®Šå?ï¼ˆç„¡ä¸»è??’é™¤æ¢ä»¶ï¼?;
+              return '?ï¿½ï¿½?è®Šï¿½?ï¼ˆç„¡ä¸»ï¿½??ï¿½é™¤æ¢ä»¶ï¿½?;
             }
 
             String addedReasonHint(String code) {
               final previousReasons =
                   _lastDropReasonsByCodeSnapshot[code] ?? const <String>[];
               if (previousReasons.isNotEmpty) {
-                return '?ˆå??—é?ï¼?{previousReasons.take(2).join('??)}';
+                return '?ï¿½ï¿½??ï¿½ï¿½?ï¿½?{previousReasons.take(2).join('??)}';
               }
               if (_limitTopCandidates) {
-                return '?ˆå??¯èƒ½?—å? $_topCandidateLimit æª”é???;
+                return '?ï¿½ï¿½??ï¿½èƒ½?ï¿½ï¿½? $_topCandidateLimit æª”ï¿½???;
               }
-              return 'æ¢ä»¶è½‰ä½³?–æ?åºå?ç§?;
+              return 'æ¢ä»¶è½‰ä½³?ï¿½ï¿½?åºï¿½?ï¿½?;
             }
 
             String reasonBucketLabel(String reason) {
-              if (reason.startsWith('?ˆå??—é?ï¼?)) {
-                final text = reason.substring('?ˆå??—é?ï¼?.length);
+              if (reason.startsWith('?ï¿½ï¿½??ï¿½ï¿½?ï¿½?)) {
+                final text = reason.substring('?ï¿½ï¿½??ï¿½ï¿½?ï¿½?.length);
                 return text.split('??).first;
               }
-              return reason.split('ï¼?).first.split('??).first;
+              return reason.split('ï¿½?).first.split('??).first;
             }
 
             final removedReasonPreview = removedCodes
                 .take(3)
-                .map((code) => '$codeï¼?{removedReasonHint(code)}ï¼?)
+                .map((code) => '$codeï¿½?{removedReasonHint(code)}ï¿½?)
                 .toList();
             final addedReasonPreview = addedCodes
                 .take(3)
-                .map((code) => '$codeï¼?{addedReasonHint(code)}ï¼?)
+                .map((code) => '$codeï¿½?{addedReasonHint(code)}ï¿½?)
                 .toList();
 
             final reasonWeight = <String, int>{};
@@ -10138,13 +10145,13 @@ void diagnoseStock(StockModel stock, int score) {
                   : _calculatePnlAmount(stock, entryPrice, lots);
               final entrySignal = (stock == null || score == null)
                   ? const _EntrySignal(
-                      label: 'è³‡æ?ä¸è¶³',
+                      label: 'è³‡ï¿½?ä¸è¶³',
                       type: _EntrySignalType.wait,
                     )
                   : resolveEntrySignal(stock, score);
               final premarketRisk = stock == null
                   ? const _PremarketRisk(
-                      label: 'è³‡æ?ä¸è¶³',
+                      label: 'è³‡ï¿½?ä¸è¶³',
                       type: _PremarketRiskType.medium,
                     )
                   : _evaluatePremarketRisk(stock);
@@ -10246,14 +10253,14 @@ void diagnoseStock(StockModel stock, int score) {
               isNightSession: _isPostMarketOrNight(),
             );
             final recommendationSessionLabel =
-                _isPostMarketOrNight() ? '?¤å?/å¤œé?' : '?¤ä¸­';
+                _isPostMarketOrNight() ? '?ï¿½ï¿½?/å¤œï¿½?' : '?ï¿½ä¸­';
             final autoStreak = _autoLossStreakFromJournal();
             final sectorRegimeSummary = _sectorRegimeByGroup.entries
                 .take(3)
                 .map((entry) => '${entry.key}:${_regimeLabelOf(entry.value)}')
                 .join(' / ');
             final scanSummary =
-                '?™é¸ ${limitedCandidateStocks.length} æª”ï?å¼·å‹¢ ${tagCounts[_EntrySignalType.strong] ?? 0} æª”ï?è§€å¯?${tagCounts[_EntrySignalType.watch] ?? 0} æª”ï?æ¨¡å? ${BreakoutModeLabel(BreakoutMode)}ï½œå¯¬åº?${marketBreadthRatio.toStringAsFixed(2)}ï½œRegime ${_regimeLabelOf(marketRegime)}ï½œæ¿å¡?${sectorRegimeSummary.isEmpty ? '-' : sectorRegimeSummary}ï½œé€?™§ $autoStreak ç­?;
+                '?ï¿½é¸ ${limitedCandidateStocks.length} æª”ï¿½?å¼·å‹¢ ${tagCounts[_EntrySignalType.strong] ?? 0} æª”ï¿½?è§€ï¿½?${tagCounts[_EntrySignalType.watch] ?? 0} æª”ï¿½?æ¨¡ï¿½? ${BreakoutModeLabel(BreakoutMode)}ï½œå¯¬ï¿½?${marketBreadthRatio.toStringAsFixed(2)}ï½œRegime ${_regimeLabelOf(marketRegime)}ï½œæ¿ï¿½?${sectorRegimeSummary.isEmpty ? '-' : sectorRegimeSummary}ï½œï¿½?ï¿½ï¿½ $autoStreak ï¿½?;
             final googleBackupStatusLabel = _googleBackupStatusLabel();
             final googleBackupConnected = _isGoogleBackupConnected();
             final googleBackupFreshToday = _isGoogleBackupFreshToday();
@@ -10326,7 +10333,7 @@ void diagnoseStock(StockModel stock, int score) {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'è­°é??’å?? æ?ç¾?,
+                                      'è­°ï¿½??ï¿½ï¿½??ï¿½ï¿½?ï¿½?,
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall,
@@ -10371,7 +10378,7 @@ void diagnoseStock(StockModel stock, int score) {
                                           .account_balance_wallet_outlined),
                                       const SizedBox(width: 6),
                                       Text(
-                                        '?è‚¡ç¸½è¦½ï¼?{filteredHoldingRows.length}/${holdingRows.length} æª”ï?',
+                                        '?ï¿½è‚¡ç¸½è¦½ï¿½?{filteredHoldingRows.length}/${holdingRows.length} æª”ï¿½?',
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleSmall,
@@ -10390,7 +10397,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         ),
                                       if (highRiskHoldingCount > 0)
                                         IconButton(
-                                          tooltip: 'æª¢è?ç¬¬ä?æª”é?é¢¨éšªKç·?,
+                                          tooltip: 'æª¢ï¿½?ç¬¬ï¿½?æª”ï¿½?é¢¨éšªKï¿½?,
                                           onPressed: () {
                                             final target =
                                                 filteredHoldingRows.firstWhere(
@@ -10417,12 +10424,12 @@ void diagnoseStock(StockModel stock, int score) {
                                           rows: holdingReductionRows,
                                         ),
                                         icon: const Icon(Icons.shield_outlined),
-                                        label: const Text('?å€‰å»ºè­?),
+                                        label: const Text('?ï¿½å€‰å»ºï¿½?),
                                       ),
                                       TextButton.icon(
                                         onPressed: _openManualHoldingDialog,
                                         icon: const Icon(Icons.add),
-                                        label: const Text('?°å?åº«å?'),
+                                        label: const Text('?ï¿½ï¿½?åº«ï¿½?'),
                                       ),
                                     ],
                                   ),
@@ -10432,7 +10439,7 @@ void diagnoseStock(StockModel stock, int score) {
                                     runSpacing: 6,
                                     children: [
                                       FilterChip(
-                                        label: const Text('ä¾é¢¨?ªæ?åº?),
+                                        label: const Text('ä¾é¢¨?ï¿½ï¿½?ï¿½?),
                                         selected: _sortHoldingsByRisk,
                                         onSelected: (selected) {
                                           setState(() {
@@ -10442,7 +10449,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         },
                                       ),
                                       FilterChip(
-                                        label: const Text('?ªç?é«˜é¢¨?ªæ???),
+                                        label: const Text('?ï¿½ï¿½?é«˜é¢¨?ï¿½ï¿½???),
                                         selected: _showOnlyHighRiskHoldings,
                                         onSelected: (selected) {
                                           setState(() {
@@ -10456,9 +10463,9 @@ void diagnoseStock(StockModel stock, int score) {
                                   ),
                                   const SizedBox(height: 8),
                                   if (holdingRows.isEmpty)
-                                    const Text('?®å?å°šæœªè¨­å?ä»»ä??è‚¡ï¼ˆæ???å¼µæ•¸ï¼?)
+                                    const Text('?ï¿½ï¿½?å°šæœªè¨­ï¿½?ä»»ï¿½??ï¿½è‚¡ï¼ˆï¿½???å¼µæ•¸ï¿½?)
                                   else if (filteredHoldingRows.isEmpty)
-                                    const Text('?®å?æ²’æ?ç¬¦å?ç¯©é¸æ¢ä»¶?„æ???)
+                                    const Text('?ï¿½ï¿½?æ²’ï¿½?ç¬¦ï¿½?ç¯©é¸æ¢ä»¶?ï¿½ï¿½???)
                                   else
                                     ...filteredHoldingRows.map(
                                       (row) => ListTile(
@@ -10466,13 +10473,13 @@ void diagnoseStock(StockModel stock, int score) {
                                         contentPadding: EdgeInsets.zero,
                                         title: Text('${row.code} ${row.name}'),
                                         subtitle: Text(
-                                          '${row.entryPrice == null ? '?æœ¬ -' : '?æœ¬ ${row.entryPrice!.toStringAsFixed(2)}'}ï½?
-                                          '${row.lots == null ? 'å¼µæ•¸ -' : 'å¼µæ•¸ ${row.lots!.toStringAsFixed(row.lots! % 1 == 0 ? 0 : 2)}'}ï½?
-                                          '${row.closePrice == null ? '?¾åƒ¹ -' : '?¾åƒ¹ ${row.closePrice!.toStringAsFixed(2)}'}'
-                                          '\nä¸€?¥è©±ï¼?{row.decisionSummary}'
-                                          'ï½œè???${row.entrySignalLabel}'
-                                          'ï½œç›¤?é¢¨??${_premarketRiskTypeLabel(row.premarketRiskType)}'
-                                          '${row.matchedModes.isEmpty ? '' : '\n?½ä¸­æ¨¡å?ï¼?{row.matchedModes.take(3).map(BreakoutModeLabel).join(' / ')}${row.matchedModes.length > 3 ? ' +${row.matchedModes.length - 3}' : ''}'}',
+                                          '${row.entryPrice == null ? '?ï¿½æœ¬ -' : '?ï¿½æœ¬ ${row.entryPrice!.toStringAsFixed(2)}'}ï¿½?
+                                          '${row.lots == null ? 'å¼µæ•¸ -' : 'å¼µæ•¸ ${row.lots!.toStringAsFixed(row.lots! % 1 == 0 ? 0 : 2)}'}ï¿½?
+                                          '${row.closePrice == null ? '?ï¿½åƒ¹ -' : '?ï¿½åƒ¹ ${row.closePrice!.toStringAsFixed(2)}'}'
+                                          '\nä¸€?ï¿½è©±ï¿½?{row.decisionSummary}'
+                                          'ï½œï¿½???${row.entrySignalLabel}'
+                                          'ï½œç›¤?ï¿½é¢¨??${_premarketRiskTypeLabel(row.premarketRiskType)}'
+                                          '${row.matchedModes.isEmpty ? '' : '\n?ï¿½ä¸­æ¨¡ï¿½?ï¿½?{row.matchedModes.take(3).map(BreakoutModeLabel).join(' / ')}${row.matchedModes.length > 3 ? ' +${row.matchedModes.length - 3}' : ''}'}',
                                         ),
                                         trailing: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -10489,14 +10496,14 @@ void diagnoseStock(StockModel stock, int score) {
                                             const SizedBox(width: 6),
                                             if (row.stock != null)
                                               IconButton(
-                                                tooltip: '?¥ç?Kç·?,
+                                                tooltip: '?ï¿½ï¿½?Kï¿½?,
                                                 icon: const Icon(
                                                     Icons.candlestick_chart),
                                                 onPressed: () =>
                                                     _openKLineChart(row.stock!),
                                               ),
                                             IconButton(
-                                              tooltip: '?ªé™¤åº«å?',
+                                              tooltip: '?ï¿½é™¤åº«ï¿½?',
                                               icon: const Icon(
                                                   Icons.delete_outline),
                                               onPressed: () async {
@@ -10514,7 +10521,7 @@ void diagnoseStock(StockModel stock, int score) {
                                                     .showSnackBar(
                                                   SnackBar(
                                                       content: Text(
-                                                          'å·²åˆª??${row.code} åº«å?')),
+                                                          'å·²åˆª??${row.code} åº«ï¿½?')),
                                                 );
                                               },
                                             ),
@@ -10559,14 +10566,14 @@ void diagnoseStock(StockModel stock, int score) {
                           child: Card(
                             child: ExpansionTile(
                               leading: const Icon(Icons.tune),
-                              title: const Text('ç¯©é¸è¨ºæ–·ï¼ˆä??¥è¢«?’é™¤ä¸»å?ï¼?),
+                              title: const Text('ç¯©é¸è¨ºæ–·ï¼ˆï¿½??ï¿½è¢«?ï¿½é™¤ä¸»ï¿½?ï¿½?),
                               childrenPadding:
                                   const EdgeInsets.fromLTRB(12, 0, 12, 10),
                               children: [
                                 if (filterDropReasonCounts.isEmpty)
                                   const Align(
                                     alignment: Alignment.centerLeft,
-                                    child: Text('?®å??¡æ??¤è???),
+                                    child: Text('?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½???),
                                   )
                                 else
                                   Wrap(
@@ -10629,7 +10636,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       displayedCodes: displayedCodes,
                                     ),
                                     icon: const Icon(Icons.search),
-                                    label: const Text('?®æ??’é™¤è¨ºæ–·'),
+                                    label: const Text('?ï¿½ï¿½??ï¿½é™¤è¨ºæ–·'),
                                   ),
                                 ),
                                 Align(
@@ -10637,7 +10644,7 @@ void diagnoseStock(StockModel stock, int score) {
                                   child: TextButton.icon(
                                     onPressed: _openBullRunReplayDialog,
                                     icon: const Icon(Icons.history_edu_outlined),
-                                    label: const Text('ä¸Šé€±é??¡å???),
+                                    label: const Text('ä¸Šé€±ï¿½??ï¿½ï¿½???),
                                   ),
                                 ),
                                 Align(
@@ -10645,7 +10652,7 @@ void diagnoseStock(StockModel stock, int score) {
                                   child: TextButton.icon(
                                     onPressed: _openAnalyticsExportDialog,
                                     icon: const Icon(Icons.file_download_outlined),
-                                    label: const Text('?¯å‡º?½ä¸­??CSV'),
+                                    label: const Text('?ï¿½å‡º?ï¿½ä¸­??CSV'),
                                   ),
                                 ),
                               ],
@@ -10658,23 +10665,23 @@ void diagnoseStock(StockModel stock, int score) {
                           child: Card(
                             child: ListTile(
                               leading: const Icon(Icons.compare_arrows),
-                              title: const Text('?™é¸ç©©å??§ï??¬æ¬¡ vs ä¸Šæ¬¡ï¼?),
+                              title: const Text('?ï¿½é¸ç©©ï¿½??ï¿½ï¿½??ï¿½æ¬¡ vs ä¸Šæ¬¡ï¿½?),
                               subtitle: !_hasLimitedCandidateSnapshot
-                                  ? const Text('å°šæœªå»ºç?æ¯”è?å¿«ç…§')
+                                  ? const Text('å°šæœªå»ºï¿½?æ¯”ï¿½?å¿«ç…§')
                                   : (driftBaselineReset
                                       ? Text(
-                                          'å·²é?ç½®æ?è¼ƒåŸºæº–ï??¸å??ƒæ•¸è®Šæ›´ï¼‰ï??¸å??™é¸ ${qualityCodes.length} æª”ï??«é¢é¡¯ç¤º ${limitedCodes.length} æª”\n'
-                                          'è®Šæ›´ï¼?{changedFilterContextLabels.take(6).join('??)}${changedFilterContextLabels.length > 6 ? ' +${changedFilterContextLabels.length - 6}' : ''}')
+                                          'å·²ï¿½?ç½®ï¿½?è¼ƒåŸºæº–ï¿½??ï¿½ï¿½??ï¿½æ•¸è®Šæ›´ï¼‰ï¿½??ï¿½ï¿½??ï¿½é¸ ${qualityCodes.length} æª”ï¿½??ï¿½é¢é¡¯ç¤º ${limitedCodes.length} æª”\n'
+                                          'è®Šæ›´ï¿½?{changedFilterContextLabels.take(6).join('??)}${changedFilterContextLabels.length > 6 ? ' +${changedFilterContextLabels.length - 6}' : ''}')
                                       : !hasCandidateDrift
                                     ? Text(
-                                      '?¸å??™é¸ ${qualityCodes.length} æª”ï??‡ä?æ¬¡ç›¸?Œï?ï½œç•«?¢é¡¯ç¤?${limitedCodes.length} æª?)
+                                      '?ï¿½ï¿½??ï¿½é¸ ${qualityCodes.length} æª”ï¿½??ï¿½ï¿½?æ¬¡ç›¸?ï¿½ï¿½?ï½œç•«?ï¿½é¡¯ï¿½?${limitedCodes.length} ï¿½?)
                                     : Text(
-                                      '?°å? ${addedCodes.length}ï½œç§»??${removedCodes.length}ï½œæ›´??${_formatTimeHHmm(DateTime.now())}\n'
-                                      '?°å?ï¼?{addedCodes.isEmpty ? '-' : addedCodes.take(5).join('??)}\n'
-                                      'ç§»é™¤ï¼?{removedCodes.isEmpty ? '-' : removedCodes.take(5).join('??)}\n'
-                                      '?°å?ä¸»å?ï¼?{addedReasonPreview.isEmpty ? '-' : addedReasonPreview.join('??)}\n'
-                                      'ç§»é™¤ä¸»å?ï¼?{removedReasonPreview.isEmpty ? '-' : removedReasonPreview.join('??)}\n'
-                                      '?¸å??™é¸ ${qualityCodes.length} æª”ï??«é¢é¡¯ç¤º ${limitedCodes.length} æª?,
+                                      '?ï¿½ï¿½? ${addedCodes.length}ï½œç§»??${removedCodes.length}ï½œæ›´??${_formatTimeHHmm(DateTime.now())}\n'
+                                      '?ï¿½ï¿½?ï¿½?{addedCodes.isEmpty ? '-' : addedCodes.take(5).join('??)}\n'
+                                      'ç§»é™¤ï¿½?{removedCodes.isEmpty ? '-' : removedCodes.take(5).join('??)}\n'
+                                      '?ï¿½ï¿½?ä¸»ï¿½?ï¿½?{addedReasonPreview.isEmpty ? '-' : addedReasonPreview.join('??)}\n'
+                                      'ç§»é™¤ä¸»ï¿½?ï¿½?{removedReasonPreview.isEmpty ? '-' : removedReasonPreview.join('??)}\n'
+                                      '?ï¿½ï¿½??ï¿½é¸ ${qualityCodes.length} æª”ï¿½??ï¿½é¢é¡¯ç¤º ${limitedCodes.length} ï¿½?,
                                     )),
                               isThreeLine: true,
                               trailing: _candidateDriftHistory.isEmpty
@@ -10700,7 +10707,7 @@ void diagnoseStock(StockModel stock, int score) {
                               child: TextButton.icon(
                                 onPressed: _restorePreviousCandidateFilterSnapshot,
                                 icon: const Icon(Icons.history),
-                                label: const Text('?„å?ä¸Šæ¬¡æ¯”è??ƒæ•¸'),
+                                label: const Text('?ï¿½ï¿½?ä¸Šæ¬¡æ¯”ï¿½??ï¿½æ•¸'),
                               ),
                             ),
                           ),
@@ -10756,7 +10763,7 @@ void diagnoseStock(StockModel stock, int score) {
                             child: Card(
                               child: ExpansionTile(
                                 leading: const Icon(Icons.timeline),
-                                title: const Text('è®Šå??‚é?è»¸ï??€è¿?8 æ¬¡ï?'),
+                                title: const Text('è®Šï¿½??ï¿½ï¿½?è»¸ï¿½??ï¿½ï¿½?8 æ¬¡ï¿½?'),
                                 childrenPadding: const EdgeInsets.fromLTRB(
                                     12, 0, 12, 10),
                                 children: _candidateDriftHistory
@@ -10787,7 +10794,7 @@ void diagnoseStock(StockModel stock, int score) {
                             child: Card(
                               child: ExpansionTile(
                                 leading: const Icon(Icons.manage_history),
-                                title: const Text('?¸å??ƒæ•¸è®Šæ›´ç´€?„ï??€è¿?8 æ¬¡ï?'),
+                                title: const Text('?ï¿½ï¿½??ï¿½æ•¸è®Šæ›´ç´€?ï¿½ï¿½??ï¿½ï¿½?8 æ¬¡ï¿½?'),
                                 childrenPadding: const EdgeInsets.fromLTRB(
                                     12, 0, 12, 10),
                                 children: _parameterChangeAuditHistory
@@ -10822,8 +10829,8 @@ void diagnoseStock(StockModel stock, int score) {
                               child: const ListTile(
                                 dense: true,
                                 leading: Icon(Icons.lock_outline),
-                                title: Text('?¸è‚¡?ƒæ•¸å·²é?å®?),
-                                subtitle: Text('?ªå?æ¨¡å??‡æ??‡ä?ä»¶æ¨¡?¿è‡ª?•å??¨æš«??),
+                                title: Text('?ï¿½è‚¡?ï¿½æ•¸å·²ï¿½?ï¿½?),
+                                subtitle: Text('?ï¿½ï¿½?æ¨¡ï¿½??ï¿½ï¿½??ï¿½ï¿½?ä»¶æ¨¡?ï¿½è‡ª?ï¿½ï¿½??ï¿½æš«??),
                               ),
                             ),
                           ),
@@ -10833,14 +10840,14 @@ void diagnoseStock(StockModel stock, int score) {
                           child: Card(
                             child: ExpansionTile(
                               leading: const Icon(Icons.analytics_outlined),
-                              title: const Text('è¨Šè??½ä¸­è¿½è¹¤ï¼?/3/5?¥å¹³?‡ï?'),
+                              title: const Text('è¨Šï¿½??ï¿½ä¸­è¿½è¹¤ï¿½?/3/5?ï¿½å¹³?ï¿½ï¿½?'),
                               childrenPadding:
                                   const EdgeInsets.fromLTRB(12, 0, 12, 10),
                               children: [
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
-                                    'å¼·å‹¢ï¼?D ${strongPerf.day1Avg.toStringAsFixed(2)}% / ?ç? ${strongPerf.day1WinRate.toStringAsFixed(1)}% / ?æ’¤ ${strongPerf.day1MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day1Count})ï½?D ${strongPerf.day3Avg.toStringAsFixed(2)}% / ?ç? ${strongPerf.day3WinRate.toStringAsFixed(1)}% / ?æ’¤ ${strongPerf.day3MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day3Count})ï½?D ${strongPerf.day5Avg.toStringAsFixed(2)}% / ?ç? ${strongPerf.day5WinRate.toStringAsFixed(1)}% / ?æ’¤ ${strongPerf.day5MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day5Count})',
+                                    'å¼·å‹¢ï¿½?D ${strongPerf.day1Avg.toStringAsFixed(2)}% / ?ï¿½ï¿½? ${strongPerf.day1WinRate.toStringAsFixed(1)}% / ?ï¿½æ’¤ ${strongPerf.day1MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day1Count})ï¿½?D ${strongPerf.day3Avg.toStringAsFixed(2)}% / ?ï¿½ï¿½? ${strongPerf.day3WinRate.toStringAsFixed(1)}% / ?ï¿½æ’¤ ${strongPerf.day3MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day3Count})ï¿½?D ${strongPerf.day5Avg.toStringAsFixed(2)}% / ?ï¿½ï¿½? ${strongPerf.day5WinRate.toStringAsFixed(1)}% / ?ï¿½æ’¤ ${strongPerf.day5MaxDrawdown.toStringAsFixed(2)}% (${strongPerf.day5Count})',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),
@@ -10849,7 +10856,7 @@ void diagnoseStock(StockModel stock, int score) {
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
-                                    'è§€å¯Ÿï?1D ${watchPerf.day1Avg.toStringAsFixed(2)}% / ?ç? ${watchPerf.day1WinRate.toStringAsFixed(1)}% / ?æ’¤ ${watchPerf.day1MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day1Count})ï½?D ${watchPerf.day3Avg.toStringAsFixed(2)}% / ?ç? ${watchPerf.day3WinRate.toStringAsFixed(1)}% / ?æ’¤ ${watchPerf.day3MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day3Count})ï½?D ${watchPerf.day5Avg.toStringAsFixed(2)}% / ?ç? ${watchPerf.day5WinRate.toStringAsFixed(1)}% / ?æ’¤ ${watchPerf.day5MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day5Count})',
+                                    'è§€å¯Ÿï¿½?1D ${watchPerf.day1Avg.toStringAsFixed(2)}% / ?ï¿½ï¿½? ${watchPerf.day1WinRate.toStringAsFixed(1)}% / ?ï¿½æ’¤ ${watchPerf.day1MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day1Count})ï¿½?D ${watchPerf.day3Avg.toStringAsFixed(2)}% / ?ï¿½ï¿½? ${watchPerf.day3WinRate.toStringAsFixed(1)}% / ?ï¿½æ’¤ ${watchPerf.day3MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day3Count})ï¿½?D ${watchPerf.day5Avg.toStringAsFixed(2)}% / ?ï¿½ï¿½? ${watchPerf.day5WinRate.toStringAsFixed(1)}% / ?ï¿½æ’¤ ${watchPerf.day5MaxDrawdown.toStringAsFixed(2)}% (${watchPerf.day5Count})',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),
@@ -10858,7 +10865,7 @@ void diagnoseStock(StockModel stock, int score) {
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
-                                    '?ç?åº¦ï??€?³å???1/3/5 ?‹äº¤?“æ—¥?æ?å¡«å…¥å°æ?æ¬„ä?ï¼›æ¨£?¬ä?è¶³æ??ƒé¡¯ç¤?0??,
+                                    '?ï¿½ï¿½?åº¦ï¿½??ï¿½?ï¿½ï¿½???1/3/5 ?ï¿½äº¤?ï¿½æ—¥?ï¿½ï¿½?å¡«å…¥å°ï¿½?æ¬„ï¿½?ï¼›æ¨£?ï¿½ï¿½?è¶³ï¿½??ï¿½é¡¯ï¿½?0??,
                                     style:
                                         Theme.of(context).textTheme.labelSmall,
                                   ),
@@ -10874,7 +10881,7 @@ void diagnoseStock(StockModel stock, int score) {
                             child: ListTile(
                               dense: true,
                               leading: const Icon(Icons.calendar_view_week),
-                              title: const Text('æ¯é€±å‘½ä¸­ç??˜è?ï¼ˆæ?è¿?7 å¤©ï?'),
+                              title: const Text('æ¯é€±å‘½ä¸­ï¿½??ï¿½ï¿½?ï¼ˆï¿½?ï¿½?7 å¤©ï¿½?'),
                               subtitle: Text(_buildWeeklyHitRateSummaryText()),
                             ),
                           ),
@@ -10887,7 +10894,7 @@ void diagnoseStock(StockModel stock, int score) {
                             child: TextButton.icon(
                               onPressed: _openAutoTuneSuggestionDialog,
                               icon: const Icon(Icons.auto_fix_high_outlined),
-                              label: const Text('?½ä¸­?‡è‡ª?•èª¿?ƒå»ºè­?),
+                              label: const Text('?ï¿½ä¸­?ï¿½è‡ª?ï¿½èª¿?ï¿½å»ºï¿½?),
                             ),
                           ),
                         ),
@@ -10902,15 +10909,15 @@ void diagnoseStock(StockModel stock, int score) {
                               ),
                               leading: const Icon(Icons.speed),
                               title: Text(
-                                'é¢¨éšª?†æ•¸ ${riskSnapshot.score}ï½?{riskSnapshot.level}',
+                                'é¢¨éšª?ï¿½æ•¸ ${riskSnapshot.score}ï¿½?{riskSnapshot.level}',
                               ),
                               subtitle: Text(
                                 _enableAutoRiskAdjustment
                                     ? (_autoRiskAdjustmentSuppressedReason() ==
                                             null
-                                        ? 'å·²å??¨è‡ª?•èª¿?ƒï?å¼·åº¦ ${_autoRiskAdjustmentStrength} ${_riskAdjustmentIntensityLabel()}ï¼‰ï??†æ•¸?€æª?${_riskScoreBias(riskSnapshot) >= 0 ? '+' : ''}${_riskScoreBias(riskSnapshot)}?é???x${_riskVolumeMultiplier(riskSnapshot).toStringAsFixed(2)}?å???x${_riskTakeProfitMultiplier(riskSnapshot).toStringAsFixed(2)}ï½œè?7??${_riskScoreTrendText()}'
-                                        : 'å·²å??¨è‡ª?•èª¿?ƒï?ä½†ç›®?ç‚º${_autoRiskAdjustmentSuppressedReason()}ï½œè?7??${_riskScoreTrendText()}')
-                                    : '?ªå?èª¿å?å·²é??‰ï?ä½¿ç”¨?ºå??ƒæ•¸ï¼?,
+                                        ? 'å·²ï¿½??ï¿½è‡ª?ï¿½èª¿?ï¿½ï¿½?å¼·åº¦ ${_autoRiskAdjustmentStrength} ${_riskAdjustmentIntensityLabel()}ï¼‰ï¿½??ï¿½æ•¸?ï¿½ï¿½?${_riskScoreBias(riskSnapshot) >= 0 ? '+' : ''}${_riskScoreBias(riskSnapshot)}?ï¿½ï¿½???x${_riskVolumeMultiplier(riskSnapshot).toStringAsFixed(2)}?ï¿½ï¿½???x${_riskTakeProfitMultiplier(riskSnapshot).toStringAsFixed(2)}ï½œï¿½?7??${_riskScoreTrendText()}'
+                                        : 'å·²ï¿½??ï¿½è‡ª?ï¿½èª¿?ï¿½ï¿½?ä½†ç›®?ï¿½ç‚º${_autoRiskAdjustmentSuppressedReason()}ï½œï¿½?7??${_riskScoreTrendText()}')
+                                    : '?ï¿½ï¿½?èª¿ï¿½?å·²ï¿½??ï¿½ï¿½?ä½¿ç”¨?ï¿½ï¿½??ï¿½æ•¸ï¿½?,
                               ),
                             ),
                           ),
@@ -10934,7 +10941,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          '$recommendationSessionLabelå»ºè­°æ¨¡å?ï¼?{BreakoutModeLabel(modeRecommendation.mode)}',
+                                          '$recommendationSessionLabelå»ºè­°æ¨¡ï¿½?ï¿½?{BreakoutModeLabel(modeRecommendation.mode)}',
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleSmall,
@@ -10953,7 +10960,7 @@ void diagnoseStock(StockModel stock, int score) {
                                           child: const Text('å¥—ç”¨å»ºè­°'),
                                         )
                                       else
-                                        const Chip(label: Text('å·²å???)),
+                                        const Chip(label: Text('å·²ï¿½???)),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
@@ -10967,7 +10974,7 @@ void diagnoseStock(StockModel stock, int score) {
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        '?°è?äº‹ä»¶?¤è?ï¼?{suggestedEventTemplate.label}ï¼?{suggestedEventTemplate.adjustmentSummary}ï¼?,
+                                        '?ï¿½ï¿½?äº‹ä»¶?ï¿½ï¿½?ï¿½?{suggestedEventTemplate.label}ï¿½?{suggestedEventTemplate.adjustmentSummary}ï¿½?,
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall,
@@ -10996,8 +11003,8 @@ void diagnoseStock(StockModel stock, int score) {
                                             Icons.settings_backup_restore),
                                         label: Text(
                                           activeEventTemplate == null
-                                              ? '?„å?äº‹ä»¶?å???
-                                              : '?„å?${activeEventTemplate.label}?å???,
+                                              ? '?ï¿½ï¿½?äº‹ä»¶?ï¿½ï¿½???
+                                              : '?ï¿½ï¿½?${activeEventTemplate.label}?ï¿½ï¿½???,
                                         ),
                                       ),
                                     ),
@@ -11007,7 +11014,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       Padding(
                                         padding: const EdgeInsets.only(top: 4),
                                         child: Text(
-                                          '?ªå??„å??’æ•¸ï¼?eventTemplateAutoRestoreDaysLeft å¤©ï??¡ä?ä»¶å‘½ä¸­ï?',
+                                          '?ï¿½ï¿½??ï¿½ï¿½??ï¿½æ•¸ï¿½?eventTemplateAutoRestoreDaysLeft å¤©ï¿½??ï¿½ï¿½?ä»¶å‘½ä¸­ï¿½?',
                                           style: Theme.of(context)
                                               .textTheme
                                               .labelSmall,
@@ -11032,7 +11039,7 @@ void diagnoseStock(StockModel stock, int score) {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'ç­–ç•¥ä¸€?´æ€§è­¦ç¤?,
+                                      'ç­–ç•¥ä¸€?ï¿½æ€§è­¦ï¿½?,
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall,
@@ -11052,7 +11059,7 @@ void diagnoseStock(StockModel stock, int score) {
                           child: TextField(
                             decoration: const InputDecoration(
                               prefixIcon: Icon(Icons.search),
-                              hintText: '?œå?ä»???–å?ç¨±ï??è?ä»??ï¼?,
+                              hintText: '?ï¿½ï¿½?ï¿½???ï¿½ï¿½?ç¨±ï¿½??ï¿½ï¿½?ï¿½??ï¿½?,
                               isDense: true,
                               border: OutlineInputBorder(),
                             ),
@@ -11077,21 +11084,21 @@ void diagnoseStock(StockModel stock, int score) {
                                       const Icon(Icons.visibility, size: 16),
                                   label: Text(
                                     _showOnlyHoldings
-                                        ? '?®å?è¦–å?ï¼šåª?‹æ???
+                                        ? '?ï¿½ï¿½?è¦–ï¿½?ï¼šåª?ï¿½ï¿½???
                                         : (_showOnlyFavorites
-                                            ? '?®å?è¦–å?ï¼šåª?‹æ”¶??
-                                            : '?®å?è¦–å?ï¼šç??¥å€™é¸'),
+                                            ? '?ï¿½ï¿½?è¦–ï¿½?ï¼šåª?ï¿½æ”¶??
+                                            : '?ï¿½ï¿½?è¦–ï¿½?ï¼šï¿½??ï¿½å€™é¸'),
                                   ),
                                   visualDensity: VisualDensity.compact,
                                 ),
                                 if (effectiveShowStrongOnly)
                                   const Chip(
-                                    label: Text('å¼·å‹¢?å?'),
+                                    label: Text('å¼·å‹¢?ï¿½ï¿½?'),
                                     visualDensity: VisualDensity.compact,
                                   ),
                                 if (_showStrongOnly && !_enableScoring)
                                   const Chip(
-                                    label: Text('å¼·å‹¢?å?ï¼ˆé??Ÿç”¨?“å?ï¼?),
+                                    label: Text('å¼·å‹¢?ï¿½ï¿½?ï¼ˆï¿½??ï¿½ç”¨?ï¿½ï¿½?ï¿½?),
                                     visualDensity: VisualDensity.compact,
                                   ),
                               ],
@@ -11112,7 +11119,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       : Icons.star_border,
                                   size: 16,
                                 ),
-                                label: const Text('?¶è?æ¨¡å?'),
+                                label: const Text('?ï¿½ï¿½?æ¨¡ï¿½?'),
                                 selected: _showOnlyFavorites,
                                 onSelected: (_) => _toggleShowOnlyFavorites(),
                               ),
@@ -11123,7 +11130,7 @@ void diagnoseStock(StockModel stock, int score) {
                                       : Icons.account_balance_wallet_outlined,
                                   size: 16,
                                 ),
-                                label: const Text('?è‚¡æ¨¡å?'),
+                                label: const Text('?ï¿½è‚¡æ¨¡ï¿½?'),
                                 selected: _showOnlyHoldings,
                                 onSelected: (_) => _toggleShowOnlyHoldings(),
                               ),
@@ -11197,8 +11204,8 @@ void diagnoseStock(StockModel stock, int score) {
                               FilterChip(
                                 label: Text(
                                   _enableScoring
-                                      ? '?ªç?å¼·å‹¢?²å ´'
-                                      : '?ªç?å¼·å‹¢?²å ´ï¼ˆé??ˆå??¨æ??†ï?',
+                                      ? '?ï¿½ï¿½?å¼·å‹¢?ï¿½å ´'
+                                      : '?ï¿½ï¿½?å¼·å‹¢?ï¿½å ´ï¼ˆï¿½??ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?',
                                 ),
                                 selected: effectiveShowStrongOnly,
                                 onSelected: !_enableScoring
@@ -11215,17 +11222,17 @@ void diagnoseStock(StockModel stock, int score) {
                                 color: Colors.red,
                               ),
                               _CountChip(
-                                label: 'è§€å¯?,
+                                label: 'è§€ï¿½?,
                                 count: tagCounts[_EntrySignalType.watch] ?? 0,
                                 color: Colors.blue,
                               ),
                               _CountChip(
-                                label: 'ç­‰å?',
+                                label: 'ç­‰ï¿½?',
                                 count: tagCounts[_EntrySignalType.wait] ?? 0,
                                 color: Colors.teal,
                               ),
                               _CountChip(
-                                label: '?¿å?',
+                                label: '?ï¿½ï¿½?',
                                 count: tagCounts[_EntrySignalType.avoid] ?? 0,
                                 color: Colors.orange,
                               ),
@@ -11253,7 +11260,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         ),
                                         icon: const Icon(
                                             Icons.playlist_add_check),
-                                        label: const Text('?¶è??®å??™é¸??),
+                                        label: const Text('?ï¿½ï¿½??ï¿½ï¿½??ï¿½é¸??),
                                       ),
                                     ),
                                     SizedBox(height: stackedButtonGap),
@@ -11263,7 +11270,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         onPressed: () =>
                                             _exportFavoritesText(scoredStocks),
                                         icon: const Icon(Icons.copy_all),
-                                        label: const Text('?¯å‡º?¶è??‡å?'),
+                                        label: const Text('?ï¿½å‡º?ï¿½ï¿½??ï¿½ï¿½?'),
                                       ),
                                     ),
                                   ],
@@ -11280,7 +11287,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         ),
                                         icon: const Icon(
                                             Icons.playlist_add_check),
-                                        label: const Text('?¶è??®å??™é¸??),
+                                        label: const Text('?ï¿½ï¿½??ï¿½ï¿½??ï¿½é¸??),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -11289,7 +11296,7 @@ void diagnoseStock(StockModel stock, int score) {
                                         onPressed: () =>
                                             _exportFavoritesText(scoredStocks),
                                         icon: const Icon(Icons.copy_all),
-                                        label: const Text('?¯å‡º?¶è??‡å?'),
+                                        label: const Text('?ï¿½å‡º?ï¿½ï¿½??ï¿½ï¿½?'),
                                       ),
                                     ),
                                   ],
@@ -11311,10 +11318,10 @@ void diagnoseStock(StockModel stock, int score) {
                         child: Center(
                           child: Text(
                             _showOnlyFavorites
-                                ? '?¶è??å–®?®å?æ²’æ?ç¬¦å?æ¢ä»¶?„è‚¡ç¥?
+                                ? '?ï¿½ï¿½??ï¿½å–®?ï¿½ï¿½?æ²’ï¿½?ç¬¦ï¿½?æ¢ä»¶?ï¿½è‚¡ï¿½?
                                 : (_showOnlyHoldings
-                                    ? '?è‚¡æ¸…å–®?®å?æ²’æ?ç¬¦å?æ¢ä»¶?„è‚¡ç¥?
-                                    : '?®å?æ²’æ?ç¬¦å?æ¢ä»¶?„è‚¡ç¥¨è???),
+                                    ? '?ï¿½è‚¡æ¸…å–®?ï¿½ï¿½?æ²’ï¿½?ç¬¦ï¿½?æ¢ä»¶?ï¿½è‚¡ï¿½?
+                                    : '?ï¿½ï¿½?æ²’ï¿½?ç¬¦ï¿½?æ¢ä»¶?ï¿½è‚¡ç¥¨ï¿½???),
                           ),
                         ),
                       ),
@@ -11529,36 +11536,36 @@ class _StockCard extends StatelessWidget {
     final aggressiveEstimatedLossAmount =
         (entryPlan.aggressiveEntry - aggressiveStopPrice) * estimateShares;
     final estimateScopeLabel = lots == null
-        ? 'ï¼ˆæ? 1 å¼µä¼°ç®—ï?'
-        : 'ï¼ˆä??®å?å¼µæ•¸ ${estimateLots.toStringAsFixed(estimateLots % 1 == 0 ? 0 : 2)}ï¼?;
+        ? 'ï¼ˆï¿½? 1 å¼µä¼°ç®—ï¿½?'
+        : 'ï¼ˆï¿½??ï¿½ï¿½?å¼µæ•¸ ${estimateLots.toStringAsFixed(estimateLots % 1 == 0 ? 0 : 2)}ï¿½?;
     final riskTail = switch (premarketRisk.type) {
-      _PremarketRiskType.high => 'ï¼ˆç›¤?é¢¨?ªé?ï¼Œåš´?§å€‰ä?ï¼?,
-      _PremarketRiskType.medium => 'ï¼ˆç›¤?é¢¨?ªä¸­ï¼Œå??¹è?ä½³ï?',
+      _PremarketRiskType.high => 'ï¼ˆç›¤?ï¿½é¢¨?ï¿½ï¿½?ï¼Œåš´?ï¿½å€‰ï¿½?ï¿½?,
+      _PremarketRiskType.medium => 'ï¼ˆç›¤?ï¿½é¢¨?ï¿½ä¸­ï¼Œï¿½??ï¿½ï¿½?ä½³ï¿½?',
       _PremarketRiskType.low => '',
     };
     final (decisionText, decisionBg, decisionFg) = switch (entrySignal.type) {
       _EntrySignalType.strong => (
-          'ä¸€?¥è©±ï¼šå¯å°å€‰è©¦??riskTail',
+          'ä¸€?ï¿½è©±ï¼šå¯å°å€‰è©¦??riskTail',
           Colors.red,
           Colors.white
         ),
       _EntrySignalType.watch => (
-          'ä¸€?¥è©±ï¼šå?è§€å¯Ÿï?ç­‰ç?å¼·å???riskTail',
+          'ä¸€?ï¿½è©±ï¼šï¿½?è§€å¯Ÿï¿½?ç­‰ï¿½?å¼·ï¿½???riskTail',
           scheme.secondaryContainer,
           scheme.onSecondaryContainer,
         ),
       _EntrySignalType.wait => (
-          'ä¸€?¥è©±ï¼šå?ç­‰è??Ÿç¢ºèª?riskTail',
+          'ä¸€?ï¿½è©±ï¼šï¿½?ç­‰ï¿½??ï¿½ç¢ºï¿½?riskTail',
           scheme.tertiaryContainer,
           scheme.onTertiaryContainer,
         ),
       _EntrySignalType.avoid => (
-          'ä¸€?¥è©±ï¼šå??¿é?ï¼Œä?è¿½åƒ¹$riskTail',
+          'ä¸€?ï¿½è©±ï¼šï¿½??ï¿½ï¿½?ï¼Œï¿½?è¿½åƒ¹$riskTail',
           Colors.orange,
           Colors.white
         ),
       _EntrySignalType.neutral => (
-          'ä¸€?¥è©±ï¼šå??‹é¢¨?ªè¨­å®šå?æ±ºç?$riskTail',
+          'ä¸€?ï¿½è©±ï¼šï¿½??ï¿½é¢¨?ï¿½è¨­å®šï¿½?æ±ºï¿½?$riskTail',
           scheme.surfaceContainerHighest,
           scheme.onSurfaceVariant,
         ),
@@ -11602,37 +11609,37 @@ class _StockCard extends StatelessWidget {
           runSpacing: 2,
           children: [
             buildActionButton(
-              tooltip: 'ä¸€?µå¸¶?¥å?æ¸?,
+              tooltip: 'ä¸€?ï¿½å¸¶?ï¿½ï¿½?ï¿½?,
               onPressed: onOpenBacktest,
               icon: Icons.analytics,
             ),
             buildActionButton(
-              tooltip: '?¨ä?è¨ˆç?',
+              tooltip: '?ï¿½ï¿½?è¨ˆï¿½?',
               onPressed: onOpenPositionSizing,
               icon: Icons.calculate,
             ),
             buildActionButton(
-              tooltip: '?¥ç?Kç·?,
+              tooltip: '?ï¿½ï¿½?Kï¿½?,
               onPressed: onOpenKLine,
               icon: Icons.candlestick_chart,
             ),
             buildActionButton(
-              tooltip: 'CMoneyè¨è?',
+              tooltip: 'CMoneyè¨ï¿½?',
               onPressed: onOpenDiscussion,
               icon: Icons.forum_outlined,
             ),
             buildActionButton(
-              tooltip: 'è¨­å??è‚¡',
+              tooltip: 'è¨­ï¿½??ï¿½è‚¡',
               onPressed: onSetEntryPrice,
               icon: Icons.edit_note,
             ),
             buildActionButton(
-              tooltip: 'è¨˜é?å¹³å€?,
+              tooltip: 'è¨˜ï¿½?å¹³ï¿½?,
               onPressed: onRecordTrade,
               icon: Icons.task_alt,
             ),
             buildActionButton(
-              tooltip: isFavorite ? '?–æ??¶è?' : '? å…¥?¶è?',
+              tooltip: isFavorite ? '?ï¿½ï¿½??ï¿½ï¿½?' : '?ï¿½å…¥?ï¿½ï¿½?',
               onPressed: onFavoritePressed,
               icon: isFavorite ? Icons.star : Icons.star_border,
             ),
@@ -11699,7 +11706,7 @@ class _StockCard extends StatelessWidget {
                                     .map(
                                       (label) => Chip(
                                         visualDensity: VisualDensity.compact,
-                                        label: Text('?½ä¸­ï¼?label'),
+                                        label: Text('?ï¿½ä¸­ï¿½?label'),
                                       ),
                                     )
                                     .toList(),
@@ -11718,7 +11725,7 @@ class _StockCard extends StatelessWidget {
                               tilePadding: EdgeInsets.zero,
                               childrenPadding: EdgeInsets.zero,
                               title: Text(
-                                '?¥ç?è©³ç´°èªªæ??‡é€²å‡ºè¦å?',
+                                '?ï¿½ï¿½?è©³ç´°èªªï¿½??ï¿½é€²å‡ºè¦ï¿½?',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                               children: [
@@ -11731,7 +11738,7 @@ class _StockCard extends StatelessWidget {
                                       tilePadding: EdgeInsets.zero,
                                       childrenPadding: EdgeInsets.zero,
                                       title: Text(
-                                        'ä¾æ??‡é¢¨??,
+                                        'ä¾ï¿½??ï¿½é¢¨??,
                                         style:
                                             Theme.of(context).textTheme.bodySmall,
                                       ),
@@ -11743,8 +11750,8 @@ class _StockCard extends StatelessWidget {
                                             child: Text(
                                               entrySignal.type ==
                                                       _EntrySignalType.strong
-                                                  ? 'å¼·å‹¢ä¾æ?ï¼?{bullishRationales.join('ï½?)}'
-                                                  : '?²å ´ä¾æ?ï¼?{bullishRationales.join('ï½?)}',
+                                                  ? 'å¼·å‹¢ä¾ï¿½?ï¿½?{bullishRationales.join('ï¿½?)}'
+                                                  : '?ï¿½å ´ä¾ï¿½?ï¿½?{bullishRationales.join('ï¿½?)}',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall,
@@ -11753,7 +11760,7 @@ class _StockCard extends StatelessWidget {
                                           Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
-                                              '?é?ï¼šæ­¤?ºæ?ä»¶å‘½ä¸­èªª?ï??ä?è­‰ä?æ¼²ï?è«‹æ­?å??æ§ç®¡ã€?,
+                                              '?ï¿½ï¿½?ï¼šæ­¤?ï¿½ï¿½?ä»¶å‘½ä¸­èªª?ï¿½ï¿½??ï¿½ï¿½?è­‰ï¿½?æ¼²ï¿½?è«‹æ­?ï¿½ï¿½??ï¿½æ§ç®¡ï¿½?,
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .labelSmall,
@@ -11765,7 +11772,7 @@ class _StockCard extends StatelessWidget {
                                           Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
-                                              '?‚æ®µ?é?ï¼?marketTimingStatusLabelï¼?9:30 å¾Œå?ç¢ºè?ï¼?,
+                                              '?ï¿½æ®µ?ï¿½ï¿½?ï¿½?marketTimingStatusLabelï¿½?9:30 å¾Œï¿½?ç¢ºï¿½?ï¿½?,
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall,
@@ -11785,7 +11792,7 @@ class _StockCard extends StatelessWidget {
                                               _ExitSignalBadge(signal: exitSignal),
                                         ),
                                         const SizedBox(height: 6),
-                                        // ç¾å?å¾Œç?è¨ºæ–·?±å?é¡¯ç¤ºï¼ˆè‹¥??scoreï¼?
+                                        // ç¾ï¿½?å¾Œï¿½?è¨ºæ–·?ï¿½ï¿½?é¡¯ç¤ºï¼ˆè‹¥??scoreï¿½?
                                         if (score != null) ...[
                                           Container(
                                             width: double.infinity,
@@ -11802,7 +11809,7 @@ class _StockCard extends StatelessWidget {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  'è¨ºæ–·?±å?',
+                                                  'è¨ºæ–·?ï¿½ï¿½?',
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .labelSmall,
@@ -11826,19 +11833,19 @@ class _StockCard extends StatelessWidget {
                                                     final instChips = Row(
                                                       children: [
                                                         Chip(
-                                                          label: Text('å¤–è? ${inst['foreign'] ?? 0}'),
+                                                          label: Text('å¤–ï¿½? ${inst['foreign'] ?? 0}'),
                                                           backgroundColor: Colors.blue.shade50,
                                                           avatar: const Icon(Icons.trending_up, size: 16, color: Colors.blue),
                                                         ),
                                                         const SizedBox(width: 6),
                                                         Chip(
-                                                          label: Text('?•ä¿¡ ${inst['trust'] ?? 0}'),
+                                                          label: Text('?ï¿½ä¿¡ ${inst['trust'] ?? 0}'),
                                                           backgroundColor: Colors.purple.shade50,
                                                           avatar: const Icon(Icons.account_balance, size: 16, color: Colors.purple),
                                                         ),
                                                         const SizedBox(width: 6),
                                                         Chip(
-                                                          label: Text('?ªç? ${inst['dealer'] ?? 0}'),
+                                                          label: Text('?ï¿½ï¿½? ${inst['dealer'] ?? 0}'),
                                                           backgroundColor: Colors.amber.shade50,
                                                           avatar: const Icon(Icons.store, size: 16, color: Colors.amber),
                                                         ),
@@ -11920,7 +11927,7 @@ class _StockCard extends StatelessWidget {
                                       tilePadding: EdgeInsets.zero,
                                       childrenPadding: EdgeInsets.zero,
                                       title: Text(
-                                        '?²å‡ºè¦å?',
+                                        '?ï¿½å‡ºè¦ï¿½?',
                                         style:
                                             Theme.of(context).textTheme.bodySmall,
                                       ),
@@ -11931,8 +11938,8 @@ class _StockCard extends StatelessWidget {
                                             entryPrice == null ||
                                                     pnlPercent == null ||
                                                     lots == null
-                                                ? '?ªè¨­å®šæ??¡ï??æœ¬/å¼µæ•¸ï¼?
-                                                : '?æœ¬ ${entryPrice!.toStringAsFixed(2)}  å¼µæ•¸ ${lots!.toStringAsFixed(lots! % 1 == 0 ? 0 : 2)}  ?ç? ${pnlPercent! >= 0 ? '+' : ''}${pnlPercent!.toStringAsFixed(2)}%${pnlAmount == null ? '' : ' (${pnlAmount! >= 0 ? '+' : ''}${_formatCurrency(pnlAmount!)})'}',
+                                                ? '?ï¿½è¨­å®šï¿½??ï¿½ï¿½??ï¿½æœ¬/å¼µæ•¸ï¿½?
+                                                : '?ï¿½æœ¬ ${entryPrice!.toStringAsFixed(2)}  å¼µæ•¸ ${lots!.toStringAsFixed(lots! % 1 == 0 ? 0 : 2)}  ?ï¿½ï¿½? ${pnlPercent! >= 0 ? '+' : ''}${pnlPercent!.toStringAsFixed(2)}%${pnlAmount == null ? '' : ' (${pnlAmount! >= 0 ? '+' : ''}${_formatCurrency(pnlAmount!)})'}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -11942,7 +11949,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            'å»ºè­°?²å ´ ä¿å? ${entryPlan.conservativeEntry.toStringAsFixed(2)} / ç©æ¥µ ${entryPlan.aggressiveEntry.toStringAsFixed(2)}',
+                                            'å»ºè­°?ï¿½å ´ ä¿ï¿½? ${entryPlan.conservativeEntry.toStringAsFixed(2)} / ç©æ¥µ ${entryPlan.aggressiveEntry.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -11951,7 +11958,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '?²è¿½é«˜å???> ${entryPlan.avoidAbovePrice.toStringAsFixed(2)}',
+                                            '?ï¿½è¿½é«˜ï¿½???> ${entryPlan.avoidAbovePrice.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -11960,7 +11967,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '?ºå ´è¦å? ?œæ? ${entryPlan.stopLossPrice.toStringAsFixed(2)} / ?œåˆ© ${entryPlan.takeProfitPrice.toStringAsFixed(2)}',
+                                            '?ï¿½å ´è¦ï¿½? ?ï¿½ï¿½? ${entryPlan.stopLossPrice.toStringAsFixed(2)} / ?ï¿½åˆ© ${entryPlan.takeProfitPrice.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -11969,7 +11976,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            'ä¿å?ä¼°ç?$estimateScopeLabel ?®æ? ${conservativeTargetSpacePercent >= 0 ? '+' : ''}${conservativeTargetSpacePercent.toStringAsFixed(2)}%ï½œé¢¨??-${conservativeRiskSpacePercent.abs().toStringAsFixed(2)}%ï½œR ${conservativeR == null ? '-' : conservativeR.toStringAsFixed(2)}',
+                                            'ä¿ï¿½?ä¼°ï¿½?$estimateScopeLabel ?ï¿½ï¿½? ${conservativeTargetSpacePercent >= 0 ? '+' : ''}${conservativeTargetSpacePercent.toStringAsFixed(2)}%ï½œé¢¨??-${conservativeRiskSpacePercent.abs().toStringAsFixed(2)}%ï½œR ${conservativeR == null ? '-' : conservativeR.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall
@@ -11982,7 +11989,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            'ä¿å??‘é? ?œåˆ© ${conservativeEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(conservativeEstimatedProfitAmount)} / ?œæ? -${_formatCurrency(conservativeEstimatedLossAmount.abs())}',
+                                            'ä¿ï¿½??ï¿½ï¿½? ?ï¿½åˆ© ${conservativeEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(conservativeEstimatedProfitAmount)} / ?ï¿½ï¿½? -${_formatCurrency(conservativeEstimatedLossAmount.abs())}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall
@@ -12000,7 +12007,7 @@ class _StockCard extends StatelessWidget {
                                             tilePadding: EdgeInsets.zero,
                                             childrenPadding: EdgeInsets.zero,
                                             title: Text(
-                                              '?¥ç?ç©æ¥µä¼°ç?',
+                                              '?ï¿½ï¿½?ç©æ¥µä¼°ï¿½?',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall
@@ -12013,7 +12020,7 @@ class _StockCard extends StatelessWidget {
                                               Align(
                                                 alignment: Alignment.centerLeft,
                                                 child: Text(
-                                                  'ç©æ¥µä¼°ç?$estimateScopeLabel ?®æ? ${aggressiveTargetSpacePercent >= 0 ? '+' : ''}${aggressiveTargetSpacePercent.toStringAsFixed(2)}%ï½œé¢¨??-${aggressiveRiskSpacePercent.abs().toStringAsFixed(2)}%ï½œR ${aggressiveR == null ? '-' : aggressiveR.toStringAsFixed(2)}',
+                                                  'ç©æ¥µä¼°ï¿½?$estimateScopeLabel ?ï¿½ï¿½? ${aggressiveTargetSpacePercent >= 0 ? '+' : ''}${aggressiveTargetSpacePercent.toStringAsFixed(2)}%ï½œé¢¨??-${aggressiveRiskSpacePercent.abs().toStringAsFixed(2)}%ï½œR ${aggressiveR == null ? '-' : aggressiveR.toStringAsFixed(2)}',
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodySmall
@@ -12027,7 +12034,7 @@ class _StockCard extends StatelessWidget {
                                               Align(
                                                 alignment: Alignment.centerLeft,
                                                 child: Text(
-                                                  'ç©æ¥µ?‘é? ?œåˆ© ${aggressiveEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(aggressiveEstimatedProfitAmount)} / ?œæ? -${_formatCurrency(aggressiveEstimatedLossAmount.abs())}',
+                                                  'ç©æ¥µ?ï¿½ï¿½? ?ï¿½åˆ© ${aggressiveEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(aggressiveEstimatedProfitAmount)} / ?ï¿½ï¿½? -${_formatCurrency(aggressiveEstimatedLossAmount.abs())}',
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodySmall
@@ -12042,7 +12049,7 @@ class _StockCard extends StatelessWidget {
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            '?äº¤??${_formatCurrency(stock.tradeValue)}',
+                                            '?ï¿½äº¤??${_formatCurrency(stock.tradeValue)}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall,
@@ -12055,7 +12062,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      'ä¾æ??‡é¢¨??,
+                                      'ä¾ï¿½??ï¿½é¢¨??,
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall,
@@ -12068,8 +12075,8 @@ class _StockCard extends StatelessWidget {
                                       child: Text(
                                         entrySignal.type ==
                                                 _EntrySignalType.strong
-                                            ? 'å¼·å‹¢ä¾æ?ï¼?{bullishRationales.join('ï½?)}'
-                                            : '?²å ´ä¾æ?ï¼?{bullishRationales.join('ï½?)}',
+                                            ? 'å¼·å‹¢ä¾ï¿½?ï¿½?{bullishRationales.join('ï¿½?)}'
+                                            : '?ï¿½å ´ä¾ï¿½?ï¿½?{bullishRationales.join('ï¿½?)}',
                                         style:
                                             Theme.of(context).textTheme.bodySmall,
                                       ),
@@ -12077,7 +12084,7 @@ class _StockCard extends StatelessWidget {
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        '?é?ï¼šæ­¤?ºæ?ä»¶å‘½ä¸­èªª?ï??ä?è­‰ä?æ¼²ï?è«‹æ­?å??æ§ç®¡ã€?,
+                                        '?ï¿½ï¿½?ï¼šæ­¤?ï¿½ï¿½?ä»¶å‘½ä¸­èªª?ï¿½ï¿½??ï¿½ï¿½?è­‰ï¿½?æ¼²ï¿½?è«‹æ­?ï¿½ï¿½??ï¿½æ§ç®¡ï¿½?,
                                         style:
                                             Theme.of(context).textTheme.labelSmall,
                                       ),
@@ -12088,7 +12095,7 @@ class _StockCard extends StatelessWidget {
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        '?‚æ®µ?é?ï¼?marketTimingStatusLabelï¼?9:30 å¾Œå?ç¢ºè?ï¼?,
+                                        '?ï¿½æ®µ?ï¿½ï¿½?ï¿½?marketTimingStatusLabelï¿½?9:30 å¾Œï¿½?ç¢ºï¿½?ï¿½?,
                                         style:
                                             Theme.of(context).textTheme.bodySmall,
                                       ),
@@ -12109,7 +12116,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '?²å‡ºè¦å?',
+                                      '?ï¿½å‡ºè¦ï¿½?',
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall,
@@ -12121,8 +12128,8 @@ class _StockCard extends StatelessWidget {
                                       entryPrice == null ||
                                               pnlPercent == null ||
                                               lots == null
-                                          ? '?ªè¨­å®šæ??¡ï??æœ¬/å¼µæ•¸ï¼?
-                                          : '?æœ¬ ${entryPrice!.toStringAsFixed(2)}  å¼µæ•¸ ${lots!.toStringAsFixed(lots! % 1 == 0 ? 0 : 2)}  ?ç? ${pnlPercent! >= 0 ? '+' : ''}${pnlPercent!.toStringAsFixed(2)}%${pnlAmount == null ? '' : ' (${pnlAmount! >= 0 ? '+' : ''}${_formatCurrency(pnlAmount!)})'}',
+                                          ? '?ï¿½è¨­å®šï¿½??ï¿½ï¿½??ï¿½æœ¬/å¼µæ•¸ï¿½?
+                                          : '?ï¿½æœ¬ ${entryPrice!.toStringAsFixed(2)}  å¼µæ•¸ ${lots!.toStringAsFixed(lots! % 1 == 0 ? 0 : 2)}  ?ï¿½ï¿½? ${pnlPercent! >= 0 ? '+' : ''}${pnlPercent!.toStringAsFixed(2)}%${pnlAmount == null ? '' : ' (${pnlAmount! >= 0 ? '+' : ''}${_formatCurrency(pnlAmount!)})'}',
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ),
@@ -12130,28 +12137,28 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      'å»ºè­°?²å ´ ä¿å? ${entryPlan.conservativeEntry.toStringAsFixed(2)} / ç©æ¥µ ${entryPlan.aggressiveEntry.toStringAsFixed(2)}',
+                                      'å»ºè­°?ï¿½å ´ ä¿ï¿½? ${entryPlan.conservativeEntry.toStringAsFixed(2)} / ç©æ¥µ ${entryPlan.aggressiveEntry.toStringAsFixed(2)}',
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ),
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '?²è¿½é«˜å???> ${entryPlan.avoidAbovePrice.toStringAsFixed(2)}',
+                                      '?ï¿½è¿½é«˜ï¿½???> ${entryPlan.avoidAbovePrice.toStringAsFixed(2)}',
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ),
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '?ºå ´è¦å? ?œæ? ${entryPlan.stopLossPrice.toStringAsFixed(2)} / ?œåˆ© ${entryPlan.takeProfitPrice.toStringAsFixed(2)}',
+                                      '?ï¿½å ´è¦ï¿½? ?ï¿½ï¿½? ${entryPlan.stopLossPrice.toStringAsFixed(2)} / ?ï¿½åˆ© ${entryPlan.takeProfitPrice.toStringAsFixed(2)}',
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ),
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      'ä¿å?ä¼°ç?$estimateScopeLabel ?®æ? ${conservativeTargetSpacePercent >= 0 ? '+' : ''}${conservativeTargetSpacePercent.toStringAsFixed(2)}%ï½œé¢¨??-${conservativeRiskSpacePercent.abs().toStringAsFixed(2)}%ï½œR ${conservativeR == null ? '-' : conservativeR.toStringAsFixed(2)}',
+                                      'ä¿ï¿½?ä¼°ï¿½?$estimateScopeLabel ?ï¿½ï¿½? ${conservativeTargetSpacePercent >= 0 ? '+' : ''}${conservativeTargetSpacePercent.toStringAsFixed(2)}%ï½œé¢¨??-${conservativeRiskSpacePercent.abs().toStringAsFixed(2)}%ï½œR ${conservativeR == null ? '-' : conservativeR.toStringAsFixed(2)}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -12164,7 +12171,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      'ä¿å??‘é? ?œåˆ© ${conservativeEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(conservativeEstimatedProfitAmount)} / ?œæ? -${_formatCurrency(conservativeEstimatedLossAmount.abs())}',
+                                      'ä¿ï¿½??ï¿½ï¿½? ?ï¿½åˆ© ${conservativeEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(conservativeEstimatedProfitAmount)} / ?ï¿½ï¿½? -${_formatCurrency(conservativeEstimatedLossAmount.abs())}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -12176,7 +12183,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      'ç©æ¥µä¼°ç?$estimateScopeLabel ?®æ? ${aggressiveTargetSpacePercent >= 0 ? '+' : ''}${aggressiveTargetSpacePercent.toStringAsFixed(2)}%ï½œé¢¨??-${aggressiveRiskSpacePercent.abs().toStringAsFixed(2)}%ï½œR ${aggressiveR == null ? '-' : aggressiveR.toStringAsFixed(2)}',
+                                      'ç©æ¥µä¼°ï¿½?$estimateScopeLabel ?ï¿½ï¿½? ${aggressiveTargetSpacePercent >= 0 ? '+' : ''}${aggressiveTargetSpacePercent.toStringAsFixed(2)}%ï½œé¢¨??-${aggressiveRiskSpacePercent.abs().toStringAsFixed(2)}%ï½œR ${aggressiveR == null ? '-' : aggressiveR.toStringAsFixed(2)}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -12189,7 +12196,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      'ç©æ¥µ?‘é? ?œåˆ© ${aggressiveEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(aggressiveEstimatedProfitAmount)} / ?œæ? -${_formatCurrency(aggressiveEstimatedLossAmount.abs())}',
+                                      'ç©æ¥µ?ï¿½ï¿½? ?ï¿½åˆ© ${aggressiveEstimatedProfitAmount >= 0 ? '+' : ''}${_formatCurrency(aggressiveEstimatedProfitAmount)} / ?ï¿½ï¿½? -${_formatCurrency(aggressiveEstimatedLossAmount.abs())}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -12201,7 +12208,7 @@ class _StockCard extends StatelessWidget {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '?äº¤??${_formatCurrency(stock.tradeValue)}',
+                                      '?ï¿½äº¤??${_formatCurrency(stock.tradeValue)}',
                                       style:
                                           Theme.of(context).textTheme.bodySmall,
                                     ),
@@ -12265,7 +12272,7 @@ class _EntrySignalBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '?²å ´ï¼?{signal.label}',
+        '?ï¿½å ´ï¿½?{signal.label}',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: foreground,
               fontWeight: FontWeight.w600,
@@ -12298,7 +12305,7 @@ class _PremarketRiskBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '?¤å?é¢¨éšªï¼?{risk.label}',
+        '?ï¿½ï¿½?é¢¨éšªï¿½?{risk.label}',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: foreground,
               fontWeight: FontWeight.w600,
@@ -12357,7 +12364,7 @@ class _MarketTimingBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '?®å??‚æ®µï¼?{status.label}',
+                    '?ï¿½ï¿½??ï¿½æ®µï¿½?{status.label}',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: foreground,
                         ),
@@ -12373,7 +12380,7 @@ class _MarketTimingBanner extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              autoRefreshEnabled ? 'æ¯?${autoRefreshMinutes} ?? : '?‹å??´æ–°',
+              autoRefreshEnabled ? 'ï¿½?${autoRefreshMinutes} ?? : '?ï¿½ï¿½??ï¿½æ–°',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: foreground,
                     fontWeight: FontWeight.w600,
@@ -12421,7 +12428,7 @@ class _MarketNewsCard extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               SizedBox(width: 10),
-              Expanded(child: Text('?°è?é¢¨éšª?†æ??´æ–°ä¸?..')),
+              Expanded(child: Text('?ï¿½ï¿½?é¢¨éšª?ï¿½ï¿½??ï¿½æ–°ï¿½?..')),
             ],
           ),
         ),
@@ -12437,7 +12444,7 @@ class _MarketNewsCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '?°è?é¢¨éšª?†æ??«æ?ä¸å¯??,
+                '?ï¿½ï¿½?é¢¨éšª?ï¿½ï¿½??ï¿½ï¿½?ä¸å¯??,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: 4),
@@ -12445,7 +12452,7 @@ class _MarketNewsCard extends StatelessWidget {
               const SizedBox(height: 8),
               FilledButton.tonal(
                 onPressed: onRetry,
-                child: const Text('?è©¦?°è??´æ–°'),
+                child: const Text('?ï¿½è©¦?ï¿½ï¿½??ï¿½æ–°'),
               ),
             ],
           ),
@@ -12459,9 +12466,9 @@ class _MarketNewsCard extends StatelessWidget {
     }
 
     final (background, foreground, label) = switch (data.level) {
-      NewsRiskLevel.high => (Colors.red, Colors.white, '?é?'),
-      NewsRiskLevel.medium => (Colors.orange, Colors.white, 'ä¸­ç?'),
-      NewsRiskLevel.low => (Colors.teal, Colors.white, '?ä?'),
+      NewsRiskLevel.high => (Colors.red, Colors.white, '?ï¿½ï¿½?'),
+      NewsRiskLevel.medium => (Colors.orange, Colors.white, 'ä¸­ï¿½?'),
+      NewsRiskLevel.low => (Colors.teal, Colors.white, '?ï¿½ï¿½?'),
     };
 
     final topNews = data.items.take(3).toList();
@@ -12487,7 +12494,7 @@ class _MarketNewsCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    '?°è?é¢¨éšªï¼?label (${data.riskScore})',
+                    '?ï¿½ï¿½?é¢¨éšªï¿½?label (${data.riskScore})',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: foreground,
                           fontWeight: FontWeight.w600,
@@ -12497,7 +12504,7 @@ class _MarketNewsCard extends StatelessWidget {
                 const Spacer(),
                 TextButton(
                   onPressed: onRetry,
-                  child: const Text('?´æ–°?°è?'),
+                  child: const Text('?ï¿½æ–°?ï¿½ï¿½?'),
                 ),
               ],
             ),
@@ -12513,7 +12520,7 @@ class _MarketNewsCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '?½ä¸­?œéµå­?,
+                  '?ï¿½ä¸­?ï¿½éµï¿½?,
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
               ),
@@ -12537,7 +12544,7 @@ class _MarketNewsCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '?±é?è­°é?',
+                  '?ï¿½ï¿½?è­°ï¿½?',
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
               ),
@@ -12583,23 +12590,23 @@ class _MarketNewsCard extends StatelessWidget {
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: EdgeInsets.zero,
                 title: Text(
-                  '?¥ç??°è??ç´°${topNews.isEmpty ? '' : 'ï¼?{topNews.length} ?‡ï?'}',
+                  '?ï¿½ï¿½??ï¿½ï¿½??ï¿½ç´°${topNews.isEmpty ? '' : 'ï¿½?{topNews.length} ?ï¿½ï¿½?'}',
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 children: [
                   Text(
                     autoDefensiveOnHighNewsRisk
                         ? (isHighNewsRiskDefenseActive
-                            ? '?å¤§äº‹ä»¶æ¨¡å?ï¼šå·²?Ÿå?ä¿å?ç­–ç•¥'
-                            : '?å¤§äº‹ä»¶æ¨¡å?ï¼šå·²?Ÿç”¨ï¼ˆé?é¢¨éšª?‚è‡ª?•å?ä¿å?ï¼?)
-                        : '?å¤§äº‹ä»¶æ¨¡å?ï¼šå·²?œé?',
+                            ? '?ï¿½å¤§äº‹ä»¶æ¨¡ï¿½?ï¼šå·²?ï¿½ï¿½?ä¿ï¿½?ç­–ç•¥'
+                            : '?ï¿½å¤§äº‹ä»¶æ¨¡ï¿½?ï¼šå·²?ï¿½ç”¨ï¼ˆï¿½?é¢¨éšª?ï¿½è‡ª?ï¿½ï¿½?ä¿ï¿½?ï¿½?)
+                        : '?ï¿½å¤§äº‹ä»¶æ¨¡ï¿½?ï¼šå·²?ï¿½ï¿½?',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 6),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '?´æ–°?‚é?ï¼?{_formatNewsTime(data.asOf)}',
+                      '?ï¿½æ–°?ï¿½ï¿½?ï¿½?{_formatNewsTime(data.asOf)}',
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ),
@@ -12616,7 +12623,7 @@ class _MarketNewsCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                          '${news.source}ï½?{_formatNewsTime(news.publishedAt)}',
+                          '${news.source}ï¿½?{_formatNewsTime(news.publishedAt)}',
                         ),
                         onTap: () => onOpenNews(news.link),
                       ),
@@ -12640,13 +12647,13 @@ String _formatNewsTime(DateTime? time) {
   final now = DateTime.now();
   final diff = now.difference(time.toLocal());
   if (diff.inMinutes < 1) {
-    return '?›å?';
+    return '?ï¿½ï¿½?';
   }
   if (diff.inMinutes < 60) {
-    return '${diff.inMinutes} ?†é???;
+    return '${diff.inMinutes} ?ï¿½ï¿½???;
   }
   if (diff.inHours < 24) {
-    return '${diff.inHours} å°æ???;
+    return '${diff.inHours} å°ï¿½???;
   }
   return '${time.month.toString().padLeft(2, '0')}/${time.day.toString().padLeft(2, '0')} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 }
@@ -12663,7 +12670,7 @@ class _SignalLegend extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'è¨Šè??–ä?',
+              'è¨Šï¿½??ï¿½ï¿½?',
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
@@ -12671,14 +12678,14 @@ class _SignalLegend extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: const [
-                _LegendTag(text: '?²å ´ï¼šå¼·?¢é€²å ´', bgColor: Colors.red),
-                _LegendTag(text: '?²å ´ï¼šè?å¯Ÿé€²å ´', bgColor: Colors.blue),
-                _LegendTag(text: '?²å ´ï¼šç?å¾…è???, bgColor: Colors.teal),
-                _LegendTag(text: '?²å ´ï¼šé¿?è¿½é«?, bgColor: Colors.orange),
-                _LegendTag(text: '?²å ´ï¼šæœª?Ÿç”¨', bgColor: Colors.grey),
-                _LegendTag(text: '?ºå ´ï¼šå??è­¦ç¤?, bgColor: Colors.red),
-                _LegendTag(text: '?ºå ´ï¼šå??¹å???, bgColor: Colors.indigo),
-                _LegendTag(text: '?ºå ´ï¼šç??±è?å¯?, bgColor: Colors.teal),
+                _LegendTag(text: '?ï¿½å ´ï¼šå¼·?ï¿½é€²å ´', bgColor: Colors.red),
+                _LegendTag(text: '?ï¿½å ´ï¼šï¿½?å¯Ÿé€²å ´', bgColor: Colors.blue),
+                _LegendTag(text: '?ï¿½å ´ï¼šï¿½?å¾…ï¿½???, bgColor: Colors.teal),
+                _LegendTag(text: '?ï¿½å ´ï¼šé¿?ï¿½è¿½ï¿½?, bgColor: Colors.orange),
+                _LegendTag(text: '?ï¿½å ´ï¼šæœª?ï¿½ç”¨', bgColor: Colors.grey),
+                _LegendTag(text: '?ï¿½å ´ï¼šï¿½??ï¿½è­¦ï¿½?, bgColor: Colors.red),
+                _LegendTag(text: '?ï¿½å ´ï¼šï¿½??ï¿½ï¿½???, bgColor: Colors.indigo),
+                _LegendTag(text: '?ï¿½å ´ï¼šï¿½??ï¿½ï¿½?ï¿½?, bgColor: Colors.teal),
               ],
             ),
           ],
@@ -12770,7 +12777,7 @@ class _ExitSignalBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '?ºå ´ï¼?{signal.label}',
+        '?ï¿½å ´ï¿½?{signal.label}',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: foreground,
               fontWeight: FontWeight.w600,
@@ -12793,7 +12800,7 @@ class _HoldingBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        'åº«å?',
+        'åº«ï¿½?',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: colorScheme.onTertiaryContainer,
               fontWeight: FontWeight.w700,
@@ -12917,7 +12924,7 @@ class _FilterState {
     required this.volumeWeight,
     required this.changeWeight,
     required this.priceWeight,
-    // fund?‘flow / margin options
+    // fund?ï¿½flow / margin options
     required this.enableForeignFlowFilter,
     required this.minForeignNet,
     required this.enableTrustFlowFilter,
@@ -13826,7 +13833,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('äº¤æ??¥è?'),
+        title: const Text('äº¤ï¿½??ï¿½ï¿½?'),
       ),
       body: Column(
         children: [
@@ -13840,7 +13847,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
                   children: [
                     Row(
                       children: [
-                        const Text('é¡¯ç¤º?€è¿?),
+                        const Text('é¡¯ç¤º?ï¿½ï¿½?),
                         const SizedBox(width: 10),
                         DropdownButton<int>(
                           value: _maxRows,
@@ -13848,7 +13855,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
                               .map(
                                 (value) => DropdownMenuItem<int>(
                                   value: value,
-                                  child: Text('$value ç­?),
+                                  child: Text('$value ï¿½?),
                                 ),
                               )
                               .toList(),
@@ -13864,19 +13871,19 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('?ç? ${winRate.toStringAsFixed(1)}%ï¼?winCount/$totalï¼?),
+                    Text('?ï¿½ï¿½? ${winRate.toStringAsFixed(1)}%ï¿½?winCount/$totalï¿½?),
                     Text(
-                        'å¹³å??±é…¬ ${avgPnlPercent >= 0 ? '+' : ''}${avgPnlPercent.toStringAsFixed(2)}%'),
+                        'å¹³ï¿½??ï¿½é…¬ ${avgPnlPercent >= 0 ? '+' : ''}${avgPnlPercent.toStringAsFixed(2)}%'),
                     Text(
-                        'å¹³å??ç? ${avgPnlAmount >= 0 ? '+' : ''}${_formatCurrency(avgPnlAmount)}'),
+                        'å¹³ï¿½??ï¿½ï¿½? ${avgPnlAmount >= 0 ? '+' : ''}${_formatCurrency(avgPnlAmount)}'),
                     Text(
-                        'ç¸½æ???${totalPnlAmount >= 0 ? '+' : ''}${_formatCurrency(totalPnlAmount)}'),
+                        'ç¸½ï¿½???${totalPnlAmount >= 0 ? '+' : ''}${_formatCurrency(totalPnlAmount)}'),
                     const SizedBox(height: 6),
                     Text(
-                      'A ç­–ç•¥ï¼?{statsA.count} ç­†ï??ç? ${statsA.winRate.toStringAsFixed(1)}%ï½œå??±é…¬ ${statsA.avgPnlPercent >= 0 ? '+' : ''}${statsA.avgPnlPercent.toStringAsFixed(2)}%',
+                      'A ç­–ç•¥ï¿½?{statsA.count} ç­†ï¿½??ï¿½ï¿½? ${statsA.winRate.toStringAsFixed(1)}%ï½œï¿½??ï¿½é…¬ ${statsA.avgPnlPercent >= 0 ? '+' : ''}${statsA.avgPnlPercent.toStringAsFixed(2)}%',
                     ),
                     Text(
-                      'B ç­–ç•¥ï¼?{statsB.count} ç­†ï??ç? ${statsB.winRate.toStringAsFixed(1)}%ï½œå??±é…¬ ${statsB.avgPnlPercent >= 0 ? '+' : ''}${statsB.avgPnlPercent.toStringAsFixed(2)}%',
+                      'B ç­–ç•¥ï¿½?{statsB.count} ç­†ï¿½??ï¿½ï¿½? ${statsB.winRate.toStringAsFixed(1)}%ï½œï¿½??ï¿½é…¬ ${statsB.avgPnlPercent >= 0 ? '+' : ''}${statsB.avgPnlPercent.toStringAsFixed(2)}%',
                     ),
                   ],
                 ),
@@ -13885,7 +13892,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
           ),
           Expanded(
             child: visible.isEmpty
-                ? const Center(child: Text('æ²’æ??¯é¡¯ç¤ºç?äº¤æ?ç´€??))
+                ? const Center(child: Text('æ²’ï¿½??ï¿½é¡¯ç¤ºï¿½?äº¤ï¿½?ç´€??))
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     itemCount: visible.length,
@@ -13906,7 +13913,7 @@ class _TradeJournalPageState extends State<_TradeJournalPage> {
                         child: ListTile(
                           title: Text('${item.stockCode} ${item.stockName}'),
                           subtitle: Text(
-                              '$timeTextï½œç???{item.strategyTag}ï½?{item.reason}'),
+                              '$timeTextï½œï¿½???{item.strategyTag}ï¿½?{item.reason}'),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
