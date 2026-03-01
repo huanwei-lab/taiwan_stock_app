@@ -20,6 +20,7 @@ import 'services/stock_alert_scheduler.dart';
 import 'services/stock_service.dart';
 import 'strategy_utils.dart';
 import 'services/intraday_controller.dart';
+import 'debug/diagnostics.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -8266,6 +8267,37 @@ class _StockListPageState extends State<StockListPage> {
         .toList();
   }
 
+/// Diagnostic helper: prints detailed breakout-stage checks for a stock.
+/// Intended for developer use only.
+void diagnoseStock(StockModel stock, int score) {
+  debugPrint('--- Diagnose ${stock.code} ${stock.name} ---');
+  debugPrint('closePrice=${stock.closePrice} change%=${stock.change.toStringAsFixed(2)} volume=${stock.volume} tradeValue=${stock.tradeValue}');
+  debugPrint('foreign=${stock.foreignNet} trust=${stock.trustNet} dealer=${stock.dealerNet} marginDiff=${stock.marginBalanceDiff}');
+
+  final effectiveMinScore = _effectiveMinScoreThreshold(stock);
+  debugPrint('effectiveMinScore=$effectiveMinScore providedScore=$score');
+
+  final volumeReference = _latestVolumeReference <= 0 ? 0.0 : _latestVolumeReference;
+  final volumeRatio = volumeReference <= 0 ? 0.0 : stock.volume / volumeReference;
+  debugPrint('volumeReference=$volumeReference volumeRatio=${volumeRatio.toStringAsFixed(3)}');
+
+  for (final mode in _BreakoutStageMode.values) {
+    final passes = _passesBreakoutStageByMode(mode, stock, score);
+    debugPrint('mode=${mode.toString().split('.').last} => ${passes ? 'PASS' : 'FAIL'}');
+  }
+
+  final matched = _matchedBreakoutModesForStock(stock, score);
+  debugPrint('matchedModes=${matched.map((m) => m.toString().split('.').last).join(', ')}');
+
+  final isFalse = _isLikelyFalseBreakout(stock, score);
+  debugPrint('likelyFalseBreakout=${isFalse}');
+
+  final eventOk = _passesEventRiskExclusion(stock);
+  debugPrint('eventRiskExcluded=${!eventOk} (passesEventRiskExclusion=$eventOk)');
+
+  debugPrint('--- End diagnose ---');
+}
+
   bool _isLikelyFalseBreakout(StockModel stock, int score) {
     if (!_enableFalseBreakoutProtection) {
       return false;
@@ -11310,6 +11342,7 @@ class _StockListPageState extends State<StockListPage> {
                           return _StockCard(
                             stock: scored.stock,
                             score: _enableScoring ? scored.score : null,
+                            breakoutStreakByCode: _breakoutStreakByCode,
                             entrySignal: entrySignal,
                             bullishRationales: bullishRationales,
                             premarketRisk: premarketRisk,
@@ -11395,6 +11428,7 @@ class _StockCard extends StatelessWidget {
     required this.onRecordTrade,
     required this.isFavorite,
     required this.onFavoritePressed,
+    required this.breakoutStreakByCode,
   });
 
   final StockModel stock;
@@ -11422,6 +11456,7 @@ class _StockCard extends StatelessWidget {
   final VoidCallback onRecordTrade;
   final bool isFavorite;
   final VoidCallback onFavoritePressed;
+  final Map<String, int> breakoutStreakByCode;
 
   @override
   Widget build(BuildContext context) {
@@ -11728,6 +11763,131 @@ class _StockCard extends StatelessWidget {
                                           child:
                                               _ExitSignalBadge(signal: exitSignal),
                                         ),
+                                        const SizedBox(height: 6),
+                                        // 美化後的診斷報告顯示（若有 score）
+                                        if (score != null) ...[
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceVariant,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  '診斷報告',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .labelSmall,
+                                                ),
+                                                const SizedBox(height: 6),
+                                                FutureBuilder<DiagnosisReport>(
+                                                  future: getDiagnosisReportStructuredAsync(
+                                                    stock,
+                                                    score!,
+                                                    breakoutStreakByCode:
+                                                        breakoutStreakByCode,
+                                                    date: DateTime.now(),
+                                                  ),
+                                                  builder: (context, snap) {
+                                                    if (!snap.hasData) {
+                                                      return const SizedBox();
+                                                    }
+                                                    final report = snap.data!;
+                                                    // show institution streak chips and confirmed badge
+                                                    final inst = report.institutionStreaks;
+                                                    final instChips = Row(
+                                                      children: [
+                                                        Chip(
+                                                          label: Text('外資 ${inst['foreign'] ?? 0}'),
+                                                          backgroundColor: Colors.blue.shade50,
+                                                          avatar: const Icon(Icons.trending_up, size: 16, color: Colors.blue),
+                                                        ),
+                                                        const SizedBox(width: 6),
+                                                        Chip(
+                                                          label: Text('投信 ${inst['trust'] ?? 0}'),
+                                                          backgroundColor: Colors.purple.shade50,
+                                                          avatar: const Icon(Icons.account_balance, size: 16, color: Colors.purple),
+                                                        ),
+                                                        const SizedBox(width: 6),
+                                                        Chip(
+                                                          label: Text('自營 ${inst['dealer'] ?? 0}'),
+                                                          backgroundColor: Colors.amber.shade50,
+                                                          avatar: const Icon(Icons.store, size: 16, color: Colors.amber),
+                                                        ),
+                                                        const Spacer(),
+                                                        if (report.confirmed)
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                            decoration: BoxDecoration(
+                                                              color: Colors.green.shade700,
+                                                              borderRadius: BorderRadius.circular(12),
+                                                            ),
+                                                            child: Row(
+                                                              children: [
+                                                                const Icon(Icons.verified, size: 14, color: Colors.white),
+                                                                const SizedBox(width: 6),
+                                                                Text('Confirmed', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.white)),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    );
+
+                                                    return Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        instChips,
+                                                        const SizedBox(height: 6),
+                                                        ...report.lines.map((ln) {
+                                                          Widget icon = const SizedBox.shrink();
+                                                          Color? iconColor;
+                                                          if (ln.severity == 'success') {
+                                                            icon = const Icon(Icons.check_circle, size: 16);
+                                                            iconColor = Colors.green.shade600;
+                                                          } else if (ln.severity == 'danger') {
+                                                            icon = const Icon(Icons.error_outline, size: 16);
+                                                            iconColor = Colors.red.shade600;
+                                                          } else if (ln.severity == 'warning') {
+                                                            icon = const Icon(Icons.warning_amber_outlined, size: 16);
+                                                            iconColor = Colors.orange.shade700;
+                                                          } else if (ln.severity == 'info') {
+                                                            icon = const Icon(Icons.info_outline, size: 16);
+                                                            iconColor = Colors.blue.shade600;
+                                                          }
+
+                                                          return Padding(
+                                                            padding: const EdgeInsets.symmetric(vertical: 4),
+                                                            child: Row(
+                                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                                              children: [
+                                                                SizedBox(width: 22, child: IconTheme(data: IconThemeData(color: iconColor), child: icon)),
+                                                                const SizedBox(width: 8),
+                                                                Expanded(
+                                                                  child: Text(
+                                                                    ln.title + (ln.value != null ? ' ${ln.value}' : ''),
+                                                                    style: Theme.of(context).textTheme.bodySmall,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          );
+                                                        }),
+                                                      ],
+                                                    );
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                        ],
                                       ],
                                     ),
                                   ),
