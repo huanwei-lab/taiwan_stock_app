@@ -11,6 +11,8 @@ class StockModel {
     this.trustNet = 0,
     this.dealerNet = 0,
     this.marginBalanceDiff = 0,
+    this.fundFlowDate = '', // 基金流数据的日期 (YYYY-MM-DD), 空代表无数据
+    this.isCachedFundFlow = false, // 是否是缓存数据（API失败时使用）
   });
 
   final String code;
@@ -26,6 +28,10 @@ class StockModel {
   final int dealerNet;
   // 融資餘額變動（今日減昨日），正值表示融資增加
   final int marginBalanceDiff;
+  // 基金流数据的日期，用于显示数据的新鲜度
+  final String fundFlowDate;
+  // 是否使用缓存数据（当API失败时）
+  final bool isCachedFundFlow;
 
   factory StockModel.fromJson(Map<String, dynamic> json) {
     final code = _readString(
@@ -92,6 +98,8 @@ class StockModel {
       trustNet: trustNet,
       dealerNet: dealerNet,
       marginBalanceDiff: marginBalanceDiff,
+      fundFlowDate: '', // 初始为空，由 applyRowToModel 设置
+      isCachedFundFlow: false,
     );
   }
 

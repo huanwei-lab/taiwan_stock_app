@@ -17,7 +17,7 @@ class FundFlowCache {
   static Future<void> _init() async {
     final databasesPath = await getDatabasesPath();
     final dbPath = join(databasesPath, 'fund_flow_cache.db');
-    _db = await openDatabase(dbPath, version: 1, onCreate: (db, version) async {
+    _db = await openDatabase(dbPath, version: 2, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE eod_rows(
           code TEXT NOT NULL,
@@ -29,7 +29,62 @@ class FundFlowCache {
           PRIMARY KEY(code, date)
         )
       ''');
+      // Track the last successful fund flow data fetch
+      await db.execute('''
+        CREATE TABLE metadata(
+          key TEXT PRIMARY KEY,
+          value TEXT
+        )
+      ''');
+    }, onUpgrade: (db, oldVersion, newVersion) async {
+      if (oldVersion < 2) {
+        // Add metadata table for versions < 2
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS metadata(
+            key TEXT PRIMARY KEY,
+            value TEXT
+          )
+        ''');
+      }
     });
+  }
+
+  /// Save the last successful fund flow fetch date
+  Future<void> saveLastSuccessfulDate(int dateInt) async {
+    final db = _db!;
+    await db.insert(
+      'metadata',
+      {
+        'key': 'last_successful_date',
+        'value': dateInt.toString(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Get the last successful fund flow fetch date
+  Future<int?> getLastSuccessfulDate() async {
+    final db = _db!;
+    final rows = await db.query(
+      'metadata',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: ['last_successful_date'],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    final v = rows.first['value'];
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+  /// Get all rows for a specific date
+  Future<List<Map<String, dynamic>>> getRowsForDate(int dateInt) async {
+    final db = _db!;
+    return await db.query(
+      'eod_rows',
+      where: 'date = ?',
+      whereArgs: [dateInt],
+    );
   }
 
   /// Save parsed rows for a given YYYYMMDD integer date.

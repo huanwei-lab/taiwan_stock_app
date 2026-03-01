@@ -145,6 +145,8 @@ class FundFlowService {
           final cache = await FundFlowCache.getInstance();
           final dateInt = int.parse(formatted);
           await cache.saveRows(dateInt, rows);
+          // Mark last successful fetch
+          await cache.saveLastSuccessfulDate(dateInt);
         } catch (_) {
           // non-fatal: caching failure shouldn't break fetch
         }
@@ -153,7 +155,25 @@ class FundFlowService {
       // otherwise continue to previous day
     }
 
-    // no data found within backfill window
+    // API 失败時的緩存備用機制
+    try {
+      final cache = await FundFlowCache.getInstance();
+      final lastSuccessfulDate = await cache.getLastSuccessfulDate();
+      if (lastSuccessfulDate != null) {
+        final cachedRows = await cache.getRowsForDate(lastSuccessfulDate);
+        if (cachedRows.isNotEmpty) {
+          // Mark each row as cached so UI can show user this is fallback data
+          for (final row in cachedRows) {
+            row['_isCached'] = true;
+          }
+          return cachedRows;
+        }
+      }
+    } catch (_) {
+      // Ignore cache errors
+    }
+
+    // no data found within backfill window and no cache available
     return <Map<String, dynamic>>[];
   }
 
@@ -161,7 +181,15 @@ class FundFlowService {
   /// `StockModel` instance that copies existing fields and fills in fund
   /// flow/margin fields when available. If the input map lacks numeric
   /// values, zero is used.
-  StockModel applyRowToModel(StockModel base, Map<String, dynamic> row) {
+  /// 
+  /// [fundFlowDate] should be in YYYY-MM-DD format, indicating the date of the fund flow data.
+  /// [isCachedFundFlow] indicates whether this data was retrieved from cache (API failure fallback).
+  StockModel applyRowToModel(
+    StockModel base,
+    Map<String, dynamic> row, {
+    String fundFlowDate = '',
+    bool isCachedFundFlow = false,
+  }) {
     int toIntSafe(dynamic v) {
       if (v == null) return 0;
       return int.tryParse(v.toString().replaceAll(',', '').trim()) ?? 0;
@@ -185,6 +213,8 @@ class FundFlowService {
       trustNet: trustNet,
       dealerNet: dealerNet,
       marginBalanceDiff: marginDiff,
+      fundFlowDate: fundFlowDate,
+      isCachedFundFlow: isCachedFundFlow,
     );
   }
 }

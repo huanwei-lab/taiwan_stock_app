@@ -16,6 +16,7 @@ class FakeFundFlowService extends FundFlowService {
 
 class FakeCache implements FundFlowCache {
   final Map<int, List<Map<String, dynamic>>> store = {};
+  int? _lastSuccessfulDate;
 
   @override
   Future<void> saveRows(int dateInt, List<Map<String, dynamic>> rows) async {
@@ -36,6 +37,21 @@ class FakeCache implements FundFlowCache {
       }
     }
     return null;
+  }
+
+  @override
+  Future<void> saveLastSuccessfulDate(int dateInt) async {
+    _lastSuccessfulDate = dateInt;
+  }
+
+  @override
+  Future<int?> getLastSuccessfulDate() async {
+    return _lastSuccessfulDate;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getRowsForDate(int dateInt) async {
+    return store[dateInt] ?? [];
   }
 
   // The real FundFlowCache has getInstance; test won't use it.

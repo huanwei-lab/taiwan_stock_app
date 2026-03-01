@@ -445,6 +445,8 @@ class _StockListPageState extends State<StockListPage> {
   double _latestVolumeReference = 10000000;
   // keep last fetched stock list for weight optimization
   List<StockModel> _latestStocks = <StockModel>[];
+  bool _isUsingCachedFundFlow = false; // 是否正在使用緩存的基金流數據
+  Timer? _fundFlowRetryTimer; // 當使用緩存時，自動重試獲取新數據
 
   // 建議購買清單參數配置
   int _recommendedMinForeignNet = 10000000; // 外資淨買 >= 10M
@@ -3463,6 +3465,26 @@ class _StockListPageState extends State<StockListPage> {
       final stocks = await future;
       // store for later diagnostics/optimization
       _latestStocks = stocks;
+      
+      // Check if we're using cached fund flow data
+      _isUsingCachedFundFlow = stocks.any((s) => s.isCachedFundFlow);
+      if (_isUsingCachedFundFlow) {
+        // Set up retry timer to re-fetch every 30 seconds when using cache
+        _fundFlowRetryTimer?.cancel();
+        _fundFlowRetryTimer = Timer.periodic(
+          const Duration(seconds: 30),
+          (_) {
+            if (mounted) {
+              _refreshStocks(showFeedback: false);
+            }
+          },
+        );
+      } else {
+        // Cancel retry timer if we got fresh data
+        _fundFlowRetryTimer?.cancel();
+        _fundFlowRetryTimer = null;
+      }
+      
       await newsFuture;
       await _recordDailyRiskScore(stocks);
       _updateBreakoutStreakForCurrentFilters(stocks);
@@ -3477,7 +3499,12 @@ class _StockListPageState extends State<StockListPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('台股資料已更新')),
+        SnackBar(
+          content: Text(_isUsingCachedFundFlow
+              ? '使用緩存基金流數據，將每30秒自動重試更新...'
+              : '台股資料已更新'),
+          duration: const Duration(seconds: 2),
+        ),
       );
     } catch (_) {
       if (!mounted || !showFeedback) {
@@ -3829,6 +3856,7 @@ class _StockListPageState extends State<StockListPage> {
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
+    _fundFlowRetryTimer?.cancel();
     super.dispose();
   }
 

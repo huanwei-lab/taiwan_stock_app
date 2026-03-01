@@ -70,12 +70,20 @@ class StockService {
     }
 
     final merged = <StockModel>[];
+    // Format date to YYYY-MM-DD for display
+    final displayDate = date.contains('-') ? date : '${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}';
+    
     for (final s in stocks) {
       final r = map[s.code];
       if (r == null) {
         merged.add(s);
       } else {
-        final applied = fundSvc.applyRowToModel(s, r);
+        final applied = fundSvc.applyRowToModel(
+          s,
+          r,
+          fundFlowDate: displayDate,
+          isCachedFundFlow: r['_isCached'] == true, // Check if this row was from cache
+        );
         merged.add(applied);
       }
     }
