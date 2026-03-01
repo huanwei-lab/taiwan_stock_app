@@ -67,7 +67,7 @@ void diagnoseStockPublic(
   // Output results for each mode
   for (final mode in BreakoutMode.values) {
     final passed = results[mode] ?? false;
-    debugPrint('mode=${mode.name} => ${passed ? 'PASS' : 'FAIL'}');
+    debugPrint('mode=${mode.name} => ${passed ? '通過' : '失敗'}');
   }
 
   // False breakout detection
@@ -146,7 +146,7 @@ List<String> getDiagnosisReport(
   // Output results for each mode
   for (final mode in BreakoutMode.values) {
     final passed = results[mode] ?? false;
-    lines.add('${mode.name} => ${passed ? 'PASS' : 'FAIL'}');
+    lines.add('${mode.name} => ${passed ? '通過' : '失敗'}');
   }
 
   // False breakout detection
@@ -248,8 +248,8 @@ Future<DiagnosisReport> getDiagnosisReportStructuredAsync(
       final right = parts[1].trim();
       final status = right.split(' ').first;
       String? severity;
-      if (status.toUpperCase().startsWith('PASS')) severity = 'success';
-      if (status.toUpperCase().startsWith('FAIL')) severity = 'danger';
+      if (status.toUpperCase().startsWith('PASS') || status == '通過') severity = 'success';
+      if (status.toUpperCase().startsWith('FAIL') || status == '失敗') severity = 'danger';
       lines.add(DiagnosisLine(left, value: right, status: status, severity: severity));
     } else {
       String? severity;
