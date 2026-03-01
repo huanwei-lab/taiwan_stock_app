@@ -10433,6 +10433,35 @@ void diagnoseStock(StockModel stock, int score) {
                   .add(reason);
             }
 
+            // 獨立的推薦清單候選股票（不受策略過濾器影響）
+            final recommendationCandidateStocks = <_ScoredStock>[];
+            {
+              final basicQualityStocks = stocks
+                  .where((stock) =>
+                      stock.closePrice > 0 &&
+                      stock.volume > 0 &&
+                      stock.tradeValue >
+                          _recommendedMinTradeValue) // 只過濾幾個基本條件
+                  .toList();
+
+              for (final stock in basicQualityStocks) {
+                final score = _calculateStockScore(stock);
+                final minScore = _effectiveMinScoreThresholdWithSnapshot(
+                  stock: stock,
+                  riskSnapshot: riskSnapshot,
+                  regime: marketRegime,
+                );
+                // 推薦清單只根據分數過濾（如果啟用），忽略策略過濾
+                if (_recommendedEnableScoring && score < minScore) {
+                  continue;
+                }
+                recommendationCandidateStocks.add(_ScoredStock(
+                  stock: stock,
+                  score: score,
+                ));
+              }
+            }
+
             final strategyStocks = <StockModel>[];
             for (final stock in stocks) {
               if (!_enableStrategyFilter) {
@@ -11298,7 +11327,7 @@ void diagnoseStock(StockModel stock, int score) {
                                     builder: (ctx) {
                                       final recs =
                                           _buildBuyRecommendationList(
-                                        stocks: limitedCandidateStocks,
+                                        stocks: recommendationCandidateStocks,
                                         topCount: 5,
                                       );
                                       
