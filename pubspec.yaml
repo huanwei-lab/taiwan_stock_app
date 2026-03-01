@@ -2,7 +2,7 @@ name: stock_checker
 description: A Taiwan stock surge analysis app.
 publish_to: 'none'
 
-version: 1.3.1+6
+version: 1.3.2+7
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

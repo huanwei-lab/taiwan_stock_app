@@ -4,6 +4,7 @@ import '../models/portfolio.dart';
 import '../services/portfolio_service.dart';
 import '../services/notification_rule_service.dart';
 import '../services/portfolio_monitor_service.dart';
+import '../services/stock_service.dart';
 
 /// 持倉跟蹤頁面
 class PortfolioPage extends StatefulWidget {
@@ -16,12 +17,15 @@ class PortfolioPage extends StatefulWidget {
 class _PortfolioPageState extends State<PortfolioPage> {
   late PortfolioService _portfolioService;
   late NotificationRuleService _notificationRuleService;
+  late StockService _stockService;
   final _monitorService = PortfolioMonitorService();
 
   List<PortfolioPosition> _positions = [];
   Map<String, double> _currentPrices = {};
   bool _isLoading = true;
+  bool _isPriceSyncing = false;
   String? _error;
+  String? _lastSyncTime;
 
   @override
   void initState() {
@@ -37,6 +41,7 @@ class _PortfolioPageState extends State<PortfolioPage> {
         prefs,
         portfolioService: _portfolioService,
       );
+      _stockService = StockService();
 
       // 初始化監測服務
       await _monitorService.initialize();
@@ -61,6 +66,7 @@ class _PortfolioPageState extends State<PortfolioPage> {
   Future<void> _loadPositions() async {
     try {
       final positions = await _portfolioService.getPositions();
+      await _fetchCurrentPrices();
 
       if (mounted) {
         setState(() {
@@ -75,6 +81,45 @@ class _PortfolioPageState extends State<PortfolioPage> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// 自動獲取所有持倉股票的當前股價
+  Future<void> _fetchCurrentPrices() async {
+    try {
+      setState(() {
+        _isPriceSyncing = true;
+      });
+
+      final stocks = await _stockService.fetchAllStocks();
+      final prices = <String, double>{};
+
+      for (final stock in stocks) {
+        prices[stock.code] = stock.closePrice;
+      }
+
+      if (mounted) {
+        setState(() {
+          _currentPrices = prices;
+          _lastSyncTime =
+              DateTime.now().toString().split('.')[0]; // HH:MM:SS
+          _isPriceSyncing = false;
+        });
+      }
+
+      print(
+        '[PortfolioPage] Synced ${prices.length} stock prices',
+      );
+    } catch (e) {
+      print('[PortfolioPage] Error fetching prices: $e');
+      if (mounted) {
+        setState(() {
+          _isPriceSyncing = false;
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('同步股價失敗: $e')),
+      );
     }
   }
 
@@ -220,7 +265,18 @@ class _PortfolioPageState extends State<PortfolioPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的持倉'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('我的持倉'),
+            if (_lastSyncTime != null)
+              Text(
+                '更新於 $_lastSyncTime',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+          ],
+        ),
         actions: [
           IconButton(
             onPressed: _toggleMonitoring,
@@ -232,8 +288,15 @@ class _PortfolioPageState extends State<PortfolioPage> {
             tooltip: _monitorService.isMonitoring ? '停止監測' : '啟動監測',
           ),
           IconButton(
-            onPressed: _loadPositions,
-            icon: const Icon(Icons.refresh),
+            onPressed: _isPriceSyncing ? null : _loadPositions,
+            icon: _isPriceSyncing
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+            tooltip: '重新同步股價',
           ),
         ],
       ),
