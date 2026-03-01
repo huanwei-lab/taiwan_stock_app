@@ -186,7 +186,7 @@ keytool -list -v -keystore ./android/app/debug.keystore -alias androiddebugkey -
 2. 點「建立憑證」→「OAuth 用戶端 ID」。
 3. 選「Android」。
 4. 填寫：
-	- 套件名稱（Package name）：`com.example.stock_checker`（需與專案一致）。
+	- 套件名稱（Package name）：`com.koala.stocktop`（需與專案一致）。
 	- SHA-1：用 README 指令取得。
 5. 建立後，Client ID 會自動生效，程式不需手動填入。
 6. 若更換 keystore 或打包機器，記得重新取得 SHA-1 並更新。

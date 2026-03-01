@@ -52,22 +52,50 @@ class GoogleDriveBackupService {
       _lastAuthError = null;
       return account?.email;
     } catch (error) {
-      _lastAuthError = error.toString();
+      final errorMsg = error.toString();
+      _lastAuthError = '靜默登入失敗: $errorMsg';
+      if (kDebugMode) {
+        print('[GoogleDriveBackupService] Silent sign-in error: $error');
+      }
       return null;
     }
   }
 
   Future<String?> signInAndGetEmail() async {
     if (!isSupportedPlatform() || !isWebClientIdReady()) {
+      _lastAuthError = '此平台不支援 Google 登入';
       return null;
     }
     try {
-      final account =
-          await _googleSignIn.signInSilently() ?? await _googleSignIn.signIn();
+      // 先嘗試靜默登入
+      var account = await _googleSignIn.signInSilently();
+      if (account != null) {
+        _lastAuthError = null;
+        if (kDebugMode) print('[GoogleDriveBackupService] Silent sign-in successful');
+        return account.email;
+      }
+
+      // 靜默失敗，顯示登入對話框
+      if (kDebugMode) print('[GoogleDriveBackupService] Attempting interactive sign-in...');
+      account = await _googleSignIn.signIn();
+      
+      if (account == null) {
+        _lastAuthError = '用戶取消登入';
+        if (kDebugMode) print('[GoogleDriveBackupService] User cancelled sign-in');
+        return null;
+      }
+
       _lastAuthError = null;
-      return account?.email;
-    } catch (error) {
-      _lastAuthError = error.toString();
+      if (kDebugMode) print('[GoogleDriveBackupService] Interactive sign-in successful: ${account.email}');
+      return account.email;
+    } on Exception catch (error) {
+      final errorMsg = error.toString();
+      _lastAuthError = 'Google 登入失敗: $errorMsg';
+      if (kDebugMode) {
+        print('[GoogleDriveBackupService] Sign-in exception: $error');
+        print('[GoogleDriveBackupService] Stack trace:');
+        print(error);
+      }
       return null;
     }
   }

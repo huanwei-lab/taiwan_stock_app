@@ -4599,7 +4599,19 @@ class _StockListPageState extends State<StockListPage> {
       return;
     }
     final authError = _googleDriveBackupService.consumeLastAuthError();
-    final message = kIsWeb ? _googleWebSignInHintText(authError) : fallback;
+    String message;
+    
+    if (kIsWeb) {
+      message = _googleWebSignInHintText(authError);
+    } else {
+      // Android 上也顯示詳細的錯誤信息
+      if (authError != null && authError.isNotEmpty) {
+        message = authError;
+      } else {
+        message = fallback;
+      }
+    }
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
