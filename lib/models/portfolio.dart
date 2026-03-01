@@ -9,6 +9,10 @@ class PortfolioPosition {
   final double? stopLossPrice;
   final String? strategyName;
   final String? notes;
+  final bool enableNotification;
+  final bool targetNotificationSent;
+  final bool stopLossNotificationSent;
+  final DateTime? lastNotificationCheckAt;
 
   PortfolioPosition({
     required this.code,
@@ -20,6 +24,10 @@ class PortfolioPosition {
     this.stopLossPrice,
     this.strategyName,
     this.notes,
+    this.enableNotification = true,
+    this.targetNotificationSent = false,
+    this.stopLossNotificationSent = false,
+    this.lastNotificationCheckAt,
   });
 
   // 當前損益計算（用於表示，需要傳入當前價格）
@@ -30,6 +38,30 @@ class PortfolioPosition {
   // 當前市值
   double calculateMarketValue(double currentPrice) {
     return currentPrice * shares;
+  }
+
+  // 複製並更新通知狀態
+  PortfolioPosition updateNotificationState({
+    bool? enableNotification,
+    bool? targetNotificationSent,
+    bool? stopLossNotificationSent,
+    DateTime? lastNotificationCheckAt,
+  }) {
+    return PortfolioPosition(
+      code: code,
+      name: name,
+      shares: shares,
+      entryPrice: entryPrice,
+      entryDate: entryDate,
+      targetPrice: targetPrice,
+      stopLossPrice: stopLossPrice,
+      strategyName: strategyName,
+      notes: notes,
+      enableNotification: enableNotification ?? this.enableNotification,
+      targetNotificationSent: targetNotificationSent ?? this.targetNotificationSent,
+      stopLossNotificationSent: stopLossNotificationSent ?? this.stopLossNotificationSent,
+      lastNotificationCheckAt: lastNotificationCheckAt ?? this.lastNotificationCheckAt,
+    );
   }
 
   // JSON 序列化
@@ -43,6 +75,10 @@ class PortfolioPosition {
     'stopLossPrice': stopLossPrice,
     'strategyName': strategyName,
     'notes': notes,
+    'enableNotification': enableNotification,
+    'targetNotificationSent': targetNotificationSent,
+    'stopLossNotificationSent': stopLossNotificationSent,
+    'lastNotificationCheckAt': lastNotificationCheckAt?.toIso8601String(),
   };
 
   factory PortfolioPosition.fromJson(Map<String, dynamic> json) =>
@@ -60,6 +96,12 @@ class PortfolioPosition {
             : null,
         strategyName: json['strategyName'] as String?,
         notes: json['notes'] as String?,
+        enableNotification: json['enableNotification'] as bool? ?? true,
+        targetNotificationSent: json['targetNotificationSent'] as bool? ?? false,
+        stopLossNotificationSent: json['stopLossNotificationSent'] as bool? ?? false,
+        lastNotificationCheckAt: json['lastNotificationCheckAt'] != null
+            ? DateTime.parse(json['lastNotificationCheckAt'] as String)
+            : null,
       );
 }
 

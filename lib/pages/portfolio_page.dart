@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/portfolio.dart';
 import '../services/portfolio_service.dart';
+import '../services/notification_rule_service.dart';
+import '../services/portfolio_monitor_service.dart';
 
 /// 持倉跟蹤頁面
 class PortfolioPage extends StatefulWidget {
@@ -13,9 +15,11 @@ class PortfolioPage extends StatefulWidget {
 
 class _PortfolioPageState extends State<PortfolioPage> {
   late PortfolioService _portfolioService;
+  late NotificationRuleService _notificationRuleService;
+  final _monitorService = PortfolioMonitorService();
 
   List<PortfolioPosition> _positions = [];
-  Map<String, double> _currentPrices = {}; // 用於輸入目前市價
+  Map<String, double> _currentPrices = {};
   bool _isLoading = true;
   String? _error;
 
@@ -29,6 +33,14 @@ class _PortfolioPageState extends State<PortfolioPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       _portfolioService = PortfolioService(prefs);
+      _notificationRuleService = NotificationRuleService(
+        prefs,
+        portfolioService: _portfolioService,
+      );
+
+      // 初始化監測服務
+      await _monitorService.initialize();
+
       await _loadPositions();
     } catch (e) {
       if (mounted) {
@@ -38,6 +50,12 @@ class _PortfolioPageState extends State<PortfolioPage> {
         });
       }
     }
+  }
+
+  @override
+  void dispose() {
+    // 不自動停止監測，讓用戶控制
+    super.dispose();
   }
 
   Future<void> _loadPositions() async {
@@ -96,6 +114,24 @@ class _PortfolioPageState extends State<PortfolioPage> {
       await _portfolioService.removePosition(code);
       await _loadPositions();
     }
+  }
+
+  void _toggleMonitoring() {
+    setState(() {
+      if (_monitorService.isMonitoring) {
+        _monitorService.stopMonitoring();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已停止持倉監測')),
+        );
+      } else {
+        _monitorService.startMonitoring();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('已啟動持倉監測（每 5 分鐘檢查一次）'),
+          ),
+        );
+      }
+    });
   }
 
   void _setPriceForCode(String code) {
@@ -186,6 +222,15 @@ class _PortfolioPageState extends State<PortfolioPage> {
       appBar: AppBar(
         title: const Text('我的持倉'),
         actions: [
+          IconButton(
+            onPressed: _toggleMonitoring,
+            icon: Icon(
+              _monitorService.isMonitoring
+                  ? Icons.notifications_active
+                  : Icons.notifications_off,
+            ),
+            tooltip: _monitorService.isMonitoring ? '停止監測' : '啟動監測',
+          ),
           IconButton(
             onPressed: _loadPositions,
             icon: const Icon(Icons.refresh),
@@ -446,19 +491,79 @@ class _PortfolioPageState extends State<PortfolioPage> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete),
-                title: const Text('刪除'),
-                onTap: () {
+                leading: Icon(
+                  position.enableNotification
+                      ? Icons.notifications_active
+                      : Icons.notifications_off,
+                ),
+                title: Text(
+                  position.enableNotification ? '關閉通知' : '啟用通知',
+                ),
+                onTap: () async {
                   Navigator.pop(context);
-                  _deletePosition(position.code);
+                  final updated = position.updateNotificationState(
+                    enableNotification: !position.enableNotification,
+                  );
+                  await _portfolioService.updatePosition(
+                    position.code,
+                    updated,
+                  );
+                  await _loadPositions();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        position.enableNotification ? '已關閉通知' : '已啟用通知',
+                      ),
+                    ),
+                  );
                 },
               ),
+              if (position.targetPrice != null)
+                ListTile(
+                  leading: const Icon(Icons.flag),
+                  title: Text(
+                    '重置目標價通知${position.targetNotificationSent ? '✓' : ''}',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _notificationRuleService.resetTargetPriceNotification(
+                      position.code,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已重置目標價通知')),
+                    );
+                  },
+                ),
+              if (position.stopLossPrice != null)
+                ListTile(
+                  leading: const Icon(Icons.warning),
+                  title: Text(
+                    '重置停損通知${position.stopLossNotificationSent ? '✓' : ''}',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _notificationRuleService.resetStopLossNotification(
+                      position.code,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已重置停損通知')),
+                    );
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.history),
                 title: const Text('交易記錄'),
                 onTap: () async {
                   Navigator.pop(context);
                   // TODO: 顯示該股票的交易記錄
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text('刪除'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deletePosition(position.code);
                 },
               ),
             ],
@@ -485,6 +590,7 @@ class _AddPositionDialogState extends State<_AddPositionDialog> {
   late TextEditingController _targetController;
   late TextEditingController _stopLossController;
   late TextEditingController _strategyController;
+  bool _enableNotification = true;
 
   @override
   void initState() {
@@ -562,6 +668,17 @@ class _AddPositionDialogState extends State<_AddPositionDialog> {
               controller: _strategyController,
               decoration: const InputDecoration(labelText: '策略名稱 (可選)'),
             ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: const Text('啟用通知'),
+              subtitle: const Text('當股價達到目標或停損時通知'),
+              value: _enableNotification,
+              onChanged: (value) {
+                setState(() {
+                  _enableNotification = value;
+                });
+              },
+            ),
           ],
         ),
       ),
@@ -602,6 +719,7 @@ class _AddPositionDialogState extends State<_AddPositionDialog> {
                   _strategyController.text.isNotEmpty
                       ? _strategyController.text
                       : null,
+              enableNotification: _enableNotification,
             );
 
             widget.onAdd(position);
