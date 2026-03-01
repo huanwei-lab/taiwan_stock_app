@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -658,6 +659,10 @@ class _StockListPageState extends State<StockListPage> {
     _loadSavedPreferences();
     _refreshGoogleBackupAccount();
     _initIntradayController();
+    // 驗證推薦追蹤系統
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _validateRecommendationTracking();
+    });
   }
 
   IntradayController? _intradayController;
@@ -781,7 +786,7 @@ class _StockListPageState extends State<StockListPage> {
             }
           }
         } catch (e) {
-          debugPrint('Failed to load recommendation track entries: $e');
+          if (kDebugMode) debugPrint('Failed to load recommendation track entries: $e');
         }
       }
       // Clean up old entries (keep last 60 days)
@@ -2691,6 +2696,11 @@ class _StockListPageState extends State<StockListPage> {
           String report = _dailyCandidateArchive.isEmpty
               ? '尚無每日候選快照，請先至少更新 1 個交易日。'
               : '';
+          int selectedDays = 7;
+          bool onlyFavorites = false;
+          bool showNearMiss = false;
+          bool groupByDate = false;
+          
           return StatefulBuilder(
             builder: (context, setDialogState) {
               _DailyCandidateSnapshot? previousTradingSnapshot() {
@@ -2717,6 +2727,139 @@ class _StockListPageState extends State<StockListPage> {
                     .toList()
                   ..sort();
               }
+
+              /// 取得最近有飆股記錄的日期清單
+              List<String> getRecentDatesWithBreakout() {
+                final dateSet = <String>{};
+                for (final snapshot in _dailyCandidateArchive) {
+                  if (snapshot.coreCandidateCodes.isNotEmpty ||
+                      snapshot.limitedCandidateCodes.isNotEmpty ||
+                      snapshot.strongOnlyCodes.isNotEmpty) {
+                    dateSet.add(snapshot.dateKey);
+                  }
+                }
+                final dates = dateSet.toList()..sort((a, b) => b.compareTo(a));
+                return dates.take(30).toList(); // 限制最近 30 個有飆股的日期
+              }
+
+              /// 取得指定日期的飆股代號（核心或前 30）
+              List<String> getBreakoutCodesForDate(String dateKey, {bool coreOnly = true}) {
+                for (final snapshot in _dailyCandidateArchive) {
+                  if (snapshot.dateKey == dateKey) {
+                    if (coreOnly) {
+                      return snapshot.coreCandidateCodes.toList();
+                    } else {
+                      final combined = snapshot.coreCandidateCodes.toSet();
+                      combined.addAll(snapshot.limitedCandidateCodes);
+                      return combined.toList()..sort();
+                    }
+                  }
+                }
+                return [];
+              }
+
+              /// 自動載入指定日期的飆股代號
+              void loadCodesForDate(String dateKey, {bool coreOnly = true}) {
+                final codes = getBreakoutCodesForDate(dateKey, coreOnly: coreOnly);
+                if (codes.isNotEmpty) {
+                  setDialogState(() {
+                    codeController.text = codes.join(', ');
+                    report = '已載入 ${dateKey} 的飆股代號：${ codes.length} 檔'
+                        '${coreOnly ? '（核心）' : '（核心+前30）'}';
+                  });
+                } else {
+                  setDialogState(() {
+                    report = '$dateKey 沒有飆股紀錄。';
+                  });
+                }
+              }
+
+              /// 批量對比不同日期的飆股變化
+              void compareMultipleDates(List<String> selectedDates) {
+                if (selectedDates.isEmpty) {
+                  setDialogState(() {
+                    report = '請選擇至少一個日期。';
+                  });
+                  return;
+                }
+
+                final lines = <String>['批量飆股對比分析：'];
+                final snapshotMap = <String, _DailyCandidateSnapshot>{};
+
+                for (final snapshot in _dailyCandidateArchive) {
+                  if (selectedDates.contains(snapshot.dateKey)) {
+                    snapshotMap[snapshot.dateKey] = snapshot;
+                  }
+                }
+
+                // 按日期排序
+                final sortedDates = selectedDates.toList()
+                  ..sort((a, b) => b.compareTo(a));
+
+                for (final date in sortedDates) {
+                  final snapshot = snapshotMap[date];
+                  if (snapshot != null) {
+                    lines.add('');
+                    lines.add('📅 $date');
+                    lines.add(
+                      '  核心飆股: ${snapshot.coreCandidateCodes.length} 檔 - ${snapshot.coreCandidateCodes.isEmpty ? '(無)' : snapshot.coreCandidateCodes.take(10).join('、')}'
+                      '${snapshot.coreCandidateCodes.length > 10 ? '...' : ''}',
+                    );
+                    lines.add(
+                      '  前${_topCandidateLimit}: ${snapshot.limitedCandidateCodes.length} 檔',
+                    );
+                    lines.add(
+                      '  強勢進場: ${snapshot.strongOnlyCodes.length} 檔',
+                    );
+                  }
+                }
+
+                // 計算統計
+                if (snapshotMap.isNotEmpty) {
+                  final allCoreCodes = <String>{};
+                  final allLimitedCodes = <String>{};
+                  for (final snapshot in snapshotMap.values) {
+                    allCoreCodes.addAll(snapshot.coreCandidateCodes);
+                    allLimitedCodes.addAll(snapshot.limitedCandidateCodes);
+                  }
+
+                  lines.add('');
+                  lines.add('統計摘要：');
+                  lines.add('  總飆股股票（去重）: ${ allCoreCodes.length} 檔');
+                  lines.add('  加入飆股新面孔: ${allCoreCodes.length} 檔');
+                  
+                  // 計算持續飆股
+                  if (snapshotMap.length > 1) {
+                    final firstSnapshot = snapshotMap[sortedDates.last]!;
+                    final lastSnapshot = snapshotMap[sortedDates.first]!;
+                    final persistent = firstSnapshot.coreCandidateCodes
+                        .toSet()
+                        .intersection(lastSnapshot.coreCandidateCodes.toSet());
+                    lines.add('  持續出現在飆股（${sortedDates.first} 與 ${sortedDates.last}）: ${persistent.length} 檔'
+                        '${persistent.isNotEmpty ? ' - ${persistent.join('、')}' : ''}');
+                  }
+                }
+
+                setDialogState(() {
+                  report = lines.join('\n');
+                });
+              }
+
+              /// 檢測差點飆股（接近但未達成的股票）
+              Map<String, dynamic> detectNearMissStock(
+                _DailyCandidateSnapshot snapshot,
+                String code,
+              ) {
+                final reasons = snapshot.rejectedReasonsByCode[code] ?? const <String>[];
+                final score = 100 /
+                    (1 + reasons.length); // 被拒原因越多，近似分數越低
+                return {
+                  'code': code,
+                  'reasons': reasons,
+                  'score': score,
+                };
+              }
+
 
               void runPreviousTradingDayReplay() {
                 if (_dailyCandidateArchive.isEmpty) {
@@ -2745,31 +2888,64 @@ class _StockListPageState extends State<StockListPage> {
                 final lines = <String>[
                   '前一交易日快照：${previous.dateKey}',
                   '檢查代號：${rawCodes.join('、')}',
+                  '過濾選項：${onlyFavorites ? '只看收藏股' : '全部'} ${showNearMiss ? '｜含差點飆股' : ''}',
                 ];
 
                 var coreHit = 0;
                 var strongHit = 0;
+                var favoriteHit = 0;
+                final nearMissStocks = <Map<String, dynamic>>[];
+
                 for (final code in rawCodes) {
+                  if (onlyFavorites && !_favoriteStockCodes.contains(code)) {
+                    continue;
+                  }
+
                   final inCore = previous.coreCandidateCodes.contains(code);
                   final inTop = previous.limitedCandidateCodes.contains(code);
                   final inStrong = previous.strongOnlyCodes.contains(code);
+                  final isFavorite = _favoriteStockCodes.contains(code);
+
                   if (inCore) {
                     coreHit += 1;
                   }
                   if (inStrong) {
                     strongHit += 1;
                   }
+                  if (isFavorite && (inCore || inTop || inStrong)) {
+                    favoriteHit += 1;
+                  }
+
                   final reasons = previous.rejectedReasonsByCode[code] ??
                       const <String>[];
                   final reasonText = inCore
                       ? '命中核心'
                       : (reasons.isEmpty ? '未命中（舊快照無逐檔原因）' : '未命中：${reasons.join('、')}');
+
                   lines.add(
-                    '$code｜核心:${inCore ? 'Y' : 'N'}｜前$_topCandidateLimit:${inTop ? 'Y' : 'N'}｜強勢:${inStrong ? 'Y' : 'N'}｜$reasonText',
+                    '${isFavorite ? '⭐ ' : ''}$code｜核心:${inCore ? 'Y' : 'N'}｜前$_topCandidateLimit:${inTop ? 'Y' : 'N'}｜強勢:${inStrong ? 'Y' : 'N'}｜$reasonText',
                   );
+
+                  // 檢測差點飆股
+                  if (!inCore && !inTop && !inStrong && showNearMiss && reasons.isNotEmpty) {
+                    nearMissStocks.add(detectNearMissStock(previous, code));
+                  }
                 }
 
-                lines.add('命中統計：核心 $coreHit/${rawCodes.length}、強勢 $strongHit/${rawCodes.length}');
+                if (nearMissStocks.isNotEmpty) {
+                  nearMissStocks.sort((a, b) => (b['score'] as num).compareTo(a['score'] as num));
+                  lines.add('');
+                  lines.add('差點飆股（接近但未達成）:');
+                  for (final nm in nearMissStocks) {
+                    lines.add(
+                      '  ${nm['code']}｜原因：${(nm['reasons'] as List<String>).join('、')}',
+                    );
+                  }
+                }
+
+                lines.add('');
+                lines.add('命中統計：核心 $coreHit/${rawCodes.length}、強勢 $strongHit/${rawCodes.length}'  
+                    '${onlyFavorites ? '｜收藏命中 $favoriteHit' : ''}');
                 lines.add('註：此回放是「當日是否入選」驗證，不是未來保證。');
 
                 setDialogState(() {
@@ -2777,7 +2953,7 @@ class _StockListPageState extends State<StockListPage> {
                 });
               }
 
-              void runReplay() {
+              void runReplay() async {
                 if (_dailyCandidateArchive.isEmpty) {
                   setDialogState(() {
                     report = '尚無每日候選快照，請先至少更新 1 個交易日。';
@@ -2786,14 +2962,25 @@ class _StockListPageState extends State<StockListPage> {
                 }
 
                 final rawCodes = parseInputCodes();
-                final days = int.tryParse(daysController.text.trim()) ?? 7;
-                final lookbackDays = days.clamp(3, 45);
+                final lookbackDays = selectedDays.clamp(3, 45);
 
                 if (rawCodes.isEmpty) {
                   setDialogState(() {
                     report = '請輸入要回看的飆股代號（可多檔，以逗號分隔）';
                   });
                   return;
+                }
+
+                // 確保有股票名稱數據
+                var stocksForLookup = _latestStocks;
+                if (stocksForLookup.isEmpty) {
+                  try {
+                    final now = DateTime.now();
+                    final dateStr = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                    stocksForLookup = await _stockService.fetchAllStocksWithFundFlow(dateStr);
+                  } catch (e) {
+                    if (kDebugMode) debugPrint('股票數據載入失敗: $e');
+                  }
                 }
 
                 final now = DateTime.now();
@@ -2816,111 +3003,254 @@ class _StockListPageState extends State<StockListPage> {
                   return;
                 }
 
-                final lines = <String>[
-                  '回看區間：最近 $lookbackDays 天（${selectedSnapshots.length} 筆快照）',
-                  '輸入代號：${rawCodes.join('、')}',
-                ];
-
-                var hitAnyCore = 0;
-                var hitAnyStrong = 0;
-                for (final code in rawCodes) {
-                  var coreHits = 0;
-                  var limitedHits = 0;
-                  var strongHits = 0;
-                  String? latestCoreDate;
-                  String? latestStrongDate;
-
-                  for (final entry in selectedSnapshots) {
-                    if (entry.coreCandidateCodes.contains(code)) {
-                      coreHits += 1;
-                      latestCoreDate ??= entry.dateKey;
-                    }
-                    if (entry.limitedCandidateCodes.contains(code)) {
-                      limitedHits += 1;
-                    }
-                    if (entry.strongOnlyCodes.contains(code)) {
-                      strongHits += 1;
-                      latestStrongDate ??= entry.dateKey;
-                    }
-                  }
-
-                  if (coreHits > 0) {
-                    hitAnyCore += 1;
-                  }
-                  if (strongHits > 0) {
-                    hitAnyStrong += 1;
-                  }
-
-                  lines.add(
-                    '$code：核心 $coreHits/${selectedSnapshots.length} 天、前$_topCandidateLimit $limitedHits 天、強勢 $strongHits 天'
-                    '${latestCoreDate == null ? '' : '｜最近核心命中 $latestCoreDate'}'
-                    '${latestStrongDate == null ? '' : '｜最近強勢命中 $latestStrongDate'}',
-                  );
-
-                  // 檢查推薦清單中的信息
-                  final recCheck = _checkSurgeStockInRecommendations(code);
-                  if (recCheck.recommendationHits > 0) {
-                    lines.add(
-                      '  📊 推薦清單：${recCheck.summary}',
-                    );
-                  }
-                }
-
-                lines.add(
-                  '整體覆蓋：核心命中 $hitAnyCore/${rawCodes.length} 檔、強勢命中 $hitAnyStrong/${rawCodes.length} 檔',
+                // 使用新的可讀格式報告
+                final lookbackPeriod = '最近 $lookbackDays 天（${selectedSnapshots.length} 筆快照）';
+                final newReport = _buildReadableBreakoutReport(
+                  inputCodes: rawCodes,
+                  snapshots: selectedSnapshots,
+                  lookbackPeriod: lookbackPeriod,
+                  groupByStatus: true,
+                  stocksList: stocksForLookup,
+                  favoriteStocks: _favoriteStockCodes,
                 );
-                lines.add('註：此回看檢查「是否曾入選」，不代表隔日必漲。');
 
                 setDialogState(() {
-                  report = lines.join('\n');
+                  report = newReport;
                 });
               }
 
               return AlertDialog(
                 title: const Text('上週飆股回看（前一日是否抓到）'),
                 content: SizedBox(
-                  width: 520,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextField(
-                        controller: codeController,
-                        decoration: const InputDecoration(
-                          labelText: '飆股代號（逗號分隔）',
-                          hintText: '例如 3017, 2382, 3450',
+                  width: 700,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 快速載入飆股按鈕
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.tonalIcon(
+                                onPressed: () {
+                                  final previous = previousTradingSnapshot();
+                                  if (previous != null) {
+                                    loadCodesForDate(previous.dateKey, coreOnly: true);
+                                  } else {
+                                    setDialogState(() {
+                                      report = '找不到前一交易日的快照。';
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.list_alt),
+                                label: const Text('載入昨天飆股'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton.tonalIcon(
+                                onPressed: () {
+                                  final recentDates = getRecentDatesWithBreakout();
+                                  if (recentDates.isEmpty) {
+                                    setDialogState(() {
+                                      report = '沒有飆股紀錄。';
+                                    });
+                                    return;
+                                  }
+                                  
+                                  // 顯示日期選擇清單
+                                  showMenu<String>(
+                                    context: context,
+                                    position: const RelativeRect.fromLTRB(0, 100, 0, 0),
+                                    items: [
+                                      for (final date in recentDates)
+                                        PopupMenuItem<String>(
+                                          value: date,
+                                          child: Text(date),
+                                        ),
+                                    ],
+                                  ).then((selectedDate) {
+                                    if (selectedDate != null) {
+                                      loadCodesForDate(selectedDate, coreOnly: true);
+                                    }
+                                  });
+                                },
+                                icon: const Icon(Icons.calendar_today),
+                                label: const Text('選擇日期'),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: daysController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: '回看天數（3~45）',
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: codeController,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: '飆股代號（逗號分隔）',
+                            hintText: '例如 3017, 2382, 3450\n或點「載入昨天飆股」自動填入',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      if (report.isNotEmpty)
-                        Text(
-                          report,
-                          style: Theme.of(context).textTheme.bodySmall,
+                        const SizedBox(height: 8),
+                        // 日期快捷選擇按鈕
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: [
+                            for (int days = 1; days <= 7; days++)
+                              FilterChip(
+                                label: Text('${days}天前'),
+                                selected: selectedDays == days,
+                                onSelected: (selected) {
+                                  setDialogState(() {
+                                    selectedDays = days;
+                                    daysController.text = days.toString();
+                                  });
+                                },
+                              ),
+                            FilterChip(
+                              label: const Text('自訂'),
+                              selected: selectedDays > 7,
+                              onSelected: (selected) {
+                                setDialogState(() {
+                                  selectedDays = int.tryParse(daysController.text) ?? 7;
+                                });
+                              },
+                            ),
+                          ],
                         ),
-                    ],
+                        const SizedBox(height: 10),
+                        if (selectedDays > 7)
+                          TextField(
+                            controller: daysController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: '回看天數（3~45）',
+                            ),
+                          ),
+                        const SizedBox(height: 10),
+                        // 過濾選項
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('只看收藏股'),
+                          value: onlyFavorites,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              onlyFavorites = value ?? false;
+                            });
+                          },
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('包含差點飆股'),
+                          value: showNearMiss,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              showNearMiss = value ?? false;
+                            });
+                          },
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('按日期分組顯示'),
+                          value: groupByDate,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              groupByDate = value ?? false;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        if (report.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            constraints: const BoxConstraints(maxHeight: 450),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.outline,
+                                width: 1,
+                              ),
+                            ),
+                            child: SelectionArea(
+                              child: SingleChildScrollView(
+                                child: Text(
+                                  report,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 12,
+                                    height: 1.5,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 actions: [
-                  FilledButton.tonalIcon(
-                    onPressed: runPreviousTradingDayReplay,
-                    icon: const Icon(Icons.flash_on_outlined),
-                    label: const Text('一鍵檢查前一交易日'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('關閉'),
-                  ),
-                  FilledButton(
-                    onPressed: runReplay,
-                    child: const Text('回看'),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            setDialogState(() {
+                              report = _buildBreakoutStatisticsReport();
+                            });
+                          },
+                          icon: const Icon(Icons.bar_chart),
+                          label: const Text('統計'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: () async {
+                            final result = await _verifyBreakoutSnapshotsBackup();
+                            setDialogState(() {
+                              report = result;
+                            });
+                          },
+                          icon: const Icon(Icons.cloud_done),
+                          label: const Text('驗證備份'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            final recentDates = getRecentDatesWithBreakout().take(5).toList();
+                            if (recentDates.length < 2) {
+                              setDialogState(() {
+                                report = '需要至少 2 個日期才能進行對比。';
+                              });
+                              return;
+                            }
+                            compareMultipleDates(recentDates);
+                          },
+                          icon: const Icon(Icons.compare_arrows),
+                          label: const Text('快速對比'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: runPreviousTradingDayReplay,
+                          icon: const Icon(Icons.flash_on_outlined),
+                          label: const Text('前一交易日'),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: const Text('關閉'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: runReplay,
+                          child: const Text('回看'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               );
@@ -2932,6 +3262,414 @@ class _StockListPageState extends State<StockListPage> {
       codeController.dispose();
       daysController.dispose();
     }
+  }
+
+  /// 計算飆股統計信息（用於儀表板和備份驗證）
+  Map<String, dynamic> _buildBreakoutStatistics() {
+    final allCoreCodes = <String>{};
+    final allLimitedCodes = <String>{};
+    final allStrongCodes = <String>{};
+    final codeFrequency = <String, int>{};
+    final dateList = <String>[];
+
+    for (final snapshot in _dailyCandidateArchive) {
+      dateList.add(snapshot.dateKey);
+      allCoreCodes.addAll(snapshot.coreCandidateCodes);
+      allLimitedCodes.addAll(snapshot.limitedCandidateCodes);
+      allStrongCodes.addAll(snapshot.strongOnlyCodes);
+
+      // 計算頻率
+      for (final code in snapshot.coreCandidateCodes) {
+        codeFrequency[code] = (codeFrequency[code] ?? 0) + 1;
+      }
+    }
+
+    // 排序日期
+    dateList.sort((a, b) => b.compareTo(a));
+
+    // 找出頻繁出現的飆股
+    final frequentBreakouts = codeFrequency.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topBreakouts = frequentBreakouts.take(10).toList();
+
+    return {
+      'totalSnapshots': _dailyCandidateArchive.length,
+      'uniqueCoreCodes': allCoreCodes.length,
+      'uniqueLimitedCodes': allLimitedCodes.length,
+      'uniqueStrongCodes': allStrongCodes.length,
+      'totalUniqueCodes': <String>{}
+        ..addAll(allCoreCodes)
+        ..addAll(allLimitedCodes)
+        ..addAll(allStrongCodes)
+        ..length,
+      'dates': dateList,
+      'topBreakouts': topBreakouts,
+      'averageCorePerDay': _dailyCandidateArchive.isEmpty
+          ? 0
+          : _dailyCandidateArchive
+                  .fold<int>(0, (sum, s) => sum + s.coreCandidateCodes.length) ~/
+              _dailyCandidateArchive.length,
+    };
+  }
+
+  /// 生成飆股統計報告
+  String _buildBreakoutStatisticsReport() {
+    if (_dailyCandidateArchive.isEmpty) {
+      return '尚無任何飆股快照紀錄。';
+    }
+
+    final stats = _buildBreakoutStatistics();
+    final lines = <String>[
+      '📊 飆股統計分析',
+      '─' * 40,
+      '',
+      '快照紀錄：',
+      '  總快照數：${stats['totalSnapshots']} 筆',
+      '  日期覆蓋：${(stats['dates'] as List<String>).first} 至 ${(stats['dates'] as List<String>).last}',
+      '',
+      '飆股統計：',
+      '  核心飆股（去重）：${stats['uniqueCoreCodes']} 檔',
+      '  前${_topCandidateLimit} 飆股（去重）：${stats['uniqueLimitedCodes']} 檔',
+      '  強勢進場（去重）：${stats['uniqueStrongCodes']} 檔',
+      '  總飆股數（去重所有）：${stats['totalUniqueCodes']} 檔',
+      '  平均每日核心飆股：${stats['averageCorePerDay']} 檔',
+      '',
+    ];
+
+    if ((stats['topBreakouts'] as List).isNotEmpty) {
+      lines.add('頻繁出現的飆股TOP 10：');
+      for (final entry in (stats['topBreakouts'] as List).cast<MapEntry<String, int>>()) {
+        lines.add('  ${entry.key}：出現 ${entry.value} 次');
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  /// 驗證飆股快照是否在備份中
+  Future<String> _verifyBreakoutSnapshotsBackup() async {
+    if (_dailyCandidateArchive.isEmpty) {
+      return '尚無飆股快照，無需驗證。';
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final backupJsonStr = prefs.getString(_dailyCandidateArchiveKey);
+
+      if (backupJsonStr == null || backupJsonStr.isEmpty) {
+        return '❌ 飆股快照未備份！\n${_dailyCandidateArchive.length} 筆快照未保存到 SharedPreferences。';
+      }
+
+      final backupList = jsonDecode(backupJsonStr) as List;
+
+      final lines = <String>[
+        '✅ 飆股快照備份驗證結果',
+        '─' * 40,
+        '',
+        '本地快照：${_dailyCandidateArchive.length} 筆',
+        '備份快照：${ backupList.length} 筆',
+        '',
+      ];
+
+      if (backupList.length == _dailyCandidateArchive.length) {
+        lines.add('✅ 快照數量完全匹配！');
+      } else if (backupList.length > _dailyCandidateArchive.length) {
+        lines.add('⚠️ 備份中有更多快照（可能來自舊版本或其他設備）');
+        lines.add('   本地：${_dailyCandidateArchive.length} ← 備份：${backupList.length}');
+      } else {
+        lines.add('❌ 備份缺少快照！');
+        lines.add('   本地：${_dailyCandidateArchive.length} → 備份：${backupList.length}');
+      }
+
+      // 驗證最近的快照
+      if (_dailyCandidateArchive.isNotEmpty && backupList.isNotEmpty) {
+        final latestLocal = _dailyCandidateArchive.first.dateKey;
+        final backupDates = backupList
+            .cast<Map<String, dynamic>>()
+            .map((m) => (m['dateKey'] ?? '').toString())
+            .toList();
+        backupDates.sort();
+
+        lines.add('');
+        lines.add('最新快照驗證：');
+        lines.add('  本地最新：$latestLocal');
+        if (backupDates.isNotEmpty) {
+          final latestBackup = backupDates.last;
+          lines.add('  備份最新：$latestBackup');
+          if (latestLocal == latestBackup) {
+            lines.add('  ✅ 最新快照已備份');
+          } else {
+            lines.add('  ⚠️ 最新快照未備份');
+          }
+        }
+      }
+
+      lines.add('');
+      lines.add('備份位置：SharedPreferences');
+      lines.add('鑰匙值：$_dailyCandidateArchiveKey');
+
+      return lines.join('\n');
+    } catch (e) {
+      return '❌ 驗證失敗：$e';
+    }
+  }
+
+  /// 根據代號查找股票名稱（帶快取機制）
+  String getStockNameByCode(String code, {List<StockModel>? stocksList}) {
+    try {
+      final stocks = stocksList ?? _latestStocks;
+      if (stocks.isEmpty) {
+        return code; // 當沒有數據時直接返回代號
+      }
+      final stock = stocks.firstWhere(
+        (s) => s.code.toUpperCase() == code.toUpperCase(),
+        orElse: () => StockModel(
+          code: code,
+          name: code,
+          closePrice: 0.0,
+          volume: 0,
+          tradeValue: 0,
+          change: 0.0,
+        ),
+      );
+      return stock.name.isEmpty ? code : stock.name;
+    } catch (e) {
+      return code;
+    }
+  }
+
+  /// 根據代號清單取得股票名稱清單
+  Map<String, String> getStockNamesByCode(List<String> codes, {List<StockModel>? stocksList}) {
+    final result = <String, String>{};
+    for (final code in codes) {
+      result[code] = getStockNameByCode(code, stocksList: stocksList);
+    }
+    return result;
+  }
+
+  /// 生成易讀的飆股回看報告（表格格式）+ 顏色編碼 + 收藏高亮 + CSV導出
+  String _buildReadableBreakoutReport({
+    required List<String> inputCodes,
+    required List<_DailyCandidateSnapshot> snapshots,
+    required String lookbackPeriod,
+    required bool groupByStatus,
+    List<StockModel>? stocksList,
+    Set<String>? favoriteStocks,
+  }) {
+    if (snapshots.isEmpty) {
+      return '❌ 沒有可用的快照紀錄';
+    }
+
+    final stockNames = getStockNamesByCode(inputCodes, stocksList: stocksList);
+    final isFavoriteMap = <String, bool>{};
+    for (final code in inputCodes) {
+      isFavoriteMap[code] = favoriteStocks?.contains(code) ?? false;
+    }
+
+    final lines = <String>[];
+    final csvLines = <String>[]; // 用於CSV導出
+
+    lines.add('═' * 80);
+    lines.add('📊 飆股回看報告');
+    lines.add('═' * 80);
+    lines.add('');
+    lines.add('回看期間：$lookbackPeriod');
+    lines.add('快照筆數：${snapshots.length}');
+    lines.add('檢查股票：${inputCodes.length} 檔');
+    lines.add('');
+
+    // CSV 表頭
+    csvLines.add('代號,股票名稱,收藏,狀態,核心天數,前30天數,強勢天數,首次出現,最後出現,命中率');
+
+    if (groupByStatus) {
+      // 按狀態分組
+      final coreHits = <String, int>{};
+      final limitedHits = <String, int>{};
+      final strongHits = <String, int>{};
+      final firstAppear = <String, String?>{};
+      final latestAppear = <String, String?>{};
+
+      for (final code in inputCodes) {
+        int coreCount = 0;
+        int limitedCount = 0;
+        int strongCount = 0;
+
+        for (final snapshot in snapshots) {
+          if (snapshot.coreCandidateCodes.contains(code)) {
+            coreCount++;
+            firstAppear[code] ??= snapshot.dateKey;
+            latestAppear[code] = snapshot.dateKey;
+          }
+          if (snapshot.limitedCandidateCodes.contains(code)) {
+            limitedCount++;
+          }
+          if (snapshot.strongOnlyCodes.contains(code)) {
+            strongCount++;
+          }
+        }
+
+        coreHits[code] = coreCount;
+        limitedHits[code] = limitedCount;
+        strongHits[code] = strongCount;
+      }
+
+      // 核心飆股
+      final coreStocks = inputCodes.where((c) => coreHits[c]! > 0).toList();
+      if (coreStocks.isNotEmpty) {
+        lines.add('🔴 核心飆股 (${coreStocks.length} 檔) - 綠色系統：表現最佳');
+        lines.add('─' * 80);
+        lines.add('代號  │ ★ 股票名稱  │ 天數 │ 首次日期  │ 最終日期');
+        lines.add('─' * 80);
+        for (final code in coreStocks) {
+          final name = stockNames[code] ?? code;
+          final count = coreHits[code] ?? 0;
+          final first = firstAppear[code] ?? '─';
+          final latest = latestAppear[code] ?? '─';
+          final isFav = isFavoriteMap[code] ?? false;
+          final codeStr = code.padRight(4);
+          final favIcon = isFav ? '⭐' : '  '; // 收藏股突出
+          final nameStr = name.substring(0, math.min(10, name.length)).padRight(10);
+          final countStr = count.toString().padRight(3);
+          final hitRate = (count * 100 ~/ snapshots.length);
+          lines.add('$codeStr│ $favIcon $nameStr │ $countStr│ $first  │ $latest');
+          csvLines.add('$code,${stockNames[code] ?? code},$isFav,核心,$count,${limitedHits[code]},${strongHits[code]},$first,$latest,$hitRate%');
+        }
+        lines.add('');
+      }
+
+      // 前 30 飆股
+      final limitedStocks = inputCodes
+          .where((c) => limitedHits[c]! > 0 && coreHits[c]! == 0)
+          .toList();
+      if (limitedStocks.isNotEmpty) {
+        lines.add('🟡 前${_topCandidateLimit}飆股 (${limitedStocks.length} 檔) - 黃色系統：表現中等');
+        lines.add('─' * 80);
+        lines.add('代號  │ ★ 股票名稱  │ 天數');
+        lines.add('─' * 80);
+        for (final code in limitedStocks) {
+          final name = stockNames[code] ?? code;
+          final count = limitedHits[code] ?? 0;
+          final isFav = isFavoriteMap[code] ?? false;
+          final codeStr = code.padRight(4);
+          final favIcon = isFav ? '⭐' : '  ';
+          final nameStr = name.substring(0, math.min(10, name.length)).padRight(10);
+          final countStr = count.toString().padRight(3);
+          final hitRate = (count * 100 ~/ snapshots.length);
+          lines.add('$codeStr│ $favIcon $nameStr │ $countStr');
+          csvLines.add('$code,${stockNames[code] ?? code},$isFav,前30,${coreHits[code]},$count,${strongHits[code]},─,─,$hitRate%');
+        }
+        lines.add('');
+      }
+
+      // 強勢進場
+      final strongStocks = inputCodes
+          .where((c) => strongHits[c]! > 0 && coreHits[c]! == 0 && limitedHits[c]! == 0)
+          .toList();
+      if (strongStocks.isNotEmpty) {
+        lines.add('🟢 強勢進場 (${strongStocks.length} 檔) - 紅色系統：表現一般');
+        lines.add('─' * 80);
+        lines.add('代號  │ ★ 股票名稱  │ 天數');
+        lines.add('─' * 80);
+        for (final code in strongStocks) {
+          final name = stockNames[code] ?? code;
+          final count = strongHits[code] ?? 0;
+          final isFav = isFavoriteMap[code] ?? false;
+          final codeStr = code.padRight(4);
+          final favIcon = isFav ? '⭐' : '  ';
+          final nameStr = name.substring(0, math.min(10, name.length)).padRight(10);
+          final countStr = count.toString().padRight(3);
+          final hitRate = (count * 100 ~/ snapshots.length);
+          lines.add('$codeStr│ $favIcon $nameStr │ $countStr');
+          csvLines.add('$code,${stockNames[code] ?? code},$isFav,強勢,${coreHits[code]},${limitedHits[code]},$count,─,─,$hitRate%');
+        }
+        lines.add('');
+      }
+
+      // 未出現
+      final noHits = inputCodes
+          .where((c) => coreHits[c] == 0 && limitedHits[c] == 0 && strongHits[c] == 0)
+          .toList();
+      if (noHits.isNotEmpty) {
+        lines.add('⚪ 未出現飆股 (${noHits.length} 檔) - 灰色系統：未出現');
+        lines.add('─' * 80);
+        for (final code in noHits) {
+          final name = stockNames[code] ?? code;
+          final isFav = isFavoriteMap[code] ?? false;
+          final favIcon = isFav ? '⭐' : '  ';
+          lines.add('$code │ $favIcon $name');
+          csvLines.add('$code,${stockNames[code] ?? code},$isFav,未出現,0,0,0,─,─,0%');
+        }
+        lines.add('');
+      }
+
+      // 統計摘要
+      lines.add('═' * 80);
+      lines.add('📈 統計摘要');
+      lines.add('═' * 80);
+      final coreCount = coreStocks.length;
+      final limitedCount = limitedStocks.length;
+      final strongCount = strongStocks.length;
+      final noHitCount = noHits.length;
+      final totalFav = isFavoriteMap.values.where((v) => v).length;
+      
+      lines.add('🟢 綠色 (核心): $coreCount/${inputCodes.length} (${(coreCount * 100 ~/ inputCodes.length)}%)');
+      lines.add('🟡 黃色 (前30): $limitedCount/${inputCodes.length} (${(limitedCount * 100 ~/ inputCodes.length)}%)');
+      lines.add('🔴 紅色 (強勢): $strongCount/${inputCodes.length} (${(strongCount * 100 ~/ inputCodes.length)}%)');
+      lines.add('⚪ 灰色 (未出現): $noHitCount/${inputCodes.length} (${(noHitCount * 100 ~/ inputCodes.length)}%)');
+      lines.add('⭐ 收藏股: $totalFav 檔');
+      lines.add('');
+      lines.add('═' * 80);
+      lines.add('💾 CSV數據（可複製粘貼到Excel）');
+      lines.add('═' * 80);
+      for (final csv in csvLines) {
+        lines.add(csv);
+      }
+    } else {
+      // 按股票顯示（原始邏輯）
+      lines.add('📋 詳細資訊');
+      lines.add('─' * 80);
+      lines.add('代號  │ ★ 股票名稱  │ 核心 │ 前30 │ 強勢 │ 備註');
+      lines.add('─' * 80);
+
+      for (final code in inputCodes) {
+        var coreHits = 0;
+        var limitedHits = 0;
+        var strongHits = 0;
+
+        for (final snapshot in snapshots) {
+          if (snapshot.coreCandidateCodes.contains(code)) coreHits++;
+          if (snapshot.limitedCandidateCodes.contains(code)) limitedHits++;
+          if (snapshot.strongOnlyCodes.contains(code)) strongHits++;
+        }
+
+        final name = (stockNames[code] ?? code).substring(0, math.min(10, stockNames[code]?.length ?? 0));
+        final codeStr = code.padRight(4);
+        final isFav = isFavoriteMap[code] ?? false;
+        final favIcon = isFav ? '⭐' : '  ';
+        final nameStr = name.padRight(10);
+        final coreStr = coreHits.toString().padRight(3);
+        final limitedStr = limitedHits.toString().padRight(3);
+        final strongStr = strongHits.toString().padRight(3);
+
+        final status = coreHits > 0
+            ? '✅ 核心'
+            : (limitedHits > 0 ? '🟡 前30' : (strongHits > 0 ? '🟢 強勢' : '⚪ 未出現'));
+
+        lines.add('$codeStr│ $favIcon $nameStr │ $coreStr│ $limitedStr│ $strongStr│ $status');
+        csvLines.add('$code,${stockNames[code] ?? code},$isFav,$status,$coreHits,$limitedHits,$strongHits,─,─');
+      }
+      
+      lines.add('');
+      lines.add('═' * 80);
+      lines.add('💾 CSV數據（可複製粘貼到Excel）');
+      lines.add('═' * 80);
+      for (final csv in csvLines) {
+        lines.add(csv);
+      }
+    }
+
+    lines.add('═' * 80);
+    return lines.join('\n');
   }
 
   List<_SectorRule> _parseSectorRulesText(String raw) {
@@ -3587,6 +4325,177 @@ class _StockListPageState extends State<StockListPage> {
     };
   }
 
+  /// 備份數據驗證統計
+  ({int totalTrackedStocks, int totalSignals, int totalSnapshots, int estimatedSizeKB, String details}) _analyzeBackupContents() {
+    final totalTracked = _recommendationTrackEntries.length;
+    final totalSignals = _signalTrackEntries.length;
+    final totalSnapshots = _dailyCandidateArchive.length +
+        _dailyFilterStats.length +
+        _dailyPredictionArchive.length +
+        _dailyContextArchive.length +
+        _dailyAutoInsightArchive.length;
+
+    // 估算備份大小（粗略）
+    final jsonRecommendation = jsonEncode(_recommendationTrackEntries.map((e) => e.toJson()).toList());
+    final jsonSignals = jsonEncode(_signalTrackEntries.map((e) => e.toJson()).toList());
+    final jsonSnapshots = jsonEncode(_dailyCandidateArchive.map((e) => e.toJson()).toList()) +
+        jsonEncode(_dailyFilterStats.map((e) => e.toJson()).toList()) +
+        jsonEncode(_dailyPredictionArchive.map((e) => e.toJson()).toList()) +
+        jsonEncode(_dailyContextArchive.map((e) => e.toJson()).toList()) +
+        jsonEncode(_dailyAutoInsightArchive.map((e) => e.toJson()).toList());
+
+    final estimatedSize = (jsonRecommendation.length + jsonSignals.length + jsonSnapshots.length) ~/ 1024;
+
+    final details = '推薦追蹤: $totalTracked 筆｜訊號: $totalSignals 筆｜快照: $totalSnapshots 筆';
+
+    return (
+      totalTrackedStocks: totalTracked,
+      totalSignals: totalSignals,
+      totalSnapshots: totalSnapshots,
+      estimatedSizeKB: estimatedSize,
+      details: details,
+    );
+  }
+
+  /// 驗證備份是否包含所有必要數據
+  ({bool isValid, List<String> missingData, List<String> presentData}) _validateBackupIntegrity(Map<String, dynamic> backup) {
+    final prefs = backup['prefs'] as Map<String, dynamic>? ?? {};
+    final presentData = <String>[];
+    final missingData = <String>[];
+
+    // 檢查重要的備份鍵值
+    final requiredKeys = [
+      _favoritesKey,
+      _riskScoreHistoryKey,
+      _signalTrackEntriesKey,
+      _recommendationTrackEntriesKey,
+      _dailyCandidateArchiveKey,
+      _dailyPredictionArchiveKey,
+    ];
+
+    for (final key in requiredKeys) {
+      if (prefs.containsKey(key) && prefs[key] != null) {
+        presentData.add(key.replaceAll(RegExp(r'[._]'), ' '));
+      } else {
+        missingData.add(key.replaceAll(RegExp(r'[._]'), ' '));
+      }
+    }
+
+    return (
+      isValid: missingData.isEmpty,
+      missingData: missingData,
+      presentData: presentData,
+    );
+  }
+
+  /// 記錄備份時的統計信息
+  Future<void> _recordBackupStatistics() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stats = _analyzeBackupContents();
+    await prefs.setString(
+      'backup.lastStats',
+      jsonEncode({
+        'timestamp': DateTime.now().toIso8601String(),
+        'totalTrackedStocks': stats.totalTrackedStocks,
+        'totalSignals': stats.totalSignals,
+        'totalSnapshots': stats.totalSnapshots,
+        'estimatedSizeKB': stats.estimatedSizeKB,
+      }),
+    );
+  }
+
+  /// 驗證恢復的備份是否包含所有必要數據
+  ({bool isValid, List<String> missingData, int recoveredItemCount}) _validateRestoredBackup(Map<String, dynamic> restoredBackup) {
+    final prefs = restoredBackup['prefs'] as Map<String, dynamic>? ?? {};
+    final missingData = <String>[];
+    
+    // 檢查關鍵數據
+    final criticalKeys = [
+      _recommendationTrackEntriesKey,
+      _signalTrackEntriesKey,
+      _dailyCandidateArchiveKey,
+    ];
+    
+    for (final key in criticalKeys) {
+      if (!prefs.containsKey(key) || prefs[key] == null) {
+        missingData.add(key.replaceAll(RegExp(r'[._]'), ' '));
+      }
+    }
+    
+    // 計算恢復的項目數
+    int recoveredItems = 0;
+    try {
+      if (prefs[_recommendationTrackEntriesKey] != null) {
+        final recList = jsonDecode(prefs[_recommendationTrackEntriesKey] as String) as List;
+        recoveredItems += recList.length;
+      }
+      if (prefs[_signalTrackEntriesKey] != null) {
+        final sigList = jsonDecode(prefs[_signalTrackEntriesKey] as String) as List;
+        recoveredItems += sigList.length;
+      }
+    } catch (e) {
+        if (kDebugMode) debugPrint('恢復驗證: JSON 解析失敗 - $e');
+    }
+    
+    return (
+      isValid: missingData.isEmpty,
+      missingData: missingData,
+      recoveredItemCount: recoveredItems,
+    );
+  }
+
+  /// 測試備份恢復流程（不實際恢復數據）
+  Future<({bool success, String message, DateTime? testTime})> _testBackupRecovery() async {
+    try {
+      // 獲取當前備份內容
+      final payload = await _buildGoogleBackupPayload();
+      final validation = _validateBackupIntegrity(payload);
+      
+      if (!validation.isValid) {
+        return (
+          success: false,
+          message: '備份驗證失敗: 缺少 ${validation.missingData.join(', ')}',
+          testTime: DateTime.now(),
+        );
+      }
+      
+      // 驗證恢復的數據
+      final recoveryValidation = _validateRestoredBackup(payload);
+      
+      if (!recoveryValidation.isValid) {
+        return (
+          success: false,
+          message: '恢復驗證失敗: 缺少 ${recoveryValidation.missingData.join(', ')}',
+          testTime: DateTime.now(),
+        );
+      }
+      
+      // 記錄恢復測試
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'backup.lastRecoveryTest',
+        jsonEncode({
+          'timestamp': DateTime.now().toIso8601String(),
+          'success': true,
+          'recoveredItems': recoveryValidation.recoveredItemCount,
+          'backupSize': (jsonEncode(payload).length ~/ 1024),
+        }),
+      );
+      
+      return (
+        success: true,
+        message: '恢復測試成功: 復了 ${recoveryValidation.recoveredItemCount} 項',
+        testTime: DateTime.now(),
+      );
+    } catch (error) {
+      return (
+        success: false,
+        message: '恢復測試異常: $error',
+        testTime: DateTime.now(),
+      );
+    }
+  }
+
   String _googleWebSignInHintText(String? rawError) {
     final error = (rawError ?? '').toLowerCase();
     if (error.contains('origin_mismatch')) {
@@ -3653,7 +4562,16 @@ class _StockListPageState extends State<StockListPage> {
         );
         return false;
       }
+      // 驗證備份內容
+      // 驗證備份內容
       final payload = await _buildGoogleBackupPayload();
+      final validation = _validateBackupIntegrity(payload);
+      if (!validation.isValid) {
+        if (kDebugMode) debugPrint('⚠️ 備份驗證警告: 缺少 ${validation.missingData.join(', ')}');
+      }
+      final backupStats = _analyzeBackupContents();
+      if (kDebugMode) debugPrint('📊 備份統計: ${backupStats.details} (~${backupStats.estimatedSizeKB}KB)');
+      
       final success = await _googleDriveBackupService.backupJson(payload);
       if (!success) {
         if (showFeedback && mounted) {
@@ -3663,6 +4581,8 @@ class _StockListPageState extends State<StockListPage> {
         }
         return false;
       }
+      // 記錄備份統計
+      await _recordBackupStatistics();
       setState(() {
         _googleBackupEmail = email;
         _lastGoogleBackupAt = DateTime.now();
@@ -6929,97 +7849,42 @@ class _StockListPageState extends State<StockListPage> {
     }
   }
 
-  /// 計算推薦清單的準確率
-  ({
-    int totalRecommendations,
-    int gainCount,
-    double gainRate,
-    double avgGain,
-    int lossCount,
-    double avgLoss,
-  }) _calculateRecommendationAccuracy({int lookbackDays = 7}) {
-    final cutoff = DateTime.now().subtract(Duration(days: lookbackDays));
-    final relevantTrackings = _recommendationTrackEntries
-        .where((e) => e.recommendedDate.isAfter(cutoff) && e.nextDayReturn != null)
+  /// 驗證推薦追蹤數據完整性
+  void _validateRecommendationTracking() {
+    if (_recommendationTrackEntries.isEmpty) {
+      if (kDebugMode) debugPrint('[推薦追蹤] 暫無記錄');
+      return;
+    }
+
+    // 檢查今天的推薦清單
+    final today = DateTime.now();
+    final todayRecs = _recommendationTrackEntries
+        .where((e) => _isSameCalendarDay(e.recommendedDate, today))
         .toList();
 
-    if (relevantTrackings.isEmpty) {
-      return (
-        totalRecommendations: 0,
-        gainCount: 0,
-        gainRate: 0,
-        avgGain: 0,
-        lossCount: 0,
-        avgLoss: 0,
-      );
-    }
-
-    var gainCount = 0;
-    var lossCount = 0;
-    var totalGain = 0.0;
-    var totalLoss = 0.0;
-
-    for (final tracking in relevantTrackings) {
-      final ret = tracking.nextDayReturn ?? 0;
-      if (ret >= 0) {
-        gainCount++;
-        totalGain += ret;
-      } else {
-        lossCount++;
-        totalLoss += ret.abs();
-      }
-    }
-
-    final gainRate = relevantTrackings.isEmpty ? 0.0 : (gainCount / relevantTrackings.length) * 100;
-    final avgGain = gainCount == 0 ? 0.0 : totalGain / gainCount;
-    final avgLoss = lossCount == 0 ? 0.0 : totalLoss / lossCount;
-
-    return (
-      totalRecommendations: relevantTrackings.length,
-      gainCount: gainCount,
-      gainRate: gainRate,
-      avgGain: avgGain,
-      lossCount: lossCount,
-      avgLoss: avgLoss,
-    );
-  }
-
-  /// 檢查飆股股票是否曾在推薦清單中出現
-  ({
-    int recommendationHits,
-    int maxRank,
-    double maxRecommendationScore,
-    String summary,
-  }) _checkSurgeStockInRecommendations(
-    String stockCode,
-  ) {
-    final trackingsByCode = _recommendationTrackEntries
-        .where((e) => e.stockCode == stockCode)
+    // 檢查昨天的推薦清單是否已更新隔日表現
+    final yesterday = today.subtract(const Duration(days: 1));
+    final yesterdayRecs = _recommendationTrackEntries
+        .where((e) => _isSameCalendarDay(e.recommendedDate, yesterday))
         .toList();
 
-    if (trackingsByCode.isEmpty) {
-      return (
-        recommendationHits: 0,
-        maxRank: -1,
-        maxRecommendationScore: 0,
-        summary: '此股票未曾在推薦清單中',
-      );
+    final updatedYesterdayRecs = yesterdayRecs
+        .where((e) => e.nextDayReturn != null)
+        .length;
+
+    if (kDebugMode) {
+      debugPrint('[推薦追蹤驗證]');
+      debugPrint('  今日推薦: ${todayRecs.length} 檔');
+      debugPrint('  昨日推薦: ${yesterdayRecs.length} 檔');
+      debugPrint('  已更新表現: $updatedYesterdayRecs/${yesterdayRecs.length} 檔');
+      debugPrint('  總記錄數: ${_recommendationTrackEntries.length}');
     }
 
-    final maxScore = trackingsByCode
-        .fold<double>(0, (max, e) => e.recommendationScore > max ? e.recommendationScore : max);
-    final minRank = trackingsByCode
-        .fold<int>(999, (min, e) => e.rankInRecommendation < min ? e.rankInRecommendation : min);
-    
-    final summary = '此股票曾在推薦清單中出現 ${trackingsByCode.length} 次，'
-        '最佳排名 #$minRank，最高分數 ${maxScore.toStringAsFixed(1)}';
-
-    return (
-      recommendationHits: trackingsByCode.length,
-      maxRank: minRank,
-      maxRecommendationScore: maxScore,
-      summary: summary,
-    );
+    if (yesterdayRecs.isNotEmpty && updatedYesterdayRecs < yesterdayRecs.length) {
+      debugPrint('  ⚠️ 警告: 昨日推薦尚未全部更新隔日表現');
+    } else if (yesterdayRecs.isNotEmpty) {
+      debugPrint('  ✅ 昨日推薦已全部更新隔日表現');
+    }
   }
 
   String _riskScoreTrendText() {
@@ -8529,6 +9394,21 @@ class _StockListPageState extends State<StockListPage> {
       return false;
     }
     return _isSameCalendarDay(_lastGoogleBackupAt!, DateTime.now());
+  }
+
+  /// 獲取最後一次備份的統計信息
+  Future<Map<String, dynamic>> _getLastBackupStats() async {
+    final prefs = await SharedPreferences.getInstance();
+    final statsJson = prefs.getString('backup.lastStats');
+    if (statsJson == null) {
+      return {};
+    }
+    try {
+      return jsonDecode(statsJson) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('解析備份統計失敗: $e');
+      return {};
+    }
   }
 
   String _googleBackupStatusLabel() {
@@ -12040,6 +12920,49 @@ void diagnoseStock(StockModel stock, int score) {
                                       .colorScheme
                                       .errorContainer,
                             ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                              horizontalInset, sectionGap, horizontalInset, 0),
+                          child: FutureBuilder<Map<String, dynamic>>(
+                            future: _getLastBackupStats(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              
+                              final stats = snapshot.data!;
+                              final tracked = stats['totalTrackedStocks'] ?? 0;
+                              final signals = stats['totalSignals'] ?? 0;
+                              final snapshots = stats['totalSnapshots'] ?? 0;
+                              final sizeKB = stats['estimatedSizeKB'] ?? 0;
+                              
+                              return Card(
+                                child: ListTile(
+                                  leading: const Icon(Icons.storage),
+                                  title: const Text('備份統計'),
+                                  subtitle: Text('推薦: $tracked｜訊號: $signals｜快照: $snapshots｜大小: ${sizeKB}KB'),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.refresh),
+                                    onPressed: () async {
+                                      final result = await _testBackupRecovery();
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(result.message),
+                                            duration: const Duration(seconds: 3),
+                                          ),
+                                        );
+                                        if (result.success && mounted) {
+                                          setState(() {});
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         Padding(
