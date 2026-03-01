@@ -1684,12 +1684,42 @@ class _StockListPageState extends State<StockListPage> {
     required Set<String> coreCandidateCodes,
     required Set<String> limitedCodes,
     required Set<String> strongOnlyCodes,
+    required Map<String, List<String>> rejectedReasonsByCode,
   }) {
     final now = DateTime.now();
     final dateKey = _calendarDayKey(now);
     final core = coreCandidateCodes.toList()..sort();
     final limited = limitedCodes.toList()..sort();
     final strong = strongOnlyCodes.toList()..sort();
+    final normalizedRejectedReasons = <String, List<String>>{};
+    final rejectedKeys = rejectedReasonsByCode.keys.toList()..sort();
+    for (final code in rejectedKeys.take(120)) {
+      final reasons = (rejectedReasonsByCode[code] ?? const <String>[])
+          .map((value) => value.trim())
+          .where((value) => value.isNotEmpty)
+          .take(3)
+          .toList();
+      if (reasons.isNotEmpty) {
+        normalizedRejectedReasons[code] = reasons;
+      }
+    }
+
+    bool sameRejectedReasonMap(
+      Map<String, List<String>> a,
+      Map<String, List<String>> b,
+    ) {
+      if (a.length != b.length) {
+        return false;
+      }
+      for (final key in a.keys) {
+        final left = a[key];
+        final right = b[key];
+        if (left == null || right == null || !listEquals(left, right)) {
+          return false;
+        }
+      }
+      return true;
+    }
 
     final next = _DailyCandidateSnapshot(
       dateKey: dateKey,
@@ -1697,6 +1727,7 @@ class _StockListPageState extends State<StockListPage> {
       coreCandidateCodes: core,
       limitedCandidateCodes: limited,
       strongOnlyCodes: strong,
+      rejectedReasonsByCode: normalizedRejectedReasons,
     );
 
     final index = _dailyCandidateArchive.indexWhere((item) => item.dateKey == dateKey);
@@ -1704,7 +1735,11 @@ class _StockListPageState extends State<StockListPage> {
       final prev = _dailyCandidateArchive[index];
       if (listEquals(prev.coreCandidateCodes, next.coreCandidateCodes) &&
           listEquals(prev.limitedCandidateCodes, next.limitedCandidateCodes) &&
-          listEquals(prev.strongOnlyCodes, next.strongOnlyCodes)) {
+          listEquals(prev.strongOnlyCodes, next.strongOnlyCodes) &&
+          sameRejectedReasonMap(
+            prev.rejectedReasonsByCode,
+            next.rejectedReasonsByCode,
+          )) {
         return;
       }
       _dailyCandidateArchive[index] = next;
@@ -2347,7 +2382,7 @@ class _StockListPageState extends State<StockListPage> {
   }
 
   Future<void> _openBullRunReplayDialog() async {
-    final codeController = TextEditingController();
+    final codeController = TextEditingController(text: '2367, 6443, 3481');
     final daysController = TextEditingController(text: '7');
     try {
       await showDialog<void>(
@@ -2358,6 +2393,90 @@ class _StockListPageState extends State<StockListPage> {
               : '';
           return StatefulBuilder(
             builder: (context, setDialogState) {
+              _DailyCandidateSnapshot? previousTradingSnapshot() {
+                if (_dailyCandidateArchive.isEmpty) {
+                  return null;
+                }
+                final sorted = _dailyCandidateArchive.toList()
+                  ..sort((a, b) => b.dateKey.compareTo(a.dateKey));
+                final todayKey = _calendarDayKey(DateTime.now());
+                for (final entry in sorted) {
+                  if (entry.dateKey != todayKey) {
+                    return entry;
+                  }
+                }
+                return sorted.length >= 2 ? sorted[1] : sorted.first;
+              }
+
+              List<String> parseInputCodes() {
+                return codeController.text
+                    .split(RegExp(r'[\s,，;；]+'))
+                    .map((text) => text.trim().toUpperCase())
+                    .where((text) => text.isNotEmpty)
+                    .toSet()
+                    .toList()
+                  ..sort();
+              }
+
+              void runPreviousTradingDayReplay() {
+                if (_dailyCandidateArchive.isEmpty) {
+                  setDialogState(() {
+                    report = '尚無每日候選快照，請先至少更新 1 個交易日。';
+                  });
+                  return;
+                }
+
+                final rawCodes = parseInputCodes();
+                if (rawCodes.isEmpty) {
+                  setDialogState(() {
+                    report = '請輸入要回看的飆股代號（可多檔，以逗號分隔）';
+                  });
+                  return;
+                }
+
+                final previous = previousTradingSnapshot();
+                if (previous == null) {
+                  setDialogState(() {
+                    report = '找不到前一交易日快照。';
+                  });
+                  return;
+                }
+
+                final lines = <String>[
+                  '前一交易日快照：${previous.dateKey}',
+                  '檢查代號：${rawCodes.join('、')}',
+                ];
+
+                var coreHit = 0;
+                var strongHit = 0;
+                for (final code in rawCodes) {
+                  final inCore = previous.coreCandidateCodes.contains(code);
+                  final inTop = previous.limitedCandidateCodes.contains(code);
+                  final inStrong = previous.strongOnlyCodes.contains(code);
+                  if (inCore) {
+                    coreHit += 1;
+                  }
+                  if (inStrong) {
+                    strongHit += 1;
+                  }
+                  final reasons = previous.rejectedReasonsByCode[code] ??
+                      const <String>[];
+                  final reasonText = inCore
+                      ? '命中核心'
+                      : (reasons.isEmpty ? '未命中（舊快照無逐檔原因）' : '未命中：${reasons.join('、')}');
+                  lines.add(
+                    '$code｜核心:${inCore ? 'Y' : 'N'}｜前$_topCandidateLimit:${inTop ? 'Y' : 'N'}｜強勢:${inStrong ? 'Y' : 'N'}｜$reasonText',
+                  );
+                }
+
+                lines.add('命中統計：核心 $coreHit/${rawCodes.length}、強勢 $strongHit/${rawCodes.length}');
+                lines.add('註：此回放是「當日是否入選」驗證，不是未來保證。');
+
+                setDialogState(() {
+                  report = lines.join('\n');
+                });
+              }
+
               void runReplay() {
                 if (_dailyCandidateArchive.isEmpty) {
                   setDialogState(() {
@@ -2366,13 +2485,7 @@ class _StockListPageState extends State<StockListPage> {
                   return;
                 }
 
-                final rawCodes = codeController.text
-                    .split(RegExp(r'[\s,，;；]+'))
-                    .map((text) => text.trim().toUpperCase())
-                    .where((text) => text.isNotEmpty)
-                    .toSet()
-                    .toList()
-                  ..sort();
+                final rawCodes = parseInputCodes();
                 final days = int.tryParse(daysController.text.trim()) ?? 7;
                 final lookbackDays = days.clamp(3, 45);
 
@@ -2488,6 +2601,11 @@ class _StockListPageState extends State<StockListPage> {
                   ),
                 ),
                 actions: [
+                  FilledButton.tonalIcon(
+                    onPressed: runPreviousTradingDayReplay,
+                    icon: const Icon(Icons.flash_on_outlined),
+                    label: const Text('一鍵檢查前一交易日'),
+                  ),
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
                     child: const Text('關閉'),
@@ -10030,6 +10148,7 @@ void diagnoseStock(StockModel stock, int score) {
               coreCandidateCodes: qualityCodes,
               limitedCodes: limitedCodes,
               strongOnlyCodes: strongOnlyCodes,
+              rejectedReasonsByCode: dropReasonsByCode,
             );
 
             _upsertDailyPredictionArchive(
@@ -13250,6 +13369,7 @@ class _DailyCandidateSnapshot {
     required this.coreCandidateCodes,
     required this.limitedCandidateCodes,
     required this.strongOnlyCodes,
+    required this.rejectedReasonsByCode,
   });
 
   final String dateKey;
@@ -13257,6 +13377,7 @@ class _DailyCandidateSnapshot {
   final List<String> coreCandidateCodes;
   final List<String> limitedCandidateCodes;
   final List<String> strongOnlyCodes;
+  final Map<String, List<String>> rejectedReasonsByCode;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -13265,6 +13386,7 @@ class _DailyCandidateSnapshot {
       'coreCandidateCodes': coreCandidateCodes,
       'limitedCandidateCodes': limitedCandidateCodes,
       'strongOnlyCodes': strongOnlyCodes,
+      'rejectedReasonsByCode': rejectedReasonsByCode,
     };
   }
 
@@ -13286,6 +13408,32 @@ class _DailyCandidateSnapshot {
       return output;
     }
 
+    Map<String, List<String>> parseReasonMap(dynamic raw) {
+      final output = <String, List<String>>{};
+      if (raw is! Map) {
+        return output;
+      }
+      raw.forEach((key, value) {
+        final code = key.toString().trim();
+        if (code.isEmpty) {
+          return;
+        }
+        final reasons = <String>[];
+        if (value is List) {
+          for (final item in value) {
+            final text = item.toString().trim();
+            if (text.isNotEmpty) {
+              reasons.add(text);
+            }
+          }
+        }
+        if (reasons.isNotEmpty) {
+          output[code] = reasons;
+        }
+      });
+      return output;
+    }
+
     if (dateKey.isEmpty || capturedAt == null) {
       return null;
     }
@@ -13296,6 +13444,7 @@ class _DailyCandidateSnapshot {
       coreCandidateCodes: parseList(json['coreCandidateCodes']),
       limitedCandidateCodes: parseList(json['limitedCandidateCodes']),
       strongOnlyCodes: parseList(json['strongOnlyCodes']),
+      rejectedReasonsByCode: parseReasonMap(json['rejectedReasonsByCode']),
     );
   }
 }
