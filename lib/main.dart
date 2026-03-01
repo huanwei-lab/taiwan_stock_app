@@ -13,9 +13,11 @@ import 'models/market_news.dart';
 import 'models/stock_model.dart';
 import 'pages/backtest_page.dart';
 import 'services/backtest_service.dart';
+import 'services/breakout_filter_service.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/news_service.dart';
 import 'services/notification_service.dart';
+import 'services/persistence_service.dart';
 import 'services/stock_alert_scheduler.dart';
 import 'services/stock_service.dart';
 import 'strategy_utils.dart';
@@ -7225,6 +7227,18 @@ class _StockListPageState extends State<StockListPage> {
       );
     }
 
+    if (!_isEntryFundFlowSafe(stock)) {
+      return _commitImmediateEntrySignal(
+        stock.code,
+        _EntrySignal(
+          label: stock.marginBalanceDiff > 10000000
+              ? '融資冒進（${(_formatWithThousandsSeparator(stock.marginBalanceDiff))}）'
+              : '法人淨流不利',
+          type: _EntrySignalType.wait,
+        ),
+      );
+    }
+
     if (!_passesEventRiskExclusion(stock)) {
       return _commitImmediateEntrySignal(
         stock.code,
@@ -8303,14 +8317,67 @@ void diagnoseStock(StockModel stock, int score) {
       return false;
     }
 
+    // Use BreakoutFilterService for base detection
+    if (BreakoutFilterService.isLikelyFalseBreakout(
+      stock,
+      score,
+      maxChaseChangePercent: _maxChaseChangePercent,
+      minScoreThreshold: _minScoreThreshold,
+    )) {
+      return true;
+    }
+
+    // Enhanced trap detection: check fund flow consistency
+    final totalInstitutional = stock.foreignNet + stock.trustNet;
     final volumeRatio = _latestVolumeReference <= 0
         ? 0.0
         : stock.volume / _latestVolumeReference;
-    final veryHighChange = stock.change >= (_maxChaseChangePercent + 1);
-    final weakFollowThrough = stock.change >= 3.0 && volumeRatio < 1.1;
-    final weakScoreJump =
-        stock.change >= 2.5 && score < (_minScoreThreshold + 5);
-    return veryHighChange || weakFollowThrough || weakScoreJump;
+
+    // Trap 1: Big move but dealer heavily selling (bearish trap)
+    if (stock.dealerNet < -10000000 && stock.change >= 2.5 && volumeRatio >= 1.1) {
+      return true;
+    }
+
+    // Trap 2: High volume rise but weak institutional support
+    if (stock.change >= 3.0 && volumeRatio >= 1.2 &&
+        totalInstitutional.abs() < 20000000) {
+      return true; // Volume spike without real conviction
+    }
+
+    // Trap 3: Suspicious fund flow (foreign buying but dealer massive selling)
+    if (stock.foreignNet > 30000000 && stock.dealerNet < -20000000) {
+      return true; // Classic pump & dump pattern
+    }
+
+    return false;
+  }
+
+  /// Check if stock is entry-safe based on fund flow and technicals.
+  /// Returns false if stock shows trap/overheated signs.
+  bool _isEntryFundFlowSafe(StockModel stock) {
+    // Conservative: Require either strong foreign or trust buying
+    final totalInstitutional = stock.foreignNet + stock.trustNet;
+    if (totalInstitutional <= 10000000) {
+      // Institutional support too weak - riskier entry
+      if (stock.change >= 2.5) {
+        return false; // Weak support but big move = trap risk
+      }
+    }
+
+    // Margin balance increase while stock rises = possible trap trigger
+    if (stock.marginBalanceDiff > 10000000 && stock.change >= 1.5) {
+      return false; // Margin rush-in is risky
+    }
+
+    // Dealer net + margin balance both negative = retail capitulation (okay to buy)
+    // Dealer net + margin balance both positive = dealer + retail rushing in (caution)
+    final dealerAndMarginBothPositive =
+        stock.dealerNet > 5000000 && stock.marginBalanceDiff > 5000000;
+    if (dealerAndMarginBothPositive && stock.change >= 2.0) {
+      return false; // Dealer and margin both pushing up = exhaustion likely
+    }
+
+    return true;
   }
 
   bool _passesEventRiskExclusion(StockModel stock) {
@@ -9826,6 +9893,10 @@ void diagnoseStock(StockModel stock, int score) {
               }
               if (_isLikelyFalseBreakout(item.stock, item.score)) {
                 markDrop(item.stock, '疑似假突破');
+                continue;
+              }
+              if (!_isEntryFundFlowSafe(item.stock)) {
+                markDrop(item.stock, '法人流向不利/融資過多');
                 continue;
               }
               if (!_passesEventRiskExclusion(item.stock)) {
