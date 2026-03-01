@@ -666,8 +666,11 @@ class _StockListPageState extends State<StockListPage> {
         ..clear()
         ..addAll(prefs.getStringList(_favoritesKey) ?? const <String>[]);
       _tradeJournalEntries.clear();
-      _replaceSectorRulesFromText(
+      final normalizedSectorRulesText = _normalizeLegacySectorRulesText(
         prefs.getString(_sectorRulesTextKey) ?? _defaultSectorRulesText,
+      );
+      _replaceSectorRulesFromText(
+        normalizedSectorRulesText,
       );
       _breakoutStreakByCode.clear();
       final rawBreakoutStreak = prefs.getString(_breakoutStreakByCodeKey);
@@ -2544,9 +2547,19 @@ class _StockListPageState extends State<StockListPage> {
     return parsed;
   }
 
+  String _normalizeLegacySectorRulesText(String raw) {
+    return raw
+        .replaceAll('Food/Plastic', '食品/塑化')
+        .replaceAll('Steel/Metal', '鋼鐵/電子')
+        .replaceAll('Electronics/Oil', '通訊/半導體')
+        .replaceAll('Energy', '金融');
+  }
+
   void _replaceSectorRulesFromText(String raw) {
     final trimmed = raw.trim();
-    final source = trimmed.isEmpty ? _defaultSectorRulesText : raw;
+    final source = _normalizeLegacySectorRulesText(
+      trimmed.isEmpty ? _defaultSectorRulesText : raw,
+    );
     final parsed = _parseSectorRulesText(source);
     _sectorRules
       ..clear()
