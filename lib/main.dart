@@ -123,6 +123,10 @@ class _StockListPageState extends State<StockListPage> {
       'diagnostic.dailyContextArchive';
   static const String _dailyFilterStatsKey =
       'diagnostic.dailyFilterStats';
+    static const String _dailyAutoInsightArchiveKey =
+      'diagnostic.dailyAutoInsightArchive';
+    static const String _autoDailyInsightEnabledKey =
+      'diagnostic.autoDailyInsightEnabled';
     static const String _parameterChangeAuditHistoryKey =
       'diagnostic.parameterChangeAuditHistory';
   // 三大法人、融資篩選設定
@@ -425,6 +429,8 @@ class _StockListPageState extends State<StockListPage> {
   final List<_DailyCandidateSnapshot> _dailyCandidateArchive =
       <_DailyCandidateSnapshot>[];
   final List<_DailyFilterStats> _dailyFilterStats = <_DailyFilterStats>[];
+  final List<_DailyAutoInsightSnapshot> _dailyAutoInsightArchive =
+      <_DailyAutoInsightSnapshot>[];
     final List<_DailyPredictionSnapshot> _dailyPredictionArchive =
       <_DailyPredictionSnapshot>[];
     final List<_DailyContextSnapshot> _dailyContextArchive =
@@ -434,6 +440,7 @@ class _StockListPageState extends State<StockListPage> {
     Map<String, String> _lastCoreSelectionParamsSnapshot = <String, String>{};
     String? _nextPreferenceSaveSource;
   bool _diagnosticSnapshotPersistScheduled = false;
+  bool _autoDailyInsightEnabled = true;
   int _riskBudgetPerTrade = 3000;
   double _latestVolumeReference = 10000000;
   // keep last fetched stock list for weight optimization
@@ -798,6 +805,30 @@ class _StockListPageState extends State<StockListPage> {
           );
         }
       }
+      _dailyAutoInsightArchive.clear();
+      final rawDailyAutoInsightArchive =
+          prefs.getString(_dailyAutoInsightArchiveKey);
+      if (rawDailyAutoInsightArchive != null &&
+          rawDailyAutoInsightArchive.isNotEmpty) {
+        final decoded = jsonDecode(rawDailyAutoInsightArchive);
+        if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map) {
+              final parsed = _DailyAutoInsightSnapshot.fromJson(
+                Map<String, dynamic>.from(item),
+              );
+              if (parsed != null) {
+                _dailyAutoInsightArchive.add(parsed);
+              }
+            }
+          }
+          _dailyAutoInsightArchive.sort(
+            (a, b) => b.dateKey.compareTo(a.dateKey),
+          );
+        }
+      }
+      _autoDailyInsightEnabled =
+          prefs.getBool(_autoDailyInsightEnabledKey) ?? _autoDailyInsightEnabled;
       _dailyPredictionArchive.clear();
       final rawDailyPredictionArchive =
           prefs.getString(_dailyPredictionArchiveKey);
@@ -1457,6 +1488,11 @@ class _StockListPageState extends State<StockListPage> {
       jsonEncode(_dailyFilterStats.map((entry) => entry.toJson()).toList()),
     );
     await prefs.setString(
+      _dailyAutoInsightArchiveKey,
+      jsonEncode(
+          _dailyAutoInsightArchive.map((entry) => entry.toJson()).toList()),
+    );
+    await prefs.setString(
       _dailyPredictionArchiveKey,
       jsonEncode(_dailyPredictionArchive.map((entry) => entry.toJson()).toList()),
     );
@@ -1487,6 +1523,10 @@ class _StockListPageState extends State<StockListPage> {
     await prefs.setBool(
       _lockSelectionParametersKey,
       _lockSelectionParameters,
+    );
+    await prefs.setBool(
+      _autoDailyInsightEnabledKey,
+      _autoDailyInsightEnabled,
     );
   }
 
@@ -1906,6 +1946,127 @@ class _StockListPageState extends State<StockListPage> {
     _scheduleDiagnosticsSnapshotPersist();
   }
 
+  _DailyAutoInsightSnapshot _buildDailyAutoInsightSnapshot(DateTime now) {
+    final dateKey = _calendarDayKey(now);
+    final recent30 = now.subtract(const Duration(days: 30));
+    final recent7 = now.subtract(const Duration(days: 7));
+
+    List<double> valuesOf(
+      _EntrySignalType type,
+      double? Function(_SignalTrackEntry entry) getter,
+    ) {
+      return _signalTrackEntries
+          .where((entry) =>
+              entry.signalType == type && !entry.date.isBefore(recent30))
+          .map(getter)
+          .whereType<double>()
+          .toList();
+    }
+
+    double winRate(List<double> values) {
+      if (values.isEmpty) {
+        return 0;
+      }
+      final wins = values.where((value) => value > 0).length;
+      return (wins / values.length) * 100;
+    }
+
+    final strong1 = valuesOf(_EntrySignalType.strong, (entry) => entry.return1Day);
+    final watch1 = valuesOf(_EntrySignalType.watch, (entry) => entry.return1Day);
+    final strong3 = valuesOf(_EntrySignalType.strong, (entry) => entry.return3Day);
+    final watch3 = valuesOf(_EntrySignalType.watch, (entry) => entry.return3Day);
+
+    final recentPredictions = _dailyPredictionArchive
+        .where((entry) {
+          final date = DateTime.tryParse(entry.dateKey);
+          if (date == null) {
+            return false;
+          }
+          return !date.isBefore(recent7);
+        })
+        .toList();
+    final avgDailyCandidates = recentPredictions.isEmpty
+        ? 0.0
+        : recentPredictions
+                .map((entry) => entry.rows.length)
+                .fold<int>(0, (sum, value) => sum + value) /
+            recentPredictions.length;
+
+    final strong1Rate = winRate(strong1);
+    final watch1Rate = winRate(watch1);
+    final strong3Rate = winRate(strong3);
+    final watch3Rate = winRate(watch3);
+
+    String summary;
+    if (strong1.length < 12 && watch1.length < 12) {
+      summary = '樣本偏少，先持續累積訊號資料。';
+    } else if (strong1Rate >= 55 && watch1Rate >= 48 && avgDailyCandidates >= 6) {
+      summary = '近期命中穩健，可維持目前策略門檻。';
+    } else if (strong1Rate < 45 || watch1Rate < 38) {
+      summary = '命中率偏弱，建議提高分數門檻並收斂追高上限。';
+    } else if (avgDailyCandidates < 4) {
+      summary = '候選偏少，可微放寬分數或成交值門檻。';
+    } else {
+      summary = '表現中性，建議先維持並觀察下一週。';
+    }
+
+    return _DailyAutoInsightSnapshot(
+      dateKey: dateKey,
+      capturedAt: now,
+      strong1DayWinRate: strong1Rate,
+      watch1DayWinRate: watch1Rate,
+      strong3DayWinRate: strong3Rate,
+      watch3DayWinRate: watch3Rate,
+      averageDailyCandidates: avgDailyCandidates,
+      strong1DaySamples: strong1.length,
+      watch1DaySamples: watch1.length,
+      summary: summary,
+    );
+  }
+
+  void _upsertDailyAutoInsightSnapshot() {
+    if (!_autoDailyInsightEnabled) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final next = _buildDailyAutoInsightSnapshot(now);
+    final index = _dailyAutoInsightArchive
+        .indexWhere((entry) => entry.dateKey == next.dateKey);
+
+    bool same(_DailyAutoInsightSnapshot a, _DailyAutoInsightSnapshot b) {
+      return a.strong1DayWinRate.toStringAsFixed(2) ==
+              b.strong1DayWinRate.toStringAsFixed(2) &&
+          a.watch1DayWinRate.toStringAsFixed(2) ==
+              b.watch1DayWinRate.toStringAsFixed(2) &&
+          a.strong3DayWinRate.toStringAsFixed(2) ==
+              b.strong3DayWinRate.toStringAsFixed(2) &&
+          a.watch3DayWinRate.toStringAsFixed(2) ==
+              b.watch3DayWinRate.toStringAsFixed(2) &&
+          a.averageDailyCandidates.toStringAsFixed(2) ==
+              b.averageDailyCandidates.toStringAsFixed(2) &&
+          a.strong1DaySamples == b.strong1DaySamples &&
+          a.watch1DaySamples == b.watch1DaySamples &&
+          a.summary == b.summary;
+    }
+
+    if (index >= 0) {
+      final prev = _dailyAutoInsightArchive[index];
+      if (same(prev, next)) {
+        return;
+      }
+      _dailyAutoInsightArchive[index] = next;
+    } else {
+      _dailyAutoInsightArchive.insert(0, next);
+    }
+
+    _dailyAutoInsightArchive.sort((a, b) => b.dateKey.compareTo(a.dateKey));
+    if (_dailyAutoInsightArchive.length > 90) {
+      _dailyAutoInsightArchive.removeRange(90, _dailyAutoInsightArchive.length);
+    }
+    _scheduleDiagnosticsSnapshotPersist();
+  }
+
   String _csvCell(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
@@ -1998,6 +2159,39 @@ class _StockListPageState extends State<StockListPage> {
         _csvCell(row.breakoutMode),
         _csvCell(row.marketRegime),
         _csvCell(row.keyParamsHash),
+      ].join(','));
+    }
+    return lines.join('\n');
+  }
+
+  String _buildInsightsCsv({required int lookbackDays}) {
+    final now = DateTime.now();
+    final start = now.subtract(Duration(days: lookbackDays));
+    final rows = _dailyAutoInsightArchive
+        .where((entry) {
+          final date = DateTime.tryParse(entry.dateKey);
+          if (date == null) {
+            return false;
+          }
+          return !date.isBefore(start);
+        })
+        .toList()
+      ..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+
+    final lines = <String>[
+      'date,strong_1d_win_rate,watch_1d_win_rate,strong_3d_win_rate,watch_3d_win_rate,avg_daily_candidates,strong_1d_samples,watch_1d_samples,summary',
+    ];
+    for (final row in rows) {
+      lines.add([
+        _csvCell(row.dateKey),
+        row.strong1DayWinRate.toStringAsFixed(2),
+        row.watch1DayWinRate.toStringAsFixed(2),
+        row.strong3DayWinRate.toStringAsFixed(2),
+        row.watch3DayWinRate.toStringAsFixed(2),
+        row.averageDailyCandidates.toStringAsFixed(2),
+        row.strong1DaySamples.toString(),
+        row.watch1DaySamples.toString(),
+        _csvCell(row.summary),
       ].join(','));
     }
     return lines.join('\n');
@@ -2369,6 +2563,12 @@ class _StockListPageState extends State<StockListPage> {
                       copy('context.csv', _buildContextCsv(lookbackDays: lookbackDays()));
                     },
                     child: const Text('複製 context.csv'),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: () {
+                      copy('insights.csv', _buildInsightsCsv(lookbackDays: lookbackDays()));
+                    },
+                    child: const Text('複製 insights.csv'),
                   ),
                 ],
               );
@@ -10164,6 +10364,7 @@ void diagnoseStock(StockModel stock, int score) {
               marketRegime: marketRegime,
               filterContext: currentFilterContext,
             );
+            _upsertDailyAutoInsightSnapshot();
             final changedFilterContextLabels =
               _lastCandidateFilterContext.isEmpty
                 ? <String>[]
@@ -11095,6 +11296,70 @@ void diagnoseStock(StockModel stock, int score) {
                               leading: const Icon(Icons.calendar_view_week),
                               title: const Text('每週命中率摘要（最近 7 天）'),
                               subtitle: Text(_buildWeeklyHitRateSummaryText()),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                              horizontalInset, 4, horizontalInset, 0),
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              child: Builder(
+                                builder: (context) {
+                                  final latest = _dailyAutoInsightArchive.isEmpty
+                                      ? null
+                                      : _dailyAutoInsightArchive.first;
+                                  if (latest == null) {
+                                    return const Text('命中率儀表板：尚無每日分析快照。');
+                                  }
+                                  final strongRate =
+                                      latest.strong1DayWinRate.clamp(0, 100);
+                                  final watchRate =
+                                      latest.watch1DayWinRate.clamp(0, 100);
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '命中率儀表板（${latest.dateKey}）',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '強勢 1D 勝率 ${strongRate.toStringAsFixed(1)}%（樣本 ${latest.strong1DaySamples}）',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      LinearProgressIndicator(
+                                        value: strongRate / 100,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '觀察 1D 勝率 ${watchRate.toStringAsFixed(1)}%（樣本 ${latest.watch1DaySamples}）',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      LinearProgressIndicator(
+                                        value: watchRate / 100,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '平均每日候選 ${latest.averageDailyCandidates.toStringAsFixed(1)} 檔｜${latest.summary}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall,
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
@@ -13609,6 +13874,85 @@ class _DailyContextSnapshot {
       breakoutMode: breakoutMode,
       marketRegime: marketRegime,
       keyParamsHash: keyParamsHash,
+    );
+  }
+}
+
+class _DailyAutoInsightSnapshot {
+  const _DailyAutoInsightSnapshot({
+    required this.dateKey,
+    required this.capturedAt,
+    required this.strong1DayWinRate,
+    required this.watch1DayWinRate,
+    required this.strong3DayWinRate,
+    required this.watch3DayWinRate,
+    required this.averageDailyCandidates,
+    required this.strong1DaySamples,
+    required this.watch1DaySamples,
+    required this.summary,
+  });
+
+  final String dateKey;
+  final DateTime capturedAt;
+  final double strong1DayWinRate;
+  final double watch1DayWinRate;
+  final double strong3DayWinRate;
+  final double watch3DayWinRate;
+  final double averageDailyCandidates;
+  final int strong1DaySamples;
+  final int watch1DaySamples;
+  final String summary;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'dateKey': dateKey,
+      'capturedAt': capturedAt.toIso8601String(),
+      'strong1DayWinRate': strong1DayWinRate,
+      'watch1DayWinRate': watch1DayWinRate,
+      'strong3DayWinRate': strong3DayWinRate,
+      'watch3DayWinRate': watch3DayWinRate,
+      'averageDailyCandidates': averageDailyCandidates,
+      'strong1DaySamples': strong1DaySamples,
+      'watch1DaySamples': watch1DaySamples,
+      'summary': summary,
+    };
+  }
+
+  static _DailyAutoInsightSnapshot? fromJson(Map<String, dynamic> json) {
+    final dateKey = (json['dateKey'] ?? '').toString().trim();
+    final capturedAt = DateTime.tryParse((json['capturedAt'] ?? '').toString());
+    final strong1 =
+        double.tryParse((json['strong1DayWinRate'] ?? '').toString()) ?? 0;
+    final watch1 =
+        double.tryParse((json['watch1DayWinRate'] ?? '').toString()) ?? 0;
+    final strong3 =
+        double.tryParse((json['strong3DayWinRate'] ?? '').toString()) ?? 0;
+    final watch3 =
+        double.tryParse((json['watch3DayWinRate'] ?? '').toString()) ?? 0;
+    final avgCandidates =
+        double.tryParse((json['averageDailyCandidates'] ?? '').toString()) ??
+            0;
+    final strongSamples =
+        int.tryParse((json['strong1DaySamples'] ?? '').toString()) ?? 0;
+    final watchSamples =
+        int.tryParse((json['watch1DaySamples'] ?? '').toString()) ?? 0;
+    final summary = (json['summary'] ?? '').toString();
+
+    if (dateKey.isEmpty || capturedAt == null) {
+      return null;
+    }
+
+    return _DailyAutoInsightSnapshot(
+      dateKey: dateKey,
+      capturedAt: capturedAt,
+      strong1DayWinRate: strong1,
+      watch1DayWinRate: watch1,
+      strong3DayWinRate: strong3,
+      watch3DayWinRate: watch3,
+      averageDailyCandidates: avgCandidates,
+      strong1DaySamples: strongSamples,
+      watch1DaySamples: watchSamples,
+      summary: summary,
     );
   }
 }
