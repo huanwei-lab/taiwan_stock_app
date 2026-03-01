@@ -648,98 +648,98 @@ class _StockListPageState extends State<StockListPage> {
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) print('[Stock] initState started');
+    print('[Stock] === initState started ===');
     
     try {
       _stockService = widget._stockService ?? StockService();
-      if (kDebugMode) print('[Stock] StockService created');
+      print('[Stock] StockService created');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR creating StockService: $e');
+      print('[Stock] ERROR creating StockService: $e');
     }
     
     try {
       _newsService = NewsService();
-      if (kDebugMode) print('[Stock] NewsService created');
+      print('[Stock] NewsService created');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR creating NewsService: $e');
+      print('[Stock] ERROR creating NewsService: $e');
     }
     
     try {
       _backtestService = BacktestService();
-      if (kDebugMode) print('[Stock] BacktestService created');
+      print('[Stock] BacktestService created');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR creating BacktestService: $e');
+      print('[Stock] ERROR creating BacktestService: $e');
     }
     
     try {
       _googleDriveBackupService = GoogleDriveBackupService();
-      if (kDebugMode) print('[Stock] GoogleDriveBackupService created');
+      print('[Stock] GoogleDriveBackupService created');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR creating GoogleDriveBackupService: $e');
+      print('[Stock] ERROR creating GoogleDriveBackupService: $e');
     }
     
     try {
       final today = DateTime.now();
       final dateStr = '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       _stocksFuture = _stockService.fetchAllStocksWithFundFlow(dateStr);
-      if (kDebugMode) print('[Stock] StocksFuture created for $dateStr');
+      print('[Stock] StocksFuture created for $dateStr');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR creating StocksFuture: $e');
+      print('[Stock] ERROR creating StocksFuture: $e');
     }
     
     // Schedule all async operations to run after frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (kDebugMode) print('[Stock] Post-frame callback: starting async initialization');
+      print('[Stock] Post-frame callback: starting async initialization');
       _initializeAsync();
     });
     
-    if (kDebugMode) print('[Stock] initState completed');
+    print('[Stock] === initState completed successfully ===');
   }
 
   Future<void> _initializeAsync() async {
-    if (kDebugMode) print('[Stock] _initializeAsync started');
+    print('[Stock] === _initializeAsync started ===');
     
     try {
-      if (kDebugMode) print('[Stock] calling _refreshNews...');
+      print('[Stock] calling _refreshNews...');
       await _refreshNews();
-      if (kDebugMode) print('[Stock] _refreshNews completed');
+      print('[Stock] _refreshNews completed');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR in _refreshNews: $e');
+      print('[Stock] ERROR in _refreshNews: $e');
     }
     
     try {
-      if (kDebugMode) print('[Stock] calling _loadSavedPreferences...');
+      print('[Stock] calling _loadSavedPreferences...');
       await _loadSavedPreferences();
-      if (kDebugMode) print('[Stock] _loadSavedPreferences completed');
+      print('[Stock] _loadSavedPreferences completed');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR in _loadSavedPreferences: $e');
+      print('[Stock] ERROR in _loadSavedPreferences: $e');
     }
     
     try {
-      if (kDebugMode) print('[Stock] calling _refreshGoogleBackupAccount...');
+      print('[Stock] calling _refreshGoogleBackupAccount...');
       await _refreshGoogleBackupAccount();
-      if (kDebugMode) print('[Stock] _refreshGoogleBackupAccount completed');
+      print('[Stock] _refreshGoogleBackupAccount completed');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR in _refreshGoogleBackupAccount: $e');
+      print('[Stock] ERROR in _refreshGoogleBackupAccount: $e');
     }
     
     try {
-      if (kDebugMode) print('[Stock] calling _initIntradayController...');
+      print('[Stock] calling _initIntradayController...');
       await _initIntradayController();
-      if (kDebugMode) print('[Stock] _initIntradayController completed');
+      print('[Stock] _initIntradayController completed');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR in _initIntradayController: $e');
+      print('[Stock] ERROR in _initIntradayController: $e');
     }
     
     try {
-      if (kDebugMode) print('[Stock] calling _validateRecommendationTracking...');
+      print('[Stock] calling _validateRecommendationTracking...');
       _validateRecommendationTracking();
-      if (kDebugMode) print('[Stock] _validateRecommendationTracking completed');
+      print('[Stock] _validateRecommendationTracking completed');
     } catch (e) {
-      if (kDebugMode) print('[Stock] ERROR in _validateRecommendationTracking: $e');
+      print('[Stock] ERROR in _validateRecommendationTracking: $e');
     }
     
-    if (kDebugMode) print('[Stock] _initializeAsync completed');
+    print('[Stock] === _initializeAsync completed successfully ===');
   }
 
   IntradayController? _intradayController;
