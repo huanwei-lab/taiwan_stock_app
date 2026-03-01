@@ -79,6 +79,7 @@ class FundFlowCache {
 
   /// Count consecutive previous days (including [dateInt]) where any institution
   /// net buy condition is met. [institution] can be 'foreign','trust','dealer' or 'any'.
+  /// Correctly handles weekends (skips missing dates).
   /// This is a static helper that uses the internal DB. Use when a real DB is
   /// initialized (i.e., not in test fake caches).
   static Future<int> countConsecutiveInstitutionBuyDays(
@@ -94,7 +95,26 @@ class FundFlowCache {
     );
 
     int streak = 0;
+    DateTime? lastDateInStreak;
+    
     for (final r in rows) {
+      final currentDateInt = r['date'] is int ? r['date'] as int : int.tryParse(r['date'].toString()) ?? 0;
+      final currentDate = _parseDateInt(currentDateInt);
+      
+      // Check continuity: if there's a gap > 1 day, it must be a weekend/holiday
+      if (lastDateInStreak != null) {
+        final daysDiff = lastDateInStreak.difference(currentDate).inDays;
+        // Normal case: 1 day apart (adjacent trading days)
+        // Skip-weekend case: 3 days apart (Friday to Monday)
+        // Skip-holiday case: varies
+        // But if we see a larger gap in trading dates, that's a real break
+        if (daysDiff > 3) {
+          // Check if the gap includes a trading day we're missing → real break
+          final shouldBreak = _hasUnexpectedGap(currentDate, lastDateInStreak);
+          if (shouldBreak) break;
+        }
+      }
+      
       final f = r['foreign_net'] is int ? r['foreign_net'] as int : int.tryParse(r['foreign_net'].toString()) ?? 0;
       final t = r['trust_net'] is int ? r['trust_net'] as int : int.tryParse(r['trust_net'].toString()) ?? 0;
       final d = r['dealer_net'] is int ? r['dealer_net'] as int : int.tryParse(r['dealer_net'].toString()) ?? 0;
@@ -106,13 +126,42 @@ class FundFlowCache {
               : institution == 'dealer'
                   ? d > 0
                   : any;
+      
       if (cond) {
         streak += 1;
+        lastDateInStreak = currentDate;
       } else {
         break;
       }
     }
 
     return streak;
+  }
+
+  /// Helper: parse YYYYMMDD integer to DateTime
+  static DateTime _parseDateInt(int dateInt) {
+    final str = dateInt.toString().padLeft(8, '0');
+    final year = int.parse(str.substring(0, 4));
+    final month = int.parse(str.substring(4, 6));
+    final day = int.parse(str.substring(6, 8));
+    return DateTime(year, month, day);
+  }
+
+  /// Helper: check if gap between two dates is unexpected (contains a trading day)
+  static bool _hasUnexpectedGap(DateTime from, DateTime to) {
+    // Simple heuristic: if the gap > 3 days and includes a weekday, it's a break
+    // For now, if gap > 3, assume it's a real data break (not just weekends)
+    final diff = to.difference(from).inDays;
+    if (diff <= 3) return false; // Fri-Mon is 3 days, acceptable
+
+    // If > 3 days, check if there's a weekday (Mon-Fri)
+    var current = from.add(Duration(days: 1));
+    while (current.isBefore(to)) {
+      if (current.weekday >= DateTime.monday && current.weekday <= DateTime.friday) {
+        return true; // Found unexpected trading day in gap
+      }
+      current = current.add(const Duration(days: 1));
+    }
+    return false;
   }
 }
