@@ -10,15 +10,20 @@ class GoogleDriveBackupService {
   static const String _webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
 
   static GoogleSignIn _buildGoogleSignIn() {
-    if (kIsWeb && _webClientId.isNotEmpty) {
+    try {
+      if (kIsWeb && _webClientId.isNotEmpty) {
+        return GoogleSignIn(
+          clientId: _webClientId,
+          scopes: <String>[drive.DriveApi.driveAppdataScope],
+        );
+      }
       return GoogleSignIn(
-        clientId: _webClientId,
         scopes: <String>[drive.DriveApi.driveAppdataScope],
       );
+    } catch (e) {
+      if (kDebugMode) debugPrint('GoogleSignIn 初始化失敗: $e');
+      return GoogleSignIn();
     }
-    return GoogleSignIn(
-      scopes: <String>[drive.DriveApi.driveAppdataScope],
-    );
   }
 
   final GoogleSignIn _googleSignIn = _buildGoogleSignIn();
