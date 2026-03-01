@@ -2197,6 +2197,26 @@ class _StockListPageState extends State<StockListPage> {
     return lines.join('\n');
   }
 
+  String _buildAllAnalyticsBundle({required int lookbackDays}) {
+    final predictions = _buildPredictionsCsv(lookbackDays: lookbackDays);
+    final outcomes = _buildOutcomesCsv(lookbackDays: lookbackDays);
+    final context = _buildContextCsv(lookbackDays: lookbackDays);
+    final insights = _buildInsightsCsv(lookbackDays: lookbackDays);
+    return [
+      '# predictions.csv',
+      predictions,
+      '',
+      '# outcomes.csv',
+      outcomes,
+      '',
+      '# context.csv',
+      context,
+      '',
+      '# insights.csv',
+      insights,
+    ].join('\n');
+  }
+
   String _buildWeeklyHitRateSummaryText() {
     final now = DateTime.now();
     final start = now.subtract(const Duration(days: 7));
@@ -2545,6 +2565,17 @@ class _StockListPageState extends State<StockListPage> {
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
                     child: const Text('關閉'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      copy(
+                        'analytics_bundle.txt',
+                        _buildAllAnalyticsBundle(
+                          lookbackDays: lookbackDays(),
+                        ),
+                      );
+                    },
+                    child: const Text('一鍵複製全部CSV'),
                   ),
                   FilledButton.tonal(
                     onPressed: () {
@@ -4089,6 +4120,9 @@ class _StockListPageState extends State<StockListPage> {
         if (_minBreakoutStreakDays < 2) {
           warnings.add('連續突破天數偏低，建議至少 2 天。');
         }
+        break;
+      case _BreakoutStageMode.institutionalTrend:
+        warnings.add('目前為法人趨勢續攻模式，重點觀察法人是否持續站在買方。');
         break;
       case _BreakoutStageMode.lowBaseTheme:
         warnings.add('目前為低基期題材模式，請搭配事件風險與停損控管。');
@@ -7701,6 +7735,7 @@ class _StockListPageState extends State<StockListPage> {
   int _strongScoreBuffer() {
     var buffer = switch (_breakoutStageMode) {
       _BreakoutStageMode.confirmed => 12,
+      _BreakoutStageMode.institutionalTrend => 10,
       _BreakoutStageMode.early => 9,
       _BreakoutStageMode.pullbackRebreak => 9,
       _BreakoutStageMode.preEventPosition => 9,
@@ -7726,6 +7761,7 @@ class _StockListPageState extends State<StockListPage> {
   double _strongVolumeMultiplier() {
     var multiplier = switch (_breakoutStageMode) {
       _BreakoutStageMode.confirmed => 1.15,
+      _BreakoutStageMode.institutionalTrend => 1.08,
       _BreakoutStageMode.early => 1.05,
       _BreakoutStageMode.pullbackRebreak => 1.05,
       _BreakoutStageMode.preEventPosition => 1.0,
@@ -7745,6 +7781,7 @@ class _StockListPageState extends State<StockListPage> {
   double _strongMinChangePercent() {
     return switch (_breakoutStageMode) {
       _BreakoutStageMode.confirmed => 1.2,
+      _BreakoutStageMode.institutionalTrend => 0.7,
       _BreakoutStageMode.early => 0.8,
       _BreakoutStageMode.pullbackRebreak => 0.6,
       _BreakoutStageMode.preEventPosition => 0.5,
@@ -8322,6 +8359,7 @@ class _StockListPageState extends State<StockListPage> {
     return switch (mode) {
       _BreakoutStageMode.early => '剛突破',
       _BreakoutStageMode.confirmed => '確認突破',
+      _BreakoutStageMode.institutionalTrend => '法人趨勢續攻',
       _BreakoutStageMode.lowBaseTheme => '低基期題材',
       _BreakoutStageMode.pullbackRebreak => '回檔再攻',
       _BreakoutStageMode.squeezeSetup => '量縮待噴',
@@ -8333,6 +8371,7 @@ class _StockListPageState extends State<StockListPage> {
     return switch (mode) {
       _BreakoutStageMode.early => Icons.trending_up,
       _BreakoutStageMode.confirmed => Icons.verified,
+      _BreakoutStageMode.institutionalTrend => Icons.account_balance,
       _BreakoutStageMode.lowBaseTheme => Icons.lightbulb,
       _BreakoutStageMode.pullbackRebreak => Icons.replay,
       _BreakoutStageMode.squeezeSetup => Icons.compress,
@@ -8344,6 +8383,7 @@ class _StockListPageState extends State<StockListPage> {
     return switch (_breakoutStageMode) {
       _BreakoutStageMode.early => '尚未進入剛突破型態',
       _BreakoutStageMode.confirmed => '連續突破不足（< $_minBreakoutStreakDays 天）',
+      _BreakoutStageMode.institutionalTrend => '法人趨勢續攻條件不足',
       _BreakoutStageMode.lowBaseTheme => '未達低基期題材條件',
       _BreakoutStageMode.pullbackRebreak => '未達回檔再攻條件',
       _BreakoutStageMode.squeezeSetup => '未達量縮整理待噴條件',
@@ -8619,6 +8659,16 @@ class _StockListPageState extends State<StockListPage> {
               stock.tradeValue >= (_minTradeValueThreshold * 0.8))),
       _BreakoutStageMode.confirmed => _passesBreakoutQuality(stock, score) &&
           _passesMultiDayBreakout(stock, score: score),
+      _BreakoutStageMode.institutionalTrend =>
+      (stock.change >= 0.6 &&
+        stock.change <= 3.8 &&
+        volumeRatio >= 1.0 &&
+        score >= (effectiveMinScore - 2).clamp(0, 100) &&
+        stock.tradeValue >= (_minTradeValueThreshold * 0.85) &&
+        (stock.foreignNet + stock.trustNet) >=
+          (_minForeignNet + _minTrustNet).clamp(20000000, 150000000) &&
+        stock.dealerNet >= -15000000 &&
+        stock.marginBalanceDiff <= 25000000),
       _BreakoutStageMode.lowBaseTheme =>
         (stock.closePrice <= (_maxPriceThreshold * 0.65) &&
             stock.change >= -1.0 &&
@@ -8825,6 +8875,15 @@ void diagnoseStock(StockModel stock, int score) {
       return _ModeRecommendation(
         mode: _BreakoutStageMode.early,
         reason: '盤勢偏多且寬度強（${breadth.toStringAsFixed(2)}），可用剛突破搶第一段。',
+      );
+    }
+
+    if (regime == _MarketRegime.bull &&
+        breadth >= 1.1 &&
+        newsLevel != NewsRiskLevel.high) {
+      return _ModeRecommendation(
+        mode: _BreakoutStageMode.institutionalTrend,
+        reason: '多頭延續且寬度穩健，優先篩法人趨勢續攻，降低追高後反轉機率。',
       );
     }
 
@@ -9573,6 +9632,7 @@ void diagnoseStock(StockModel stock, int score) {
       return switch (mode) {
         _BreakoutStageMode.early => '型態偏「剛突破」，重點看量價是否延續',
         _BreakoutStageMode.confirmed => '型態偏「確認突破」，重點看突破後是否站穩',
+        _BreakoutStageMode.institutionalTrend => '型態偏「法人趨勢續攻」，重點看外資/投信是否續買',
         _BreakoutStageMode.lowBaseTheme => '型態偏「低基期補漲」，通常屬題材輪動接棒',
         _BreakoutStageMode.pullbackRebreak => '型態偏「回檔再攻」，重點看回測後再放量',
         _BreakoutStageMode.squeezeSetup => '型態偏「量縮待噴」，重點看是否放量脫離盤整',
@@ -11619,6 +11679,8 @@ void diagnoseStock(StockModel stock, int score) {
                                       scheme.errorContainer,
                                     _BreakoutStageMode.confirmed =>
                                       scheme.primaryContainer,
+                                    _BreakoutStageMode.institutionalTrend =>
+                                      scheme.secondaryContainer,
                                     _BreakoutStageMode.lowBaseTheme =>
                                       scheme.tertiaryContainer,
                                     _BreakoutStageMode.pullbackRebreak =>
@@ -11633,6 +11695,8 @@ void diagnoseStock(StockModel stock, int score) {
                                       scheme.onErrorContainer,
                                     _BreakoutStageMode.confirmed =>
                                       scheme.onPrimaryContainer,
+                                    _BreakoutStageMode.institutionalTrend =>
+                                      scheme.onSecondaryContainer,
                                     _BreakoutStageMode.lowBaseTheme =>
                                       scheme.onTertiaryContainer,
                                     _BreakoutStageMode.pullbackRebreak =>
@@ -14354,6 +14418,7 @@ enum _MarketRegime {
 enum _BreakoutStageMode {
   early,
   confirmed,
+  institutionalTrend,
   lowBaseTheme,
   pullbackRebreak,
   squeezeSetup,
