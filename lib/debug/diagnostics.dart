@@ -10,7 +10,23 @@ const int _maxChaseChangePercent = 6;
 
 double _minPriceThresholdDefault() => 10.0;
 
-// (removed unused enum _BreakoutStageModeRep)
+/// 將英文模式名稱轉換為中文
+String _getModeDisplayName(BreakoutMode mode) {
+  switch (mode) {
+    case BreakoutMode.early:
+      return '早期';
+    case BreakoutMode.confirmed:
+      return '確認';
+    case BreakoutMode.lowBaseTheme:
+      return '低基調';
+    case BreakoutMode.pullbackRebreak:
+      return '回檔再破';
+    case BreakoutMode.squeezeSetup:
+      return '擠壓布局';
+    case BreakoutMode.preEventPosition:
+      return '事前布局';
+  }
+}
 
 /// Prints a diagnostic report for [stock] using replicated selection rules.
 ///
@@ -39,15 +55,15 @@ void diagnoseStockPublic(
   bool enableChipConcentrationFilter = false,
   double minChipConcentrationPercent = 70.0,
 }) {
-  debugPrint('--- Diagnose ${stock.code} ${stock.name} ---');
-  debugPrint('closePrice=${stock.closePrice} change%=${stock.change.toStringAsFixed(2)} volume=${stock.volume} tradeValue=${stock.tradeValue}');
-  debugPrint('foreign=${stock.foreignNet} trust=${stock.trustNet} dealer=${stock.dealerNet} marginDiff=${stock.marginBalanceDiff}');
+  debugPrint('--- 診斷 ${stock.code} ${stock.name} ---');
+  debugPrint('收盤=${stock.closePrice} 變動%=${stock.change.toStringAsFixed(2)} 量=${stock.volume} 成交值=${stock.tradeValue}');
+  debugPrint('外資=${stock.foreignNet} 信託=${stock.trustNet} 自營=${stock.dealerNet} 融資淨額=${stock.marginBalanceDiff}');
 
   const effectiveMinScore = _minScoreThreshold; // simplified
-  debugPrint('effectiveMinScore=$effectiveMinScore providedScore=$score');
+  debugPrint('最低分數=$effectiveMinScore 提供分數=$score');
 
   final volumeRatio = latestVolumeReference <= 0 ? 0.0 : stock.volume / latestVolumeReference;
-  debugPrint('volumeReference=$latestVolumeReference volumeRatio=${volumeRatio.toStringAsFixed(3)}');
+  debugPrint('成交量參考=$latestVolumeReference 成交量比=${volumeRatio.toStringAsFixed(3)}');
 
   // Use BreakoutFilterService to evaluate all modes
   final results = BreakoutFilterService.evaluateAllModes(
@@ -67,7 +83,7 @@ void diagnoseStockPublic(
   // Output results for each mode
   for (final mode in BreakoutMode.values) {
     final passed = results[mode] ?? false;
-    debugPrint('mode=${mode.name} => ${passed ? '通過' : '失敗'}');
+    debugPrint('${_getModeDisplayName(mode)} => ${passed ? '通過' : '失敗'}');
   }
 
   // False breakout detection
@@ -77,14 +93,14 @@ void diagnoseStockPublic(
     maxChaseChangePercent: _maxChaseChangePercent,
     minScoreThreshold: _minScoreThreshold,
   );
-  debugPrint('likelyFalseBreakout=$likelyFalse');
+  debugPrint('可能虛假突破=$likelyFalse');
 
   // Confirmed-mode multi-day streak check (if enabled)
   if (enableMultiDayBreakout) {
     final codeStr = stock.code.toString();
     final streak = breakoutStreakByCode != null ? (breakoutStreakByCode[codeStr] ?? 0) : 0;
     final confirmed = streak >= minBreakoutStreakDays;
-    debugPrint('confirmedMode: streak=$streak required=$minBreakoutStreakDays confirmed=$confirmed');
+    debugPrint('確認模式: 連漲天數=$streak 需要=$minBreakoutStreakDays 確認=$confirmed');
   }
 
   // Simple news/title event matching (if provided).
@@ -119,14 +135,14 @@ List<String> getDiagnosisReport(
   List<String>? newsTitles,
 }) {
   final lines = <String>[];
-  lines.add('Diagnose ${stock.code} ${stock.name}');
+  lines.add('診斷 ${stock.code} ${stock.name}');
   lines.add('收盤 ${stock.closePrice} 變動 ${stock.change.toStringAsFixed(2)}% 量 ${stock.volume}');
 
   const effectiveMinScore = _minScoreThreshold;
-  lines.add('effectiveMinScore=$effectiveMinScore providedScore=$score');
+  lines.add('最低分數=$effectiveMinScore 提供分數=$score');
 
   final volumeRatio = latestVolumeReference <= 0 ? 0.0 : stock.volume / latestVolumeReference;
-  lines.add('volumeRatio=${volumeRatio.toStringAsFixed(3)} (ref=$latestVolumeReference)');
+  lines.add('成交量比=${volumeRatio.toStringAsFixed(3)} (參考=$latestVolumeReference)');
 
   // Use BreakoutFilterService to evaluate all modes
   final results = BreakoutFilterService.evaluateAllModes(
@@ -146,7 +162,7 @@ List<String> getDiagnosisReport(
   // Output results for each mode
   for (final mode in BreakoutMode.values) {
     final passed = results[mode] ?? false;
-    lines.add('${mode.name} => ${passed ? '通過' : '失敗'}');
+    lines.add('${_getModeDisplayName(mode)} => ${passed ? '通過' : '失敗'}');
   }
 
   // False breakout detection
@@ -156,14 +172,14 @@ List<String> getDiagnosisReport(
     maxChaseChangePercent: _maxChaseChangePercent,
     minScoreThreshold: _minScoreThreshold,
   );
-  lines.add('likelyFalseBreakout=$likelyFalse');
+  lines.add('可能虛假突破=$likelyFalse');
 
   // Confirmed-mode multi-day streak check
   if (enableMultiDayBreakout) {
     final codeStr = stock.code.toString();
     final streak = breakoutStreakByCode != null ? (breakoutStreakByCode[codeStr] ?? 0) : 0;
     final confirmed = streak >= minBreakoutStreakDays;
-    lines.add('confirmedMode: streak=$streak required=$minBreakoutStreakDays confirmed=$confirmed');
+    lines.add('確認模式: 連漲天數=$streak 需要=$minBreakoutStreakDays 確認=$confirmed');
   }
 
   // News/title event matching
@@ -180,7 +196,7 @@ List<String> getDiagnosisReport(
       }
     }
     if (hits.isNotEmpty) {
-      lines.add('newsHits=${hits.toSet().toList()}');
+      lines.add('新聞命中=${hits.toSet().toList()}');
     }
   }
 
@@ -253,9 +269,9 @@ Future<DiagnosisReport> getDiagnosisReportStructuredAsync(
       lines.add(DiagnosisLine(left, value: right, status: status, severity: severity));
     } else {
       String? severity;
-      if (l.contains('likelyFalse')) {
+      if (l.contains('可能虛假突破')) {
         severity = 'danger';
-      } else if (l.toLowerCase().contains('newshits') || l.toLowerCase().contains('newshits') || l.toLowerCase().contains('newshits')) {
+      } else if (l.contains('新聞命中')) {
         severity = 'info';
       }
       // confirmed line handled later via report.confirmed
